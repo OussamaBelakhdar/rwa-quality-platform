@@ -1,3 +1,36 @@
+# RWA Quality Platform
+
+Fork de [`cypress-io/cypress-realworld-app`](https://github.com/cypress-io/cypress-realworld-app) dont la suite de tests a été supprimée puis reconstruite de zéro, pour démontrer un référentiel d'ingénierie de test Cypress sur une application réelle (React + XState + Express + lowdb).
+
+## Pourquoi ce projet
+
+Une suite de tests se juge sur ce qu'elle coûte à maintenir, pas sur le nombre de tests. Ce dépôt sert à montrer les décisions qui font ce coût — pas à réciter une API.
+
+Le point de départ n'est pas neutre : la RWA amont est déjà bien outillée. Le travail consiste donc à retirer ce qui existe, à dire pourquoi, et à reconstruire avec des contraintes écrites. Chaque décision structurante est un ADR ; une décision non tracée par un ADR n'existe pas.
+
+- Architecture, principes et quality gates : [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- Plan et critères de fin par semaine : [`docs/PLAN.md`](docs/PLAN.md)
+- Décisions : [`docs/adr/`](docs/adr/)
+- Chiffres : [`docs/metrics.md`](docs/metrics.md)
+
+## Démarrer
+
+```bash
+nvm use            # 22.20.0, cf. .node-version
+corepack enable    # Yarn Classic 1.x — le projet est incompatible Yarn Modern
+yarn && yarn dev   # front :3000, API :3001
+```
+
+## État
+
+**Semaine 0 — fondation.** Suite Cypress à 0 test, `specPattern` en `.cy.ts`, `tsconfig` strict sur `cypress/`, aucune dépendance à Cypress Cloud. Voir [ADR-001](docs/adr/001-frontiere-expose-env-et-conventions-de-specs.md).
+
+---
+
+# README de l'application amont
+
+Conservé tel quel : il documente l'application testée, ses fournisseurs d'authentification et ses scripts. Projet original sous licence MIT, voir [`LICENSE`](LICENSE).
+
 <p align="center">
   <!-- We use two SVGs here so that this displays correctly
     on Github. This might not look right in other Markdown previewers. -->
