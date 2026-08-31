@@ -94,7 +94,7 @@
     },
     {
       "groupName": "Testing / coverage",
-      "matchPackageNames": ["nyc", "istanbul-lib-coverage", "@percy/cypress"],
+      "matchPackageNames": ["nyc", "istanbul-lib-coverage"],
       "matchPackagePatterns": ["^cypress/"]
     },
     {

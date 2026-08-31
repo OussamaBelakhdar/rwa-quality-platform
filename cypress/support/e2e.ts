@@ -1,23 +1,12 @@
-// @ts-check
 import "@cypress/code-coverage/support";
 import "./commands";
-import { isMobile } from "./utils";
 
 beforeEach(() => {
-  // cy.intercept middleware to remove 'if-none-match' headers from all requests
-  // to prevent the server from returning cached responses of API requests
+  // Middleware conservé de l'upstream : sans lui, le serveur répond 304 sur les
+  // requêtes API et les assertions portent sur une réponse mise en cache.
+  // C'est une mesure anti-flake d'infrastructure, pas un test — elle reste.
   cy.intercept(
-    { url: "http://localhost:3001/**", middleware: true },
+    { url: `${Cypress.expose("apiUrl")}/**`, middleware: true },
     (req) => delete req.headers["if-none-match"]
   );
-
-  // Throttle API responses for mobile testing to simulate real world condition
-  if (isMobile()) {
-    cy.intercept({ url: "http://localhost:3001/**", middleware: true }, (req) => {
-      req.on("response", (res) => {
-        // Throttle the response to 1 Mbps to simulate a mobile 3G connection
-        res.setThrottle(1000);
-      });
-    });
-  }
 });
