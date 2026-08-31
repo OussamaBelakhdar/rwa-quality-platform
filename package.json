@@ -126,7 +126,6 @@
     "passport-local": "1.0.0",
     "patch-package": "^7.0.0",
     "prettier": "^3.0.0",
-    "start-server-and-test": "1.14.0",
     "ts-node": "10.9.2",
     "typescript": "5.8.3",
     "typescript-eslint": "^8.56.1",
