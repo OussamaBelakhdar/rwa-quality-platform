@@ -1,0 +1,49 @@
+# Mises à jour automatisées. Objectif : que la dette héritée du fork amont
+# décroisse toute seule, sans noyer le dépôt sous les PR.
+# Les alertes de sécurité (Dependabot security updates) sont indépendantes de
+# ce fichier et restent actives quoi qu'il arrive.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    labels: ["dependencies"]
+    groups:
+      # Un lot par famille : une PR à relire, pas quinze.
+      cypress:
+        patterns: ["cypress", "@cypress/*", "cypress-*"]
+      vite-build:
+        patterns: ["vite", "@vitejs/*", "vitest", "rollup", "esbuild", "postcss"]
+      babel:
+        patterns: ["@babel/*", "babel-*"]
+      mui:
+        patterns: ["@mui/*", "@emotion/*"]
+      types:
+        patterns: ["@types/*"]
+      lint:
+        patterns: ["eslint", "eslint-*", "@typescript-eslint/*", "prettier"]
+      transitive-security:
+        applies-to: security-updates
+        patterns: ["*"]
+    ignore:
+      # Montées majeures à instruire à la main : elles touchent l'authentification,
+      # le proxy de dev ou la génération d'identifiants du seed.
+      - dependency-name: "passport*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "http-proxy-middleware"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "uuid"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels: ["ci"]
+    # Les actions sont épinglées par SHA (quality gate §6 d'ARCHITECTURE.md).
+    # Dependabot sait mettre à jour un SHA épinglé en conservant l'épinglage.
