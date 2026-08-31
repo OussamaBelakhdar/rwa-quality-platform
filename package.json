@@ -59,8 +59,6 @@
     "@cypress/instrument-cra": "1.4.0",
     "@eslint/js": "^10.0.1",
     "@faker-js/faker": "6.1.2",
-    "@percy/cli": "^1.27.4",
-    "@percy/cypress": "^3.1.8",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^14.0.0",
     "@types/bcryptjs": "2.4.2",
@@ -211,14 +209,6 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "percy": {
-    "version": 1,
-    "snapshot": {
-      "widths": [
-        1280
-      ]
-    }
   },
   "nyc": {
     "exclude": [

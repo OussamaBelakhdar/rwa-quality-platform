@@ -19,7 +19,6 @@ try {
 } catch (e) {}
 
 export default defineConfig({
-  projectId: "7s5okt",
   retries: {
     runMode: 2,
   },
@@ -67,7 +66,7 @@ export default defineConfig({
   },
   e2e: {
     baseUrl: "http://localhost:3000",
-    specPattern: "cypress/tests/**/*.spec.{js,jsx,ts,tsx}",
+    specPattern: "cypress/e2e/**/*.cy.{ts,tsx}",
     supportFile: "cypress/support/e2e.ts",
     viewportHeight: 1000,
     viewportWidth: 1280,

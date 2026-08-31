@@ -52,3 +52,14 @@ amplifytools.xcconfig
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# --- rwa-quality-platform ---
+# Secrets et config locale (ADR-001, ARCHITECTURE §9).
+# .env*.local est déjà couvert plus haut ; .env reste commité et sans secret.
+cypress.env.json
+.mcp.json
+*.pem
+
+# Reporting
+allure-results/
+allure-report/
