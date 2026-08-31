@@ -164,7 +164,7 @@
     "cypress:run:mobile": "cypress run --config '{\"e2e\":{\"viewportWidth\":375,\"viewportHeight\":667}}'",
     "test": "yarn cypress:open",
     "test:headless": "yarn cypress:run",
-    "test:api": "yarn cypress:run --spec 'cypress/tests/api/*'",
+    "test:api": "yarn cypress:run --spec 'cypress/api/**/*.cy.ts'",
     "test:unit": "vitest",
     "test:unit:ci": "vitest --run",
     "test:component:ci": "yarn cypress:run:component",
