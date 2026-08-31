@@ -3,7 +3,7 @@
 
 describe("Fondations — naviguer dans le sujet", { tags: ["@foundations", "@regression"] }, () => {
   beforeEach(() => {
-    cy.seed();
+    cy.seed("default");
     cy.login("Heath93");
     cy.visit("/");
   });
@@ -12,17 +12,21 @@ describe("Fondations — naviguer dans le sujet", { tags: ["@foundations", "@reg
     cy.getBySelLike("transaction-item").its("length").should("be.greaterThan", 0);
   });
 
-  it("appelle une méthode du sujet avec .invoke", () => {
+  it("appelle une méthode du sujet avec .invoke, sans figer la chaîne", () => {
+    // Contraste avec le `.then` de la spec 03 : ici la chaîne reste
+    // retriable de bout en bout, l'assertion peut donc rejouer.
     cy.getBySel("sidenav-user-balance")
       .invoke("text")
-      .should("match", /^\$[\d,]+\.\d{2}$/);
+      .should("match", /^-?\$[\d,]+\.\d{2}$/);
   });
 
   it("réintroduit une valeur externe dans la chaîne avec cy.wrap", () => {
     const attendu = "Heath93";
     // cy.wrap rend une valeur ordinaire chaînable : c'est le pont entre du
-    // code JavaScript classique et la file de commandes.
-    cy.wrap(attendu).should("be.a", "string");
-    cy.getBySel("sidenav-username").invoke("text").should("contain", attendu);
+    // code JavaScript classique et la file de commandes. L'assertion porte
+    // sur l'application, pas sur la constante.
+    cy.wrap(attendu).then((nom) => {
+      cy.getBySel("sidenav-username").invoke("text").should("contain", nom);
+    });
   });
 });

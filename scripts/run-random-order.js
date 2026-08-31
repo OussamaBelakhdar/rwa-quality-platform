@@ -62,7 +62,19 @@ console.log("");
 
 const result = spawnSync(
   "npx",
-  ["cypress", "run", "--e2e", "--spec", relative.join(","), ...process.argv.slice(2)],
+  [
+    "cypress",
+    "run",
+    "--e2e",
+    // Retries forcés à zéro : avec retries.runMode=2, un test qui dépend de
+    // l'état laissé par un autre échouerait puis passerait au retry, et la
+    // preuve d'isolation (P1) serait verte alors que la dépendance existe.
+    "--config",
+    "retries=0",
+    "--spec",
+    relative.join(","),
+    ...process.argv.slice(2),
+  ],
   { stdio: "inherit" }
 );
 if (result.status !== 0) {

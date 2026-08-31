@@ -1,13 +1,19 @@
 /// <reference types="cypress" />
 
 import type { DataTestKey } from "./selectors/data-test";
+import type { DataTestPrefix, SeedScenario } from "./types";
 // Type importé de l'application, jamais redéclaré (.claude/rules/typescript.md).
 import type { authService } from "../../src/machines/authMachine";
 
 declare global {
   /** Surface de test exposée par l'application sous garde `window.Cypress`. */
   interface Window {
-    authService: typeof authService;
+    /**
+     * Exposé par l'amont **uniquement** sous garde `window.Cypress`, et
+     * seulement après évaluation du bundle. Optionnel par conception : le type
+     * force l'attente au lieu de la confier à la discipline (ADR-006).
+     */
+    authService?: typeof authService;
   }
 
   namespace Cypress {
@@ -15,9 +21,12 @@ declare global {
       /** Sélectionne par `data-test`. La clé est typée : faute de frappe = erreur de compilation. */
       getBySel(key: DataTestKey, options?: Partial<Loggable & Timeoutable>): Chainable<JQuery>;
       /** Sélectionne par préfixe de `data-test`, pour les listes à identifiant. */
-      getBySelLike(prefix: string, options?: Partial<Loggable & Timeoutable>): Chainable<JQuery>;
+      getBySelLike(
+        prefix: DataTestPrefix,
+        options?: Partial<Loggable & Timeoutable>
+      ): Chainable<JQuery>;
       /** Remet la base dans son état seedé via la tâche `db:seed` (L1). */
-      seed(scenario?: "default"): Chainable<unknown>;
+      seed(scenario?: SeedScenario): Chainable<unknown>;
       /** Connecte un utilisateur par l'API, sans passer par le formulaire. */
       login(username: string): Chainable<void>;
     }

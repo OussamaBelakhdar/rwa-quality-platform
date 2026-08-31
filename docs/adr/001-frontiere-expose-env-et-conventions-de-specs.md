@@ -52,6 +52,32 @@ Faits relevés au moment du fork :
 2. **`specPattern: "cypress/e2e/**/\*.cy.{ts,tsx}"`\*\*, appliqué en semaine 0 pendant que le coût est nul.
 3. **Retirer `projectId`** de `cypress.config.ts`.
 
+## Révision — la frontière est ternaire, pas binaire (2026-08-31, semaine 1)
+
+En exécutant les premières specs, Cypress 15.17 a émis deux avertissements que la v1 de cet ADR ne pouvait pas connaître :
+
+```
+Warning: The allowCypressEnv configuration option is enabled. This allows any
+browser code to read values from Cypress.env(). This is insecure and will be
+removed in a future major version.
+```
+
+Et les types du paquet marquent `Cypress.env()` `@deprecated` : « Use `cy.env()` or `Cypress.expose()` instead ».
+
+La frontière décidée plus haut reste juste dans son principe, mais elle est **incomplète** : elle oppose deux mécanismes là où il y en a trois.
+
+| Mécanisme          | Portée                                                              | Usage                                       |
+| ------------------ | ------------------------------------------------------------------- | ------------------------------------------- |
+| `Cypress.expose()` | lisible par le code de la page                                      | configuration publique — URL, ports, seuils |
+| `cy.env()`         | reste côté runner                                                   | **secrets** — mot de passe, jetons          |
+| `Cypress.env()`    | lisible par le code de la page tant qu'`allowCypressEnv` est ouvert | **déprécié**, à ne plus utiliser            |
+
+**Décision complémentaire** : `allowCypressEnv: false` dans `cypress.config.ts`, et toute lecture de secret passe par `cy.env()`. Laisser le drapeau ouvert signifie que n'importe quel script de la page — y compris un script tiers chargé par l'application — peut lire `env`, donc les secrets que la v1 y avait délibérément rangés. La v1 rangeait le secret au bon endroit tout en laissant la porte ouverte.
+
+**Conséquence sur les règles** : `.claude/rules/testing.md` #3 et le message du hook `check-spec.sh` imposaient `Cypress.env('defaultPassword')`. Mis à jour vers `cy.env()`.
+
+**Conséquence sur le typage** : `cy.env<T>(keys)` est un générique non vérifié — il affirme un type que rien ne garantit à l'exécution. Les secrets sont donc déclarés optionnels (`{ defaultPassword?: string }`) pour que la garde d'absence soit exigée par le compilateur au lieu d'être du code que TypeScript croit mort.
+
 ## Ce que cet ADR n'affirme pas
 
 Il ne fait aucune affirmation sur une version de Cypress postérieure à celle constatée dans `package.json` au moment du fork (`15.17.0`), ni sur un calendrier de publication. La frontière `expose`/`env` est adoptée pour ce qu'elle apporte aujourd'hui — une séparation lisible entre config et secret — indépendamment de toute version future.

@@ -192,7 +192,7 @@
     "test:unit:ci": "vitest --run",
     "tsnode": "nyc --silent ts-node -P tsconfig.tsnode.json",
     "tsnode:not-instrumented": "ts-node -P tsconfig.tsnode.json",
-    "types": "tsc --noEmit"
+    "types": "tsc --noEmit && tsc --noEmit -p cypress/tsconfig.json"
   },
   "engines": {
     "node": "^22.0.0 || ^24.0.0"

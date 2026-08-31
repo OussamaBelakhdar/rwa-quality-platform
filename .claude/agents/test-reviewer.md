@@ -18,6 +18,7 @@ Pour chaque fichier fourni, vérifier dans l'ordre :
 7. **Lisibilité pour un lead dev** : le nom du `describe`/`it` décrit-il le comportement métier, pas la mécanique ?
 
 Format de sortie :
+
 ```
 ## <fichier>
 Verdict : APPROUVÉ | À CORRIGER
@@ -27,4 +28,5 @@ Verdict : APPROUVÉ | À CORRIGER
 - …
 ### Ce qui est bien (max 2 lignes, seulement si concret)
 ```
+
 Pas de compliment sans ligne citée. Si tout est bon, le dire en une phrase.

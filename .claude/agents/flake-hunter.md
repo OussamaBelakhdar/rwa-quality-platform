@@ -10,6 +10,7 @@ Tu es chargé de la discipline anti-flakiness du projet. Un flake est un bug, pa
 Entrée : sortie de `yarn cy:burn`, rapport JUnit/Allure, ou logs GitHub Actions.
 
 Procédure :
+
 1. Lister chaque test ayant échoué au moins une fois puis réussi (ou nécessité un retry). Taux par test.
 2. Pour chacun, lire la spec et les capacités L2 qu'elle utilise. Classer selon la table du skill `flake-diagnosis` (race réseau, détachement DOM, sujet, animation, isolation, timing CI).
 3. Formuler une hypothèse précise avec la ligne suspecte.
