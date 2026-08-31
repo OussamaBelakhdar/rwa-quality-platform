@@ -1,76 +1,140 @@
-# ADR-006 — Exposer les services XState aux tests via `VITE_TEST_HOOKS`, en conservant le garde `window.Cypress` de l'upstream
+# ADR-006 — Exposer les services XState aux tests via un registre gardé par `VITE_TEST_HOOKS`
 
-**Statut** : proposé (implémentation semaine 3 ; à passer « accepté » après revue `adr-challenger`)
+**Statut** : proposé (implémentation semaine 3 ; gate CI en semaine 6)
 **Date** : 2026-08-31
 **Semaine du plan** : 3
+**Révision** : v2 — après revue `adr-challenger`. La v1 plaçait le registre à un scope où trois des quatre services n'existent pas, et affirmait une parité Playwright qu'elle ne définissait pas.
 
 ## Contexte
 
-L'architecture (§4, couche L2) annonçait un accès à l'état applicatif par `window.__xstate__`, exposé sous garde `import.meta.env.MODE === 'test'`. Lecture faite de l'upstream, aucune de ces deux affirmations n'est exacte, et la réalité est plus désordonnée que prévu.
+L'architecture (§4, couche L2) annonçait un accès à l'état applicatif par `window.__xstate__` sous garde `import.meta.env.MODE === 'test'`. Ni le nom ni le garde n'existent. La réalité est plus désordonnée.
 
-**Cinq services sont exposés, depuis six fichiers, avec deux gardes différents — dont un absent :**
+### Ce que l'amont expose réellement
 
-| Fichier                                                                                     | Service                      | Garde            |
-| ------------------------------------------------------------------------------------------- | ---------------------------- | ---------------- |
-| `src/containers/App.tsx:29`                                                                 | `authService`                | `window.Cypress` |
-| `src/containers/AppAuth0.tsx:28`, `AppOkta.tsx:30`, `AppCognito.tsx:32`, `AppGoogle.tsx:15` | `authService`                | `window.Cypress` |
-| `src/components/TransactionPublicList.tsx:27`                                               | `publicTransactionService`   | `window.Cypress` |
-| `src/components/TransactionContactsList.tsx:27`                                             | `contactTransactionService`  | `window.Cypress` |
-| `src/components/TransactionPersonalList.tsx:27`                                             | `personalTransactionService` | `window.Cypress` |
-| `src/containers/TransactionCreateContainer.tsx:41`                                          | `createTransactionService`   | **aucun**        |
+| Fichier                                                                      | Service                      | Garde            | Durée de vie                                                                     |
+| ---------------------------------------------------------------------------- | ---------------------------- | ---------------- | -------------------------------------------------------------------------------- |
+| `src/containers/App.tsx:29`                                                  | `authService`                | `window.Cypress` | **singleton de module** (`interpret(authMachine).start()`, `authMachine.ts:275`) |
+| `AppAuth0.tsx:28`, `AppOkta.tsx:30`, `AppCognito.tsx:32`, `AppGoogle.tsx:15` | `authService`                | `window.Cypress` | idem                                                                             |
+| `TransactionPublicList.tsx:27`                                               | `publicTransactionService`   | `window.Cypress` | par montage (`useMachine`)                                                       |
+| `TransactionContactsList.tsx:27`                                             | `contactTransactionService`  | `window.Cypress` | par montage                                                                      |
+| `TransactionPersonalList.tsx:27`                                             | `personalTransactionService` | `window.Cypress` | par montage                                                                      |
+| `TransactionCreateContainer.tsx:41`                                          | `createTransactionService`   | **aucun**        | par montage                                                                      |
 
-Trois conséquences :
+Et trois sites où `window.Cypress` ne garde pas une exposition mais **décide du comportement de l'application** :
 
-1. **Une surface de test part en production.** `TransactionCreateContainer` fait `window.createTransactionService = createTransactionService` sans condition, précédé d'un `@ts-ignore`. Ce n'est pas un choix, c'est un oubli : les cinq autres sites sont gardés. Dans un build de production, n'importe qui peut piloter la machine de création de transaction depuis la console.
-2. **Le garde `window.Cypress` dépend du runner.** Il est posé par Cypress lui-même. Un test **Playwright** (module de la semaine 10) ne le voit jamais : il n'aurait aucune app action, alors que la parité des capacités entre les deux outils est précisément l'argument de l'ADR-005 (« le coût d'une migration est borné à L2 + L3 »). Comparer les deux outils avec des capacités inégales fausserait la conclusion.
-3. **L'exposition est éparpillée.** Six sites, deux conventions de nommage (`contactTransactionService` côté `window` mais `contactsTransactionService` côté machine), et des services créés mais jamais exposés (`notificationsService`, `snackbarService`, `bankAccountsService`, tous trois instanciés dans `App.tsx`). Il n'y a pas de point unique où lire ce que les tests peuvent atteindre.
+| Fichier            | Effet                                                                                                                   |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `AppOkta.tsx:48`   | enveloppe un `useEffect` qui injecte l'auth depuis `localStorage`                                                       |
+| `AppOkta.tsx:98`   | `window.Cypress && VITE_OKTA_PROGRAMMATIC ? AppOkta : withOktaAuth(AppOkta)` — **le runner choisit le composant monté** |
+| `AppGoogle.tsx:51` | même mécanique pour le flux Google                                                                                      |
+
+### Les quatre problèmes
+
+1. **Une surface de test part en production.** `TransactionCreateContainer.tsx:41` affecte `window.createTransactionService` sans condition, précédé d'un `@ts-ignore`. Les huit autres sites sont gardés : c'est un oubli, pas un choix. Dans un build de production, la machine de création de transaction est pilotable depuis la console.
+2. **Le garde dépend du runner.** `window.Cypress` est posé par Cypress. Playwright (semaine 10) ne le voit jamais.
+3. **Les durées de vie sont hétérogènes.** `authService` existe avant tout montage ; les cinq autres n'existent que pendant que leur composant est monté et sont recréés au remontage. Un registre plat laisserait croire à six objets équivalents — et lire un service démonté renverrait `undefined`, ou pire, enverrait un événement à un acteur arrêté sans erreur. Dans un projet dont P4 dit « le flake est un bug », c'est une source de flake structurelle.
+4. **Il n'y a pas de point unique de lecture.** Six sites, deux conventions de nommage (`contactTransactionService` côté `window`, `contactsTransactionService` côté machine), et trois machines instanciées dans `App.tsx` mais jamais exposées (`notifications`, `snackbar`, `bankAccounts`).
 
 ## Options considérées
 
-| Option                                                                            | Avantages                                                                                                                                                                           | Inconvénients                                                                                                                                                                                                                      | Coût                                  |
-| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| **1 — Garder `window.Cypress` seul**                                              | Zéro modification de `src/` ; strictement conforme à l'amont                                                                                                                        | Playwright sans app actions : soit il passe par l'UI (lent, fragile), soit la comparaison Cypress/Playwright de la semaine 10 est biaisée en faveur de Cypress. Reste limité à `authService`                                       | 0, mais casse la semaine 10           |
-| **2 — Remplacer par `import.meta.env.MODE === 'test'`**                           | Indépendant du runner                                                                                                                                                               | `MODE` vaut `development` sous `yarn dev`, qui est précisément le mode dans lequel tournent les tests : le garde serait faux au moment où on en a besoin. Et remplacer le garde amont crée un conflit à chaque `git pull upstream` | ~2 h + conflits récurrents            |
-| **3 — Garder `window.Cypress` et ajouter un garde `VITE_TEST_HOOKS`** _(retenue)_ | Le bloc amont reste intact (pas de conflit de merge) ; le nouveau bloc est explicite, indépendant du runner, et pilotable par variable d'environnement ; couvre les quatre services | Deux gardes coexistent, à documenter                                                                                                                                                                                               | ~3 h dans `src/`, une ligne de script |
-| **4 — Exposer inconditionnellement**                                              | Le plus simple                                                                                                                                                                      | Surface de test présente dans tout build ; contredit §9                                                                                                                                                                            | 0 et inacceptable                     |
+| Option                                                                                                                | Avantages                                                                                                                                                             | Inconvénients                                                                                                                                                 | Coût (en sites touchés)                     |
+| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **1 — Garder `window.Cypress` seul**                                                                                  | 0 modification de `src/` ; conforme à l'amont                                                                                                                         | Playwright sans app actions : la comparaison de la semaine 10 serait biaisée en faveur de Cypress. Ne corrige pas la fuite.                                   | 0, mais invalide la semaine 10              |
+| **2 — Remplacer par `import.meta.env.MODE === 'test'`**                                                               | Indépendant du runner                                                                                                                                                 | `MODE` vaut `development` sous `yarn dev`, précisément le mode où les tests tournent. Et remplacer le garde amont crée un conflit à chaque resynchronisation. | 9 sites + conflits                          |
+| **3 — `vite --mode test` + `.env.test`, sans registre**                                                               | Idiomatique Vite, déclaratif, relisible en revue                                                                                                                      | Résout le garde, pas la dispersion ni les durées de vie ni le nommage. On aurait 6 variables globales propres au lieu de 6 sales.                             | 9 sites                                     |
+| **4 — Registre `window.__services__` gardé par `VITE_TEST_HOOKS`, livré par `.env.test` + `--mode test`** _(retenue)_ | Un seul objet à lire pour L2 ; garde indépendant du runner ; déclaratif ; blocs amont intacts donc pas de conflit ; permet de traiter les durées de vie explicitement | Deux mécanismes coexistent ; impose deux artefacts de build (cf. Conséquences)                                                                                | 9 sites d'écriture + L2 + typage + 1 job CI |
+| **5 — Exposer inconditionnellement**                                                                                  | Le plus simple                                                                                                                                                        | Contredit §9.                                                                                                                                                 | inacceptable                                |
+
+L'option 3 est la bonne réponse à la question « quel garde ? ». Elle est reprise **à l'intérieur** de l'option 4 comme mécanisme de livraison du flag : le désaccord ne porte pas sur le garde mais sur la présence d'un registre.
 
 ## Décision
 
-Conserver les blocs `window.Cypress` existants **tels quels** (pas de conflit sur un futur `git pull upstream`), et ajouter **un point d'exposition unique** dans `src/containers/App.tsx` :
+### 1. Le flag
+
+`VITE_TEST_HOOKS`, lu via `process.env.VITE_TEST_HOOKS` — **convention du dépôt** : `vite.config.ts:9-11` fait `define: { "process.env": env }`, donc l'expression est remplacée par un littéral au build et le bloc mort est éliminé. Le dépôt compte 24 `process.env.VITE_*` dans `src/` et zéro `import.meta.env` ; on ne crée pas une seconde convention.
+
+Livraison déclarative, pas par export de shell :
+
+```
+# .env.test — commité, aucun secret
+VITE_TEST_HOOKS=true
+```
+
+```jsonc
+// package.json
+"dev:test": "cross-env VITE_TEST_HOOKS=true concurrently ...",   // comme les autres scripts du dépôt
+"build:test": "vite build --mode test"
+```
+
+### 2. Le registre et les durées de vie
+
+`authService` est un singleton : il s'enregistre au scope module, à côté du bloc amont, dans `App.tsx` et les quatre shells SSO.
 
 ```ts
-// conservé de l'upstream, non modifié
+// src/containers/App.tsx — bloc amont conservé, non modifié
 if (window.Cypress) {
   window.authService = authService;
 }
 
-// ajouté : point unique, indépendant du runner, piloté au build
-if (import.meta.env.VITE_TEST_HOOKS === "true") {
-  window.__services__ = {
-    auth: authService,
-    notifications: notificationsService,
-    snackbar: snackbarService,
-    bankAccounts: bankAccountsService,
-  };
+// ajouté, au scope module : authService est un singleton
+if (process.env.VITE_TEST_HOOKS === "true") {
+  registerService("auth", authService);
 }
 ```
 
-Les services portés par des composants (`publicTransactionService`, `contactTransactionService`, `personalTransactionService`, `createTransactionService`) s'enregistrent dans le même registre depuis leur composant, sous le même garde.
+Les services portés par un composant s'enregistrent **et se désenregistrent** depuis un effet, ce qui rend la durée de vie observable au lieu d'être subie :
 
-**Et corriger le défaut trouvé** : `TransactionCreateContainer.tsx:41` passe sous garde comme les cinq autres sites. C'est une correction de sécurité, pas un refactor — elle part dans sa propre PR, en amont si possible.
+```ts
+// dans le composant, pour chaque service issu de useMachine
+useTestHook("createTransaction", createTransactionService);
+```
 
-- `VITE_TEST_HOOKS` est **absent** de `.env`, donc absent de tout build par défaut. Les scripts de test le posent explicitement (`VITE_TEST_HOOKS=true yarn dev`).
-- La couche L2 (`support/app-actions/xstate.actions.ts`) lit `window.__services__` et **uniquement** lui.
-- Le typage vit dans `cypress/support/index.d.ts` et importe les types depuis `src/machines` — jamais de redéclaration (`rules/typescript.md`).
-- Playwright consomme le même registre : la parité de capacité est vérifiable, pas postulée.
+`useTestHook` (un hook de `src/utils/testHooks.ts`) est un `useEffect` qui écrit dans `window.__services__` au montage et supprime la clé au démontage. Conséquence contractuelle pour L2 : **une app action attend qu'un service apparaisse**, elle ne le suppose jamais présent. C'est ce qui empêche le flake décrit au problème 3.
+
+### 3. Ce que « parité Playwright » veut dire ici
+
+Définition opérationnelle, parce que « parité » sans définition est une opinion :
+
+- **Parité de lecture — visée.** `getSnapshot().value` et le `context`, sérialisables, franchissent `page.evaluate` sans difficulté.
+- **Parité de pilotage — visée, avec restriction.** Playwright envoie des événements **sérialisables** (`{ type, ...payload }`) depuis une closure `evaluate`. Exemple minimal :
+  ```ts
+  await page.evaluate(() => window.__services__.auth.send({ type: "LOGOUT" }));
+  ```
+- **Hors périmètre.** Aucune référence à un `Interpreter` XState v4 ne traverse la frontière : c'est une instance de classe avec `machine`, `children` (une `Map`) et des cycles — non sérialisable. La L2 Playwright s'écrit donc en closures, pas en handles.
+
+**Limite explicite** : le registre ne répare que l'observabilité. Les trois sites `AppOkta:48`, `AppOkta:98`, `AppGoogle:51` font que sous Cypress l'application **montée n'est pas la même**. La comparaison de la semaine 10 porte donc sur les domaines hors SSO, ou bien la semaine 9 normalise aussi ces trois gardes — décision reportée à l'ADR-005, pas tranchée ici.
+
+### 4. La fuite est corrigée séparément
+
+`TransactionCreateContainer.tsx:41` passe sous garde `window.Cypress` comme les huit autres sites. C'est un correctif de sécurité indépendant de ce registre, proposé en amont dans sa propre PR.
+
+### 5. Typage
+
+Le type de `window.__services__` vit dans `src/utils/testHooks.ts` (donc dans le programme TS qui compile `src/`, ce que `cypress/tsconfig.json` ne fait pas) et est réexporté vers `cypress/support/index.d.ts`. Sans cela, le site d'écriture resterait sur `@ts-ignore`, que `rules/typescript.md` interdit.
 
 ## Conséquences
 
-- Positives : la semaine 10 compare deux outils à capacités égales. Un seul endroit décrit ce que les tests peuvent atteindre, au lieu de six. Une surface de test qui fuitait en production est refermée. Le bloc amont n'est pas touché, donc aucun conflit sur `App.tsx` lors d'une resynchronisation.
-- Négatives assumées : deux mécanismes d'exposition coexistent dans `App.tsx` — un lecteur pressé peut croire à une redondance. Le commentaire au-dessus de chaque bloc doit dire lequel appartient à l'amont et lequel appartient au fork.
-- Négative de sécurité : une variable d'environnement mal positionnée exposerait l'état applicatif dans un build. Mitigation : `VITE_TEST_HOOKS` n'est jamais écrit dans un fichier commité, et le job CI de build vérifie l'absence de `__services__` dans le bundle produit.
-- Surveillé via : une assertion dans la suite (`window.__services__` est `undefined` sur un build sans le flag) et le gate de build en CI.
+- Positives : un seul objet décrit ce que les tests peuvent atteindre. Les durées de vie sont explicites. Une surface de test qui fuitait en production est refermée. Le flag est commité et relisible en revue plutôt qu'exporté dans un shell.
+- **Négative structurante — deux artefacts.** `VITE_TEST_HOOKS` est figé **au build**, pas au démarrage du serveur. Dès que la CI teste un bundle (`vite build` puis `preview`, ce que fait le workflow amont et ce que fera Playwright), il faut un build de test et un build de livraison. **L'artefact testé n'est plus l'artefact livré.** C'est le prix de l'option 4 et il est assumé ici, pas découvert en semaine 6.
+- Négative : deux mécanismes d'exposition coexistent. Ils ne sont pas équivalents — `window.Cypress` est celui de l'amont, `__services__` est celui du projet, et L2 ne lit que le second.
+- Négative de sécurité : `loadEnv` reprend aussi les variables `VITE_*` **du shell**. L'absence de `VITE_TEST_HOOKS` dans `.env` n'est donc pas une garantie ; seul le gate CI l'est.
+- **Surveillé via : rien aujourd'hui.** Le gate — un job qui construit sans `--mode test` et vérifie l'absence de `__services__` dans `build/**/*.js` **et dans `build/**/\*.js.map`** (`vite.config.ts:18` active les sourcemaps) — est un livrable de la **semaine 6**. Tant qu'il n'existe pas, cette ligne décrit une intention, et l'ADR le dit plutôt que de cocher une case.
 
 ## Réversibilité
 
-Retirer le registre = ~8 lignes dans `src/containers/App.tsx` et une ligne par composant enregistré + réécriture de `support/app-actions/xstate.actions.ts` (L2). Les specs (L3) ne bougent pas : elles n'appellent que `cy.appState(...)`. Coût estimé : 2 h. C'est exactement le périmètre annoncé au §10 de l'architecture — une capacité L2 se remplace sans toucher aux specs.
+Comptée en sites, parce qu'un nombre se vérifie et qu'une durée ne se vérifie pas :
+
+| À défaire                                    | Sites                        |
+| -------------------------------------------- | ---------------------------- |
+| Enregistrement `authService`                 | 5 (`App.tsx` + 4 shells SSO) |
+| Enregistrement par composant                 | 4                            |
+| `src/utils/testHooks.ts` + son type          | 1                            |
+| L2 `support/app-actions/xstate.actions.ts`   | 1                            |
+| `.env.test`, scripts `dev:test`/`build:test` | 2                            |
+| Gate CI                                      | 1                            |
+
+**14 sites.** Les specs (L3) ne bougent pas : elles n'appellent que `cy.appState(...)`. C'est exactement le périmètre annoncé au §10 de l'architecture — une capacité L2 se remplace sans toucher aux specs.
+
+## Dépendance de version
+
+Le registre expose des `Interpreter` XState **v4** (`xstate@4.38.3`, `@xstate/react@3.2.2`). C'est v4 qui fournit le troisième élément de `useMachine` (`[state, send, service]`), donc l'existence même de ces services. Une montée en v5 (`createActor`, `getSnapshot()`, disparition de `send(type, payload)` à deux arguments) réécrit L2 et le registre.

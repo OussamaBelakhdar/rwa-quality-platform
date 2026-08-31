@@ -71,7 +71,7 @@ rwa-quality-platform/
 │   │   │   ├── dom.commands.ts      # cy.getBySel, cy.getByRole
 │   │   │   └── index.ts
 │   │   ├── app-actions/
-│   │   │   └── xstate.actions.ts    # accès aux services XState via window
+│   │   │   └── xstate.actions.ts    # registre window.__services__ (VITE_TEST_HOOKS)
 │   │   ├── intercepts/
 │   │   │   ├── transactions.intercepts.ts   # factories d'intercept réutilisables
 │   │   │   └── notifications.intercepts.ts
@@ -118,7 +118,7 @@ rwa-quality-platform/
 - `intercepts/` en **factories** (`interceptTransactions({ status: 500 })`) — le stub réseau est une capacité partagée, pas du code inline dans chaque spec.
 - `fixtures/builders/` plutôt que JSON : un builder typé avec defaults + overrides évite les 40 fichiers `user-with-no-bank-account.json`.
 - Aucun dossier `pages/` ou `pageObjects/` — décision ADR-002, justifiée par l'accès XState.
-- Extension `.cy.ts` et `specPattern: "cypress/e2e/**/*.cy.{ts,tsx}"` (l'upstream utilise `cypress/tests/**/*.spec.ts`). Changement acté en semaine 0 : il aligne e2e et component testing sur une seule convention, et c'est ce que les garde-fous outillés du dépôt ciblent.
+- Extension `.cy.ts` et `specPattern: "cypress/{e2e,api}/**/*.cy.{ts,tsx}"` (l'upstream utilise `cypress/tests/**/*.spec.ts`). Changement acté en semaine 0 : une seule convention de fichier pour e2e, api et component, celle que ciblent les garde-fous du dépôt. `api/` reste un **répertoire frère** de `e2e/`, pas un sous-dossier : c'est un niveau de test distinct au sens d'ADR-004, et le ranger sous `e2e/` par commodité d'outillage effacerait la distinction que la grille sert à faire.
 
 ---
 
@@ -136,13 +136,13 @@ rwa-quality-platform/
 
 ### L2 — Capacités
 
-| Composant           | Interface                                                            | Règle                                                                                                                                                                                     |
-| ------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth.commands.ts`  | `cy.login(username?)` → `cy.session` + `cy.request('/login')`        | `validate()` appelle `/checkAuth`. Le mot de passe vient de `Cypress.env`, jamais en dur                                                                                                  |
-| `data.commands.ts`  | `cy.seed(scenario: 'empty' \| 'default' \| 'rich')`                  | Wrapper typé sur les tâches ; les specs ne connaissent pas lowdb                                                                                                                          |
-| `dom.commands.ts`   | `cy.getBySel(key: DataTestKey)`                                      | `DataTestKey` est un type union généré depuis `selectors/data-test.ts` — une faute de frappe est une erreur de compilation                                                                |
-| `xstate.actions.ts` | `cy.appState('onboarding', 'done')`                                  | Lit `window.__services__`, exposé **uniquement** si `VITE_TEST_HOOKS === 'true'` au build. `window.authService` (garde `window.Cypress`, hérité de l'upstream) est conservé. Voir ADR-006 |
-| `*.intercepts.ts`   | `interceptTransactions({ status?, delay?, body? })` retourne l'alias | Chaque factory retourne son alias pour `cy.wait`                                                                                                                                          |
+| Composant           | Interface                                                            | Règle                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.commands.ts`  | `cy.login(username?)` → `cy.session` + `cy.request('/login')`        | `validate()` appelle `/checkAuth`. Le mot de passe vient de `Cypress.env`, jamais en dur                                                                                                                                                                                                                                                                       |
+| `data.commands.ts`  | `cy.seed(scenario: 'empty' \| 'default' \| 'rich')`                  | Wrapper typé sur les tâches ; les specs ne connaissent pas lowdb                                                                                                                                                                                                                                                                                               |
+| `dom.commands.ts`   | `cy.getBySel(key: DataTestKey)`                                      | `DataTestKey` est un type union généré depuis `selectors/data-test.ts` — une faute de frappe est une erreur de compilation                                                                                                                                                                                                                                     |
+| `xstate.actions.ts` | `cy.appState('onboarding', 'done')`                                  | Lit `window.__services__`, peuplé **uniquement** si `process.env.VITE_TEST_HOOKS === 'true'` — valeur figée **au build** (`.env.test` + `--mode test`). Attend qu'un service apparaisse, ne le suppose jamais présent. `window.authService` (garde `window.Cypress`, hérité de l'upstream) est conservé mais n'est pas la voie d'accès du projet. Voir ADR-006 |
+| `*.intercepts.ts`   | `interceptTransactions({ status?, delay?, body? })` retourne l'alias | Chaque factory retourne son alias pour `cy.wait`                                                                                                                                                                                                                                                                                                               |
 
 ### L3 — Specs
 
@@ -259,7 +259,7 @@ Publiées dans `docs/metrics.md`, mises à jour à chaque semaine du plan.
 ## 9. Sécurité et environnements
 
 - Secrets : `.env.local` et `cypress.env.json` gitignorés ; en CI, GitHub Secrets → `CYPRESS_*`.
-- `window.__services__` exposé uniquement si `VITE_TEST_HOOKS === 'true'` — absent de tout build par défaut (ADR-006).
+- `window.__services__` peuplé uniquement si `process.env.VITE_TEST_HOOKS === 'true'`, valeur figée au build. La CI produit donc **deux artefacts** : celui qu'on teste et celui qu'on livre. `loadEnv` reprenant aussi les variables `VITE_*` du shell, l'absence du flag dans `.env` n'est pas une garantie : seul le gate de build (semaine 6, inspecte `build/**/*.js` **et** les sourcemaps) l'est. Voir ADR-006.
 - `.env` est **commité** (hérité de l'upstream) et ne contient aucun secret : tailles de seed, ports, `SEED_DEFAULT_USER_PASSWORD=s3cret` documenté publiquement. Les secrets réels vont dans `.env.local` (chargé en premier par `cypress.config.ts`) et `cypress.env.json`, tous deux gitignorés. Pas de `.env.example` : le `.env` commité en tient lieu.
 - Auth0 (semaine 9) : tenant dédié, utilisateur de test, credentials en secrets, aucun token dans les vidéos (masquage `cy.origin` + `log: false`).
 - Aucune donnée réelle : lowdb seedé par builders, réinitialisé par test.
