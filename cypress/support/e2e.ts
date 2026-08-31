@@ -1,5 +1,11 @@
 import "@cypress/code-coverage/support";
 import "./commands";
+import { register as registerCypressGrep } from "@cypress/grep";
+
+// Filtrage par tag : `yarn cy:run --env grep=@smoke`.
+// La règle .claude/rules/testing.md #6 impose un tag de domaine et un tag de
+// niveau sur chaque describe ; sans ce plugin la règle serait déclarative.
+registerCypressGrep();
 
 beforeEach(() => {
   // Middleware conservé de l'upstream : sans lui, le serveur répond 304 sur les

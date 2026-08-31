@@ -23,6 +23,28 @@ yarn && yarn dev   # front :3000, API :3001
 
 ## État
 
+**Semaine 1 — fondations.** 8 specs, 19 tests, 12 s, vertes sur 3 exécutions consécutives.
+
+### Ce que la file de commandes change
+
+```
+  écriture de la spec          exécution
+ ┌─────────────────────┐     ┌──────────────────────────────┐
+ │ cy.getBySel(...)    │ ──▶ │ query  ─┐                    │
+ │ cy.click()          │     │ action  │ rejouées ensemble  │
+ │ .should(...)        │     │ assert ─┘ jusqu'au succès    │
+ │ const x = ...       │     └──────────────────────────────┘
+ └─────────────────────┘        ▲
+   tout s'empile d'abord        └── le code hors chaîne, lui,
+   rien ne s'exécute                a déjà fini de tourner
+```
+
+**Trois règles qui en découlent :**
+
+1. **Ce qui est hors de la chaîne s'exécute avant elle.** Un `if` autour d'un `cy.*`, une variable lue juste après, un `try/catch` : tous évalués pendant la collecte, quand la file n'a encore rien fait.
+2. **Un sujet capturé est mort ; un sujet relu est vivant.** Stocker `$el` dans une variable survit à un re-render — le noeud, lui, non. C'est l'origine de « element is detached from the DOM ».
+3. **Le retry s'arrête à la première action.** Toutes les queries qui précèdent une assertion sont rejouées ensemble ; un `.click()` ou un `.then()` borne la zone rejouable. C'est pourquoi `cy.wait(<nombre>)` n'est jamais la réponse.
+
 **Semaine 0 — fondation.** Suite Cypress à 0 test, `specPattern` en `.cy.ts`, `tsconfig` strict sur `cypress/`, aucune dépendance à Cypress Cloud. Voir [ADR-001](docs/adr/001-frontiere-expose-env-et-conventions-de-specs.md).
 
 ---

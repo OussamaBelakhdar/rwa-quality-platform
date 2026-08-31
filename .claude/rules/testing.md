@@ -4,7 +4,7 @@ Dérivées des principes P1-P6 de `docs/ARCHITECTURE.md`. Le hook `check-spec.sh
 
 1. **Isolation** — chaque spec commence par `cy.seed(...)`. Aucun test ne lit un état laissé par un autre. `yarn cy:random` doit passer. `cy.seed` passe par les endpoints `/testData` du backend ; jamais d'écriture directe dans `data/database.json` ni d'import de lowdb depuis `cypress/`.
 2. **Pas de login UI** hors de `cypress/e2e/auth/`. Partout ailleurs : `cy.login(username)` (cy.session).
-3. **Interdit** : `cy.wait(<nombre>)`, `it.only`, `it.skip`, sélecteurs `#id` / `.class`, accès direct à lowdb depuis une spec ou un plugin, mot de passe en dur dans le code (utiliser `Cypress.env('defaultPassword')`).
+3. **Interdit** : `cy.wait(<nombre>)`, `it.only`, `it.skip`, sélecteurs `#id` / `.class`, accès direct à lowdb depuis une spec ou un plugin, mot de passe en dur dans le code (utiliser `cy.env(['defaultPassword'])` — `Cypress.env()` est déprécié depuis Cypress 15.4 et lisible par le code de la page, voir ADR-001).
 4. **`beforeEach` ≤ 3 lignes** : seed, login, visit. Au-delà, la préparation descend en L2 (commande ou app action).
 5. **Un `it` = un comportement**. Pas de `it` de plus de 25 lignes.
 6. **Tags obligatoires** sur chaque `describe` : un domaine (`@transactions`, `@auth`, …) + un niveau (`@smoke` ou `@regression`). `@quarantine` uniquement avec un commentaire `// QUARANTINE: #<issue> <date>`.

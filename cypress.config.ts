@@ -6,6 +6,7 @@ import Promise from "bluebird";
 import codeCoverageTask from "@cypress/code-coverage/task";
 import { defineConfig } from "cypress";
 import viteConfig from "./vite.cypress.config.ts";
+import { plugin as registerGrepPlugin } from "@cypress/grep/plugin";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -22,6 +23,10 @@ export default defineConfig({
   retries: {
     runMode: 2,
   },
+  // allowCypressEnv: false ferme Cypress.env() côté navigateur. Cypress 15.4+
+  // le déprécie et signale que, laissé ouvert, n'importe quel code de la page
+  // peut lire ces valeurs — donc les secrets. Voir ADR-001.
+  allowCypressEnv: false,
   env: {
     defaultPassword: process.env.SEED_DEFAULT_USER_PASSWORD,
   },
@@ -71,7 +76,6 @@ export default defineConfig({
     viewportHeight: 1000,
     viewportWidth: 1280,
     experimentalRunAllSpecs: true,
-    experimentalStudio: true,
     setupNodeEvents(on, config) {
       const testDataApiEndpoint = `${config.expose.apiUrl}/testData`;
 
@@ -133,6 +137,10 @@ export default defineConfig({
       });
 
       codeCoverageTask(on, config);
+
+      // Filtrage par tag côté Node : permet `--env grep=@smoke` de ne charger
+      // que les specs concernées (.claude/rules/testing.md #6).
+      registerGrepPlugin(config);
 
       // Derive the auth-provider guard flags from the fully-resolved
       // config.env so every credential source is honored (CYPRESS_* vars,

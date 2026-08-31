@@ -8,6 +8,7 @@ description: Rédige un Architecture Decision Record dans docs/adr/ au format du
 Fichier : `docs/adr/<nnn>-<slug>.md`, numéro suivant l'index de `docs/ARCHITECTURE.md`. Commité **avant** le code. Partir de `docs/adr/000-template.md`.
 
 ## Règles
+
 - Au moins deux options. Celle retenue n'est pas forcément la "meilleure" en absolu — c'est la meilleure ici, et l'ADR dit pourquoi.
 - Chiffrer dès que possible (temps de suite, coût mensuel, nombre de fichiers touchés).
 - Nommer l'alternative écartée qu'un recruteur proposerait spontanément (ex. Page Objects, Cypress Cloud) et dire pourquoi elle perd ici.

@@ -22,3 +22,21 @@ Une case vide signifie « pas encore mesurable », jamais « non mesuré ».
 | Taux de flake                  | —                               | pas de suite                                                                                                                                                    |
 | Quarantaine                    | 0                               | —                                                                                                                                                               |
 | Ratio composant / API / E2E    | —                               | pas de suite                                                                                                                                                    |
+
+## Semaine 1 — fondations (2026-08-31)
+
+| Métrique                                      | Valeur                                             | Note                                                                                                                     |
+| --------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Specs E2E                                     | **8**                                              | `cypress/e2e/00-foundations/`                                                                                            |
+| Tests                                         | **18**                                             | 18 passants, 0 en quarantaine (19 avant revue ; deux tests non probants de la spec 05 fusionnés en un test discriminant) |
+| Durée de suite (séquentiel, Electron)         | **12 s**                                           | mesure locale, non shardée                                                                                               |
+| Stabilité                                     | **3/3 exécutions consécutives vertes**             | aucun retry déclenché                                                                                                    |
+| Filtrage par tag                              | fonctionnel                                        | `--env grep=@foundations` → 8 specs                                                                                      |
+| Capacités L2 livrées                          | 4 commandes, 1 app action, 3 factories d'intercept | `getBySel`, `getBySelLike`, `seed`, `login`                                                                              |
+| Clés `data-test` typées                       | 75                                                 | union littérale, faute de frappe = erreur de compilation                                                                 |
+| `yarn types` / `tsc -p cypress` / `yarn lint` | verts                                              | —                                                                                                                        |
+| Isolation (`yarn cy:random`)                  | **3 ordres aléatoires, 19/19 à chaque fois**       | graines 989457388, 43520517, 162811761 ; ordre rejouable via `CY_RANDOM_SEED`                                            |
+| Taux de flake (`yarn cy:burn`)                | **0,00 %**                                         | 10 exécutions × 19 tests = 190 exécutions, 0 échec, retries désactivés. Seuil §6 : 2 %                                   |
+| Durée du burn                                 | 3 min 04                                           | 10 exécutions séquentielles                                                                                              |
+| Revue `test-reviewer`                         | **passée, 8 points bloquants corrigés**            | dont `yarn types` qui ne compilait pas `cypress/`                                                                        |
+| Assertions vérifiées par mutation             | 2/2 discriminantes                                 | specs 05 et 06 : inverser l'attendu fait bien échouer                                                                    |

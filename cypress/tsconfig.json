@@ -9,8 +9,11 @@
     "types": ["cypress", "node"],
     "lib": ["es2020", "dom", "dom.iterable"],
     "isolatedModules": false,
-    "module": "commonjs",
-    "moduleResolution": "node",
+    // @cypress/grep n'expose que le champ "exports" : sa résolution et son
+    // augmentation de SuiteConfigOverrides (la clé `tags`) exigent une
+    // résolution moderne. Les specs sont bundlées par Cypress, pas par Node.
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "allowJs": false,
     "noEmit": true,
 
@@ -19,11 +22,16 @@
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": true,
-
-    // Imports : pas de ../../.. (rules/typescript.md)
+    // Limite structurelle : cypress/support importe des types applicatifs
+    // (src/machines/authMachine) — obligatoire, .claude/rules/typescript.md
+    // interdit de redéclarer — ce qui fait entrer le code amont dans CE
+    // programme TS. Un flag qui inspecte le corps des fichiers s'applique donc
+    // aussi à l'application. Sont écartés pour cette raison, et pour elle
+    // seule : exactOptionalPropertyTypes, noUnusedLocals, noUnusedParameters.
+    // Les corriger reviendrait à modifier l'application pour une préférence de
+    // l'outillage de test. Restent actifs les flags qui portent sur la sûreté
+    // du typage : strict, noImplicitAny, noUncheckedIndexedAccess,
+    // noImplicitOverride.
     "baseUrl": "..",
     "paths": {
       "@support/*": ["cypress/support/*"],

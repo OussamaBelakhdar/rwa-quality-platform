@@ -23,7 +23,7 @@ if grep -nE "require\(.*lowdb|from ['\"]lowdb|data/database\.json" "$file"; then
   echo "P1/L1 violé : aucune écriture ni lecture directe de lowdb depuis cypress/ — passer par les endpoints /testData (cy.seed / cy.task)." >&2; fail=1
 fi
 if grep -nE "['\"]s3cret['\"]" "$file"; then
-  echo "Mot de passe en dur — utiliser Cypress.env('defaultPassword') (rules/testing.md #3)." >&2; fail=1
+  echo "Mot de passe en dur — utiliser cy.env(['defaultPassword']) (rules/testing.md #3, ADR-001)." >&2; fail=1
 fi
 if grep -nE '@ts-ignore' "$file"; then
   echo "@ts-ignore interdit — utiliser @ts-expect-error commenté, ou corriger le type (rules/typescript.md)." >&2; fail=1
