@@ -35,4 +35,30 @@ export default defineConfig([
       globals: globals.node,
     },
   },
+  // Le code de test est du code de production (P5). Les règles ci-dessus sont
+  // désactivées pour l'application héritée de l'amont ; elles sont réactivées
+  // ici pour le code que ce projet écrit. Sans ce bloc,
+  // .claude/rules/typescript.md (« aucun any, aucun @ts-ignore ») ne tient que
+  // par le grep du hook check-spec.sh, qui ne voit que les fichiers modifiés
+  // pendant une session — donc pas ceux d'une contribution extérieure.
+  {
+    files: ['cypress/**/*.ts'],
+    extends: [tseslint.configs.recommended],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/ban-ts-comment': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // Incompatible avec l'API fluide de chai : `expect(x).to.be.true` EST
+      // une expression sans effet du point de vue de la règle. La désactiver
+      // ici est une contrainte de l'outil d'assertion, pas un relâchement.
+      '@typescript-eslint/no-unused-expressions': 'off',
+    },
+  },
+  // Outillage L5 : JavaScript simple, on veut au moins les variables mortes.
+  {
+    files: ['scripts/burn.js', 'scripts/run-random-order.js'],
+    rules: {
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
 ])
