@@ -144,6 +144,7 @@
     "codesandbox:start:api": "yarn tsnode:not-instrumented --files backend/app.ts",
     "copy:mock:awsexports": "ncp scripts/mock-aws-exports.js src/aws-exports.js",
     "copy:mock:awsexportses5": "ncp scripts/mock-aws-exports-es5.js aws-exports-es5.js",
+    "cy:burn": "node scripts/burn.js",
     "cy:component": "cypress run --component",
     "cy:random": "node scripts/run-random-order.js",
     "cy:run": "cypress run --e2e",
