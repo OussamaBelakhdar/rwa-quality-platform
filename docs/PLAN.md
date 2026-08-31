@@ -45,6 +45,7 @@
 **Livrable** : `cy.login(username)` typée, session cachée, zéro login UI hors du test de login lui-même.
 
 - Login via `cy.request` sur `/login` (l'API Express existe), cookie de session capturé.
+  - _Constaté en semaine 2_ : le cookie ne suffit pas. `authMachine` démarre en `unauthorized` et ne consulte pas `/checkAuth` de lui-même ; il reprend l'état persisté dans `localStorage.authState`. Reconstruire cet état à la main coupleraît le code de test aux internes XState (refusé par ADR-006). Le setup de `cy.session` amorce donc la machine une fois, et le cache capture cookies **et** localStorage — c'est de là que vient le gain. `cy.request` est utilisé là où il est le bon outil : `validate()`.
 - `cy.session` avec `validate()` qui vérifie `/checkAuth`.
 - Un seul test `login.cy.ts` couvre l'UI ; tout le reste passe par la session.
 - Mesure : temps de suite avant/après sur les 8 specs de la semaine 1 (chiffre dans le README).

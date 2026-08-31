@@ -43,3 +43,19 @@ Une case vide signifie « pas encore mesurable », jamais « non mesuré ».
 | Garde-fou sélecteurs                          | `yarn check:selectors`                                          | 75 clés, `src/` et l'union comparées dans les deux sens ; chaîné dans `yarn lint`                                      |
 | Règles TS appliquées au code de test          | `no-explicit-any`, `ban-ts-comment` en `error` sur `cypress/**` | vérifié par sonde : les deux rejettent                                                                                 |
 | **Base de référence semaine 2**               | **12–13 s** pour 20 tests                                       | sans `cy.session` : `cy.login` charge `/signin` puis la spec charge sa page — deux chargements par test                |
+
+## Semaine 2 — `cy.session` (2026-09-01)
+
+Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même machine, Electron.
+
+| Métrique                     | Avant                                 | Après   | Écart     |
+| ---------------------------- | ------------------------------------- | ------- | --------- |
+| Durée de suite               | 12–13 s                               | **8 s** | **−35 %** |
+| Chargements de page par test | 2 (`/signin` puis la page de la spec) | 1       | −50 %     |
+
+| Autre                                   | Valeur                                                        |
+| --------------------------------------- | ------------------------------------------------------------- |
+| Suite complète (22 tests, auth incluse) | 10–11 s                                                       |
+| Isolation `yarn cy:random`              | 3 ordres, 22/22 — le cache de session ne crée pas de couplage |
+| `yarn cy:burn`                          | 10 × 22 = 220 exécutions, **0,00 %**                          |
+| Login UI restant                        | **1 spec** (`e2e/auth/login.cy.ts`, 2 tests)                  |
