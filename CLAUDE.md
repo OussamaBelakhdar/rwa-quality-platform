@@ -9,8 +9,10 @@ Fork de `cypress-io/cypress-realworld-app` dont la suite de tests a été suppri
 - Contraintes dures : `.claude/rules/` (chargées automatiquement).
 
 ## Stack
-- App : React 18 + XState + Express + lowdb, front :3000, API :3001. Node = `.node-version`, **Yarn Classic 1.x uniquement**.
-- Tests : Cypress 15.x, TypeScript strict (`cypress/tsconfig.json`), `cypress-split` pour le sharding, Allure + JUnit, `cypress-axe`.
+- App : React 18 + XState **v4** + Express + lowdb, front :3000, API :3001. Node = `.node-version` (22.20.0), **Yarn Classic 1.x uniquement** (incompatible Yarn Modern, Corepack configuré).
+- Tests : Cypress (branche 15.x, version exacte dans `package.json`), TypeScript strict (`cypress/tsconfig.json`), `cypress-split` pour le sharding, Allure + JUnit, `cypress-axe`.
+- Config Cypress : `expose:` = config publique (`apiUrl`, `coverage`…), `env:` = secrets (`defaultPassword`). Ne jamais remettre une valeur publique dans `env` (ADR-001).
+- Specs en `.cy.ts` — `specPattern: cypress/e2e/**/*.cy.{ts,tsx}`. L'upstream utilisait `cypress/tests/**/*.spec.ts` ; changé en semaine 0.
 - Module Playwright séparé dans `playwright/` (semaine 10).
 
 ## Commandes
@@ -27,10 +29,10 @@ Fork de `cypress-io/cypress-realworld-app` dont la suite de tests a été suppri
 ```
 cypress/e2e/<domaine-metier>/     specs, jamais par page ni par outil
 cypress/support/commands/         une responsabilité par fichier
-cypress/support/app-actions/      accès XState via window.__xstate__ (mode test seulement)
+cypress/support/app-actions/      XState via window.__services__ (si VITE_TEST_HOOKS)
 cypress/support/intercepts/       factories qui retournent leur alias
 cypress/support/selectors/        DataTestKey — union typée
-cypress/plugins/                  seul point d'écriture lowdb
+cypress/plugins/                  proxy HTTP vers /testData — jamais d'écriture lowdb
 cypress/fixtures/builders/        builders typés, pas de JSON statique
 ```
 
@@ -41,5 +43,6 @@ cypress/fixtures/builders/        builders typés, pas de JSON statique
 ## Ce que Claude ne fait pas ici
 - Pas de Page Objects (ADR-002). Pas de Gherkin. Pas de framework maison au-dessus de L2.
 - Pas de dépendance à Cypress Cloud dans le code ou la CI.
-- Ne jamais lire, afficher ou committer `.env`, `cypress.env.json`, secrets Auth0.
+- Ne jamais lire, afficher ou committer `.env.local`, `cypress.env.json`, secrets Auth0. En revanche `.env` **est commité et lisible** : il ne contient que des ports, des tailles de seed et le mot de passe public `s3cret`.
+- Ne jamais écrire dans `data/database.json` ni instancier lowdb depuis `cypress/` : le seeding passe par les endpoints `/testData` du backend (ADR à venir, semaine 4).
 - Ne pas générer de test sans invoquer le skill `new-spec`.

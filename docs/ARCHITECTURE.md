@@ -80,11 +80,12 @@ rwa-quality-platform/
 │   │   └── index.d.ts               # declaration merging Cypress.Chainable
 │   ├── plugins/
 │   │   ├── index.ts                 # setupNodeEvents : enregistre les tâches
-│   │   ├── db.task.ts               # db:reset, db:createUser, db:createTransaction
+│   │   ├── db.task.ts               # proxy HTTP vers /testData — aucune écriture lowdb
 │   │   └── env.task.ts              # lecture .env, validation des variables
 │   ├── fixtures/
 │   │   └── builders/                # userBuilder(), transactionBuilder() — pas de JSON statique
 │   └── tsconfig.json                # strict, paths @support/*, @plugins/*
+├── backend/test-data.routes.ts      # endpoints /testData étendus (seul écrivain lowdb)
 ├── src/**/*.cy.tsx                  # component tests à côté des composants (convention RWA)
 ├── playwright/                      # 5 scénarios critiques, même structure de domaines
 │   ├── tests/
@@ -106,7 +107,7 @@ rwa-quality-platform/
 │   ├── flakiness-report.md
 │   └── metrics.md                   # chiffres suivis (cf. §8)
 ├── cypress.config.ts
-├── .env.example
+├── .env                             # commité, sans secret (ports, seed, mot de passe public)
 └── README.md                        # 1 page, FR/EN, décisions + chiffres
 ```
 
@@ -116,6 +117,7 @@ rwa-quality-platform/
 - `intercepts/` en **factories** (`interceptTransactions({ status: 500 })`) — le stub réseau est une capacité partagée, pas du code inline dans chaque spec.
 - `fixtures/builders/` plutôt que JSON : un builder typé avec defaults + overrides évite les 40 fichiers `user-with-no-bank-account.json`.
 - Aucun dossier `pages/` ou `pageObjects/` — décision ADR-002, justifiée par l'accès XState.
+- Extension `.cy.ts` et `specPattern: "cypress/e2e/**/*.cy.{ts,tsx}"` (l'upstream utilise `cypress/tests/**/*.spec.ts`). Changement acté en semaine 0 : il aligne e2e et component testing sur une seule convention, et c'est ce que les garde-fous outillés du dépôt ciblent.
 
 ---
 
@@ -125,10 +127,11 @@ rwa-quality-platform/
 
 | Composant | Interface | Responsabilité |
 |---|---|---|
-| `db.task.ts` | `cy.task('db:reset')`, `cy.task('db:createUser', UserInput): User` | Seul point d'écriture dans lowdb. Retourne les entités créées avec leurs IDs |
+| `db.task.ts` | `cy.task('db:reset')`, `cy.task('db:createUser', UserInput): User` | **Proxy HTTP vers `/testData`** — n'écrit jamais dans `data/database.json`. Retourne les entités créées avec leurs IDs |
+| `backend/test-data.routes.ts` | `POST /testData/seed`, `POST /testData/user`, `POST /testData/transaction` | **Seul écrivain lowdb.** Le serveur Express tient son instance lowdb en mémoire : toute écriture faite derrière son dos diverge ou est écrasée |
 | `env.task.ts` | `cy.task('env:validate')` au `before()` global | Échoue en 2 s si une variable manque, pas au 15ᵉ test |
 | `builders/` | `userBuilder().withBankAccount().build()` | Données valides par défaut, écarts explicites |
-| `cypress.config.ts` | `env: { apiUrl, coverage }`, `e2e.baseUrl` | Une seule source pour les ports ; override par `CYPRESS_*` en CI |
+| `cypress.config.ts` | `expose: { apiUrl, coverage, codeCoverage }` · `env: { defaultPassword }` · `e2e.baseUrl` | Frontière `expose` (config publique) / `env` (secrets) — voir ADR-001. Une seule source pour les ports ; override par `CYPRESS_*` en CI |
 
 ### L2 — Capacités
 
@@ -137,7 +140,7 @@ rwa-quality-platform/
 | `auth.commands.ts` | `cy.login(username?)` → `cy.session` + `cy.request('/login')` | `validate()` appelle `/checkAuth`. Le mot de passe vient de `Cypress.env`, jamais en dur |
 | `data.commands.ts` | `cy.seed(scenario: 'empty' \| 'default' \| 'rich')` | Wrapper typé sur les tâches ; les specs ne connaissent pas lowdb |
 | `dom.commands.ts` | `cy.getBySel(key: DataTestKey)` | `DataTestKey` est un type union généré depuis `selectors/data-test.ts` — une faute de frappe est une erreur de compilation |
-| `xstate.actions.ts` | `cy.appState('onboarding', 'done')` | Accède à `window.__xstate__` exposé **uniquement** quand `import.meta.env.MODE === 'test'` |
+| `xstate.actions.ts` | `cy.appState('onboarding', 'done')` | Lit `window.__services__`, exposé **uniquement** si `VITE_TEST_HOOKS === 'true'` au build. `window.authService` (garde `window.Cypress`, hérité de l'upstream) est conservé. Voir ADR-006 |
 | `*.intercepts.ts` | `interceptTransactions({ status?, delay?, body? })` retourne l'alias | Chaque factory retourne son alias pour `cy.wait` |
 
 ### L3 — Specs
@@ -210,6 +213,7 @@ Temps cible : **< 6 min** de PR à verdict pour la suite complète sur 4 shards.
 | Couverture (`@cypress/code-coverage`) | Pas de seuil bloquant | Non — tendance publiée, un seuil sur une app démo serait du théâtre |
 | Quarantaine | ≤ 5 tests, chacun avec ticket daté < 14 j | Oui — au-delà, la PR de quarantaine est refusée |
 | TS / lint | 0 erreur | Oui |
+| Chaîne d'approvisionnement | Actions GitHub épinglées par SHA de commit complet ; `permissions:` minimales sur `GITHUB_TOKEN` ; `yarn.lock` figé | Oui |
 
 ---
 
@@ -247,8 +251,9 @@ Publiées dans `docs/metrics.md`, mises à jour à chaque semaine du plan.
 
 ## 9. Sécurité et environnements
 
-- Secrets : `cypress.env.json` gitignoré + `.env.example` complet ; en CI, GitHub Secrets → `CYPRESS_*`.
-- `window.__xstate__` exposé uniquement en mode test — jamais dans un build de prod.
+- Secrets : `.env.local` et `cypress.env.json` gitignorés ; en CI, GitHub Secrets → `CYPRESS_*`.
+- `window.__services__` exposé uniquement si `VITE_TEST_HOOKS === 'true'` — absent de tout build par défaut (ADR-006).
+- `.env` est **commité** (hérité de l'upstream) et ne contient aucun secret : tailles de seed, ports, `SEED_DEFAULT_USER_PASSWORD=s3cret` documenté publiquement. Les secrets réels vont dans `.env.local` (chargé en premier par `cypress.config.ts`) et `cypress.env.json`, tous deux gitignorés. Pas de `.env.example` : le `.env` commité en tient lieu.
 - Auth0 (semaine 9) : tenant dédié, utilisateur de test, credentials en secrets, aucun token dans les vidéos (masquage `cy.origin` + `log: false`).
 - Aucune donnée réelle : lowdb seedé par builders, réinitialisé par test.
 
@@ -258,7 +263,7 @@ Publiées dans `docs/metrics.md`, mises à jour à chaque semaine du plan.
 
 | Scénario | Ce qui change | Ce qui ne change pas |
 |---|---|---|
-| Passage de lowdb à Postgres | `db.task.ts` uniquement | Specs, commandes, builders |
+| Passage de lowdb à Postgres | `backend/test-data.routes.ts` uniquement (`db.task.ts` est un proxy HTTP, il ne bouge pas) | Specs, commandes, builders, tâches |
 | 30 → 500 specs | Nombre de shards, durée historique pour `cypress-split` | Structure, gates, principes |
 | Ajout de Playwright sur un domaine | Dossier `playwright/tests/<domaine>` | Builders (partagés via `shared/`), seed via API |
 | Migration complète vers Playwright | L2 réécrit (fixtures Playwright ≈ commands), L3 réécrit | L1 intégral, L4 quasi intégral, L5 intégral |
@@ -273,7 +278,8 @@ Le coût d'une migration Cypress → Playwright est ainsi borné à L2 + L3 — 
 - Pas de couche BDD/Gherkin : coût de maintenance élevé, valeur nulle sans partie prenante non technique.
 - Pas de Page Objects : redondants avec App Actions + sélecteurs typés sur cette app.
 - Pas de Cypress Cloud en dépendance dure : le projet doit tourner sans compte tiers (P6). Test Replay utilisé une fois en démonstration.
-- Pas de visual regression : documenté, non implémenté.
+- Pas de visual regression : `@percy/cypress` et `cy.visualSnapshot` sont **présents dans l'upstream et retirés ici** — le calcul coût/valeur est écrit, ce n'est pas un oubli.
+- Pas d'installation avec `--ignore-scripts` : `patch-package` s'exécute en postinstall (patches MUI v5). Le durcissement passe par le SHA-pin des actions et des `permissions:` minimales.
 - Pas de framework maison au-dessus de Cypress : les abstractions s'arrêtent à L2.
 
 ---
@@ -282,8 +288,9 @@ Le coût d'une migration Cypress → Playwright est ainsi borné à L2 + L3 — 
 
 | ADR | Décision | Semaine |
 |---|---|---|
-| 001 | Migration Cypress 15 et gestion des breaking changes | 0 |
-| 002 | App Actions plutôt que Page Objects | 3 |
+| 001 | `Cypress.expose()` comme frontière config/secret, et conventions de specs | 0 |
+| 002 | Typer et durcir les App Actions héritées de l'upstream | 3 |
 | 003 | Parallélisation par `cypress-split` sans Cloud | 6 |
 | 004 | Grille de décision composant / API / E2E | 8 |
 | 005 | Coexistence et critères de migration Playwright | 10 |
+| 006 | Exposition des services XState aux tests (`VITE_TEST_HOOKS`) | 3 |

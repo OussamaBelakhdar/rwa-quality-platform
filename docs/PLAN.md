@@ -10,14 +10,18 @@
 
 | Tâche | Critère de fin |
 |---|---|
-| Fork + renommage `rwa-quality-platform` (ou équivalent) | Dépôt public, licence conservée |
-| Faire tourner l'app (`yarn dev`) avec la version Node du `.node-version` | Frontend 3000 + API 3001 up |
-| **Migrer Cypress vers 15.x** (sortie 20 août 2025) | `yarn cypress:open` fonctionne ; breaking changes v14→v15 listés dans `docs/ADR-001-migration-cypress-15.md` (Node 18 supprimé, `ts-node`→`tsx`, `cy.stub` 3 args, `SelectorPlayground`→`ElementSelector`) |
-| Supprimer `cypress/tests/ui`, `cypress/tests/api`, garder `cypress/support` vide | Suite = 0 test, CI verte |
-| `tsconfig` strict pour le dossier Cypress | `yarn types` passe |
+| Fork + renommage `rwa-quality-platform` | Dépôt public, licence MIT conservée |
+| Node aligné sur `.node-version` (**22.20.0**) | `node -v` correspond ; `yarn dev` up sur 3000 (front) + 3001 (API) |
+| Retirer `projectId: "7s5okt"` de `cypress.config.ts` | Plus aucune référence à Cypress Cloud dans le dépôt ni la CI (P6) |
+| `specPattern` → `cypress/e2e/**/*.cy.{ts,tsx}` | L'upstream utilise `cypress/tests/**/*.spec.ts` ; une seule convention `.cy.ts` pour e2e et component, celle que ciblent les garde-fous du dépôt |
+| Supprimer `cypress/tests/**`, vider `cypress/support`, retirer `@percy/cypress` et les `cy.visualSnapshot` | Suite = 0 test, `yarn lint` vert |
+| `cypress/tsconfig.json` strict | `yarn types` passe |
+| **ADR-001** — `Cypress.expose()` comme frontière config/secret | ADR accepté, index d'`ARCHITECTURE.md` à jour |
+
+> Il n'y a **pas** de migration de version à faire : l'upstream est déjà sur la dernière branche stable et sa config a déjà basculé de `Cypress.env()` vers `Cypress.expose()`. Le sujet d'ADR-001 est cette frontière `expose`/`env`, pas une montée de version que je n'aurais pas faite. Les versions exactes constatées au moment du fork sont relevées dans l'ADR.
 
 **README section** : "Pourquoi ce projet" — 10 lignes, décisions, pas de tuto.
-**Lignes du référentiel couvertes** : TypeScript strict, Git, migration de version (Diagnostic).
+**Lignes du référentiel couvertes** : TypeScript strict, Git, lecture d'une config existante (Diagnostic).
 
 ---
 
@@ -50,11 +54,12 @@
 
 ## Semaine 3 — Custom commands typées + App Actions
 
-**Livrable** : `cypress/support/commands.ts` + `cypress/support/index.d.ts` avec declaration merging propre ; `cypress/support/app-actions.ts` exposant l'état XState via `window`.
+**Livrable** : `cypress/support/commands/` éclaté par responsabilité + `cypress/support/index.d.ts` (declaration merging) ; `cypress/support/app-actions/xstate.actions.ts`.
 
-- Commandes : `cy.login`, `cy.seedUser`, `cy.createTransaction`, `cy.getBySel` (data-test).
-- App Actions : forcer un état de la machine XState (ex. onboarding terminé) sans passer par l'UI.
-- ADR-002 : "Page Objects vs App Actions — pourquoi App Actions ici" (la RWA expose déjà ses services XState, c'est l'argument).
+- L'upstream fournit déjà `getBySel`, `getBySelLike`, `login` (UI), `loginByApi`, `loginByXstate`, `logoutByXstate`, `reactComponent` — **non typés, dans un `commands.ts` unique**. La valeur ajoutée n'est pas de les inventer, c'est de les typer strictement, de les découper par responsabilité et d'y brancher `cy.session`.
+- App Actions : forcer un état de machine XState sans passer par l'UI. `loginByXstate` **est** déjà ce pattern côté upstream.
+- ADR-002 : "Typer et durcir les App Actions héritées de l'upstream" — l'upstream n'a jamais eu de Page Objects ; l'ADR dit ce que j'ajoute (types, session, découpage) et ce que je refuse d'ajouter (une couche POM par-dessus).
+- ADR-006 : exposition des services XState (`VITE_TEST_HOOKS` / `window.__services__`). Conditionne la parité d'app actions avec Playwright en semaine 10.
 - Autocomplétion IDE vérifiée (capture d'écran dans le README).
 
 **Référentiel** : Custom commands (Expert), Architecture de test (Avancé→Expert), TypeScript declaration merging, Design logiciel.
@@ -65,8 +70,11 @@
 
 **Livrable** : seeding déterministe par test, indépendance totale de l'ordre d'exécution.
 
-- Réécrire le seed : `cy.task('db:seed')` existe dans la RWA — le remplacer par un plugin Node maison `cypress/plugins/db.ts` avec `db:reset`, `db:createUser`, `db:createTransaction` (lowdb, aucune dépendance externe).
-- Variables d'env via `cypress.env.json` (gitignored) + `.env.example`.
+- **Ne pas écrire dans lowdb depuis Node.** L'upstream fait son seeding par HTTP (`POST /testData/seed`, plus les tâches `filter:database` / `find:database` en axios sur `/testData`). Le serveur Express tient son instance lowdb en mémoire : écrire `data/database.json` derrière son dos diverge ou se fait écraser.
+- Étendre le backend : `POST /testData/user`, `POST /testData/transaction` dans `backend/`. C'est le seul écrivain lowdb.
+- `cypress/plugins/db.task.ts` devient un **proxy HTTP typé** (`db:reset`, `db:createUser`, `db:createTransaction`) au-dessus de ces endpoints, avec une interface `TaskMap`.
+- Vérifier que le seed reste déterministe (IDs stables entre deux `db:reset`) pour que le cache `cy.session` de la semaine 2 survive. Si non : `db:reset` en `before()` de spec, seed incrémental en `beforeEach`. Chiffre avant/après dans le README.
+- Secrets via `.env.local` et `cypress.env.json` (gitignorés). Pas de `.env.example` : le `.env` commité de l'upstream en tient lieu et ne contient aucun secret.
 - Preuve d'isolation : lancer la suite en ordre aléatoire (script `yarn cy:random`) — doit passer.
 
 **Référentiel** : Node/plugins (Expert), Architecture de test (seeding), Sécurité (secrets).
@@ -96,7 +104,8 @@
 - Artifacts vidéo/screenshots uniquement sur échec.
 - `retries: { runMode: 2, openMode: 0 }` et justification écrite.
 - Rapport JUnit + Allure publié sur GitHub Pages.
-- ADR-003 : "Cloud vs Currents vs cypress-split" — inclure le point protocole 12.6.0+ (Sorry-Cypress incompatible avec Cypress récent).
+- ADR-003 : "Cloud vs Currents vs cypress-split" — inclure le point protocole 12.6.0+ (Sorry-Cypress incompatible avec Cypress récent). **Doit dire explicitement : « j'ajoute GitHub Actions, je ne migre pas CircleCI »** — le `.circleci/` de l'upstream reste en place et n'est pas touché.
+- Actions épinglées par SHA de commit complet, `permissions:` minimales sur `GITHUB_TOKEN`. Pas de `--ignore-scripts` : `patch-package` tourne en postinstall.
 - Chiffre : temps séquentiel vs 4 shards dans le README.
 
 **Référentiel** : CI/CD & parallélisation (Expert), Docker, YAML, Reporting.
@@ -107,8 +116,9 @@
 
 **Livrable** : `docs/flakiness-report.md` + quarantaine.
 
-- Introduire 3 tests flaky **volontaires et documentés** (race XState, animation, intercept non attendu).
+- **Travailler sur la branche `flake-demo` maintenue par l'upstream** (workflow `merge-develop-into-flake-demo` dans `.github/workflows/`) : du flake réel, entretenu par l'équipe Cypress. **Aucun flake fabriqué** — un flake que j'ai écrit moi-même ne prouve que ma capacité à écrire un bug.
 - Diagnostic écrit pour chacun : symptôme → hypothèse → preuve → correction.
+- Étudier `fileParallelism: false` dans `vite.config.ts` (mitigation de flake déjà en place côté upstream, commentée « to prevent flakiness ») : ce qu'elle traite, ce qu'elle masque.
 - Tag `@quarantine` + job CI séparé non bloquant.
 - Script qui lance la suite 10× et sort un taux d'échec par test (`yarn cy:burn`).
 - Activer **Test Replay** sur le free tier Cypress Cloud pour un run de démonstration (500 résultats/mois suffisent) — capture dans le README.
@@ -165,15 +175,15 @@
 | Réseau cy.intercept (Expert) | 5 | `network/` |
 | Authentification (Expert) | 2, 9 | `cy.login`, branche `feat/auth0` |
 | Custom commands typées (Expert) | 3 | `index.d.ts` |
-| Architecture / App Actions / seeding | 3, 4 | `app-actions.ts`, `plugins/db.ts`, ADR-002 |
+| Architecture / App Actions / seeding | 3, 4 | `app-actions/`, `plugins/db.task.ts`, `backend/test-data.routes.ts`, ADR-002, ADR-006 |
 | Component testing (Expert) | 8 | `src/**/*.cy.tsx`, ADR-004 |
-| Node / plugins (Expert) | 4 | `plugins/db.ts` |
+| Node / plugins (Expert) | 4 | `plugins/db.task.ts` + endpoints `/testData` |
 | CI/CD & parallélisation (Expert) | 6 | `e2e.yml`, ADR-003 |
-| Diagnostic flakiness (Expert) | 7 | `flakiness-report.md`, `cy:burn` |
+| Diagnostic flakiness (Expert) | 7 | `flakiness-report.md`, `cy:burn`, branche `flake-demo` upstream |
 | Visual / a11y | 8 | `cypress-axe`, PR correctifs |
 | Coexistence Playwright | 10 | `playwright/`, ADR-005 |
 | JS profond | 1 | tests cassés-corrigés |
-| TypeScript | 0, 3 | `tsconfig` strict, declaration merging |
+| TypeScript | 0, 3 | `cypress/tsconfig.json` strict, declaration merging, frontière `expose`/`env` (ADR-001) |
 | Node.js | 4 | plugin |
 | HTTP/REST | 2, 5 | `cy.request`, intercepts |
 | Sélecteurs a11y-first | 3 | `cy.getBySel` + rôles ARIA |
@@ -181,7 +191,7 @@
 | Docker & CI YAML | 6 | workflow |
 | Design logiciel | 3 | ADR-002 |
 | Debugging & profiling | 7 | Test Replay, burn |
-| Sécurité | 4 | `.env.example`, secrets GitHub |
+| Sécurité | 4, 6 | `.env.local`/`cypress.env.json` gitignorés, secrets GitHub, SHA-pin des actions |
 | Gouvernance IA | 10 | revue des tests générés |
 
 **Non couvert volontairement** : visual regression (Percy/Applitools — coût, faible valeur sur une app démo) ; Currents en production (payant). Les deux sont mentionnés dans ADR-003 comme options, pas implémentés.
