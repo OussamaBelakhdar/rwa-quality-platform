@@ -27,10 +27,11 @@
 
 ## Semaine 1 — Internes Cypress : queue, sujet, retry-ability
 
-**Livrable** : `cypress/tests/e2e/00-foundations/` — 8 specs pédagogiques sur l'app réelle.
+**Livrable** : `cypress/e2e/00-foundations/` — 8 specs pédagogiques sur l'app réelle.
 
 - Un test qui **casse volontairement** sur un sujet capturé trop tôt, puis sa version corrigée (`.then` vs variable).
 - Un test sur le détachement DOM après re-render XState (la RWA est parfaite pour ça : la liste de transactions se re-rend).
+  - _Constaté en semaine 1_ : un `FETCH` envoyé à `publicTransactionService` ne détache rien si les données reviennent identiques — React réconcilie et réutilise les noeuds. Le détachement demande que le jeu de résultats change ; la spec envoie donc `FETCH` avec un filtre `amountMin/amountMax` qui vide la liste.
 - Assertions mid-chain : `.should(callback)` avec retry sur plusieurs conditions.
 - Démonstration `cy.press()` / `cy.stop()` (Cypress 14+).
 
