@@ -17,7 +17,12 @@
  *    cassé. Le rapport les sépare : confondre les deux envoie chercher une
  *    condition de course là où il y a un bug déterministe.
  *
- * La gate §6 d'ARCHITECTURE.md fixe le seuil à 2 %.
+ * DÉFINITION DU TAUX — nombre de tests ayant échoué au moins une fois mais pas
+ * à toutes les exécutions, divisé par le nombre de tests observés. Ce n'est pas
+ * la même chose que la définition du §8 d'ARCHITECTURE.md (« tests échouant
+ * puis passant au retry / total »), qui suppose les retries actifs — or ce
+ * script les désactive. Les deux se défendent ; celle-ci est retenue parce
+ * qu'elle mesure le test, pas le filet. La gate §6 fixe le seuil à 2 %.
  */
 const cypress = require("cypress");
 
@@ -35,6 +40,8 @@ function specDepuisArgv() {
   /** @type {Map<string, {echecs: number, retries: number}>} */
   const stats = new Map();
   let executionsCompletes = 0;
+  /** @type {number | null} */
+  let testsAttendus = null;
 
   console.log(`\nBurn — ${RUNS} exécutions, retries désactivés${spec ? `, spec ${spec}` : ""}\n`);
 
@@ -53,9 +60,23 @@ function specDepuisArgv() {
     }
 
     executionsCompletes += 1;
+    const testsDeCeRun = resultat.runs.reduce((n, r) => n + r.tests.length, 0);
+    if (testsAttendus === null) {
+      testsAttendus = testsDeCeRun;
+    } else if (testsDeCeRun !== testsAttendus) {
+      // Une spec qui ne compile pas ne produit aucun test : elle disparaîtrait
+      // du dénominateur et un « 0 % de flake » couvrirait moins de specs
+      // qu'annoncé.
+      console.error(
+        `Exécution ${run} : ${testsDeCeRun} tests observés contre ${testsAttendus} attendus — une spec a disparu du run.`
+      );
+      process.exit(1);
+    }
     for (const specRun of resultat.runs) {
       for (const test of specRun.tests) {
-        const titre = test.title.join(" › ");
+        // Préfixer par la spec : deux `it` homonymes dans deux fichiers
+        // différents fusionneraient sinon en une seule ligne de rapport.
+        const titre = `${specRun.spec.relative} › ${test.title.join(" › ")}`;
         const e = stats.get(titre) || { echecs: 0, retries: 0 };
         if (test.state === "failed") e.echecs += 1;
         if ((test.attempts?.length ?? 1) > 1) e.retries += 1;
