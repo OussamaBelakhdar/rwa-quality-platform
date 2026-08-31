@@ -14,13 +14,17 @@
       "Read(docs/**)",
       "Edit(cypress/**)",
       "Edit(docs/**)",
+      "Edit(src/**)",
+      "Edit(backend/**)",
       "Edit(.github/**)",
       "Write(cypress/**)",
-      "Write(docs/**)"
+      "Write(docs/**)",
+      "Write(src/**)",
+      "Write(backend/**)"
     ],
     "deny": [
-      "Read(.env)",
-      "Read(.env.*)",
+      "Read(.env.local)",
+      "Read(**/.env.local)",
       "Read(cypress.env.json)",
       "Read(**/*.pem)",
       "Bash(git push --force*)",
