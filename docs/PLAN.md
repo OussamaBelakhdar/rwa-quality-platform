@@ -1,0 +1,197 @@
+# Projet portfolio — Référentiel Expert Cypress 2026 appliqué à la Cypress Real World App
+
+**Cible** : fork de `cypress-io/cypress-realworld-app`, suite de tests supprimée puis reconstruite de zéro.
+**Règle unique** : une semaine = un livrable mergé sur `main` + une section README + une publication LinkedIn. Rien ne démarre tant que la semaine précédente n'est pas mergée.
+**Durée** : 10 semaines à 6-8 h/semaine.
+
+---
+
+## Semaine 0 — Fondation (prérequis, non négociable)
+
+| Tâche | Critère de fin |
+|---|---|
+| Fork + renommage `rwa-quality-platform` (ou équivalent) | Dépôt public, licence conservée |
+| Faire tourner l'app (`yarn dev`) avec la version Node du `.node-version` | Frontend 3000 + API 3001 up |
+| **Migrer Cypress vers 15.x** (sortie 20 août 2025) | `yarn cypress:open` fonctionne ; breaking changes v14→v15 listés dans `docs/ADR-001-migration-cypress-15.md` (Node 18 supprimé, `ts-node`→`tsx`, `cy.stub` 3 args, `SelectorPlayground`→`ElementSelector`) |
+| Supprimer `cypress/tests/ui`, `cypress/tests/api`, garder `cypress/support` vide | Suite = 0 test, CI verte |
+| `tsconfig` strict pour le dossier Cypress | `yarn types` passe |
+
+**README section** : "Pourquoi ce projet" — 10 lignes, décisions, pas de tuto.
+**Lignes du référentiel couvertes** : TypeScript strict, Git, migration de version (Diagnostic).
+
+---
+
+## Semaine 1 — Internes Cypress : queue, sujet, retry-ability
+
+**Livrable** : `cypress/tests/e2e/00-foundations/` — 8 specs pédagogiques sur l'app réelle.
+
+- Un test qui **casse volontairement** sur un sujet capturé trop tôt, puis sa version corrigée (`.then` vs variable).
+- Un test sur le détachement DOM après re-render XState (la RWA est parfaite pour ça : la liste de transactions se re-rend).
+- Assertions mid-chain : `.should(callback)` avec retry sur plusieurs conditions.
+- Démonstration `cy.press()` / `cy.stop()` (Cypress 14+).
+
+**README section** : "Ce que la queue de commandes change" — un schéma, trois règles.
+**Référentiel** : Commandes & internes (Expert), JavaScript profond.
+
+---
+
+## Semaine 2 — Auth : `cy.session` + login programmatique
+
+**Livrable** : `cy.login(username)` typée, session cachée, zéro login UI hors du test de login lui-même.
+
+- Login via `cy.request` sur `/login` (l'API Express existe), cookie de session capturé.
+- `cy.session` avec `validate()` qui vérifie `/checkAuth`.
+- Un seul test `login.cy.ts` couvre l'UI ; tout le reste passe par la session.
+- Mesure : temps de suite avant/après sur les 8 specs de la semaine 1 (chiffre dans le README).
+
+**Référentiel** : Authentification (Avancé), Custom commands (Avancé), HTTP.
+
+---
+
+## Semaine 3 — Custom commands typées + App Actions
+
+**Livrable** : `cypress/support/commands.ts` + `cypress/support/index.d.ts` avec declaration merging propre ; `cypress/support/app-actions.ts` exposant l'état XState via `window`.
+
+- Commandes : `cy.login`, `cy.seedUser`, `cy.createTransaction`, `cy.getBySel` (data-test).
+- App Actions : forcer un état de la machine XState (ex. onboarding terminé) sans passer par l'UI.
+- ADR-002 : "Page Objects vs App Actions — pourquoi App Actions ici" (la RWA expose déjà ses services XState, c'est l'argument).
+- Autocomplétion IDE vérifiée (capture d'écran dans le README).
+
+**Référentiel** : Custom commands (Expert), Architecture de test (Avancé→Expert), TypeScript declaration merging, Design logiciel.
+
+---
+
+## Semaine 4 — Seeding et isolation : `cy.task` + plugins Node
+
+**Livrable** : seeding déterministe par test, indépendance totale de l'ordre d'exécution.
+
+- Réécrire le seed : `cy.task('db:seed')` existe dans la RWA — le remplacer par un plugin Node maison `cypress/plugins/db.ts` avec `db:reset`, `db:createUser`, `db:createTransaction` (lowdb, aucune dépendance externe).
+- Variables d'env via `cypress.env.json` (gitignored) + `.env.example`.
+- Preuve d'isolation : lancer la suite en ordre aléatoire (script `yarn cy:random`) — doit passer.
+
+**Référentiel** : Node/plugins (Expert), Architecture de test (seeding), Sécurité (secrets).
+
+---
+
+## Semaine 5 — Réseau : `cy.intercept` avancé
+
+**Livrable** : `cypress/tests/e2e/network/` — cas que le backend réel ne produit pas.
+
+- Spy vs stub documentés sur `/transactions`.
+- Latence injectée (`delay`) → vérifier les spinners.
+- 500 / timeout / réponse vide → vérifier les messages d'erreur (ces cas n'existent pas dans la suite officielle).
+- Séquençage d'alias : pagination des notifications, `cy.wait(['@page1','@page2'])`.
+- Modification de réponse à la volée (solde négatif, montant XXL).
+
+**Référentiel** : Réseau (Expert), HTTP/REST.
+
+---
+
+## Semaine 6 — CI/CD : GitHub Actions, Docker, sharding sans Cloud
+
+**Livrable** : pipeline `.github/workflows/e2e.yml` avec matrice 4 runners.
+
+- Image officielle `cypress/browsers` (Chrome + Firefox).
+- **Sharding gratuit** via `cypress-split` (Gleb Bahmutov) — pas de Cypress Cloud requis.
+- Artifacts vidéo/screenshots uniquement sur échec.
+- `retries: { runMode: 2, openMode: 0 }` et justification écrite.
+- Rapport JUnit + Allure publié sur GitHub Pages.
+- ADR-003 : "Cloud vs Currents vs cypress-split" — inclure le point protocole 12.6.0+ (Sorry-Cypress incompatible avec Cypress récent).
+- Chiffre : temps séquentiel vs 4 shards dans le README.
+
+**Référentiel** : CI/CD & parallélisation (Expert), Docker, YAML, Reporting.
+
+---
+
+## Semaine 7 — Flakiness comme discipline
+
+**Livrable** : `docs/flakiness-report.md` + quarantaine.
+
+- Introduire 3 tests flaky **volontaires et documentés** (race XState, animation, intercept non attendu).
+- Diagnostic écrit pour chacun : symptôme → hypothèse → preuve → correction.
+- Tag `@quarantine` + job CI séparé non bloquant.
+- Script qui lance la suite 10× et sort un taux d'échec par test (`yarn cy:burn`).
+- Activer **Test Replay** sur le free tier Cypress Cloud pour un run de démonstration (500 résultats/mois suffisent) — capture dans le README.
+
+**Référentiel** : Diagnostic (Expert), Debugging & profiling.
+
+---
+
+## Semaine 8 — Component testing + accessibilité
+
+**Livrable** : 6 composants React testés en isolation + audit axe.
+
+- Component tests sur `TransactionCreateStepOne`, `NotificationList`, `UserSettingsForm` etc. (dossier `src/` à côté des composants, convention RWA).
+- ADR-004 : "Composant vs E2E vs API — grille de décision" appliquée à 10 fonctionnalités de l'app.
+- `cypress-axe` sur 5 pages clés, violations listées, 2 corrigées dans l'app (PR visible).
+- Code coverage réactivé (`yarn dev:coverage`) — chiffre dans le README.
+
+**Référentiel** : Component testing (Expert), Qualité transverse (a11y), stratégie de couverture.
+
+---
+
+## Semaine 9 — `cy.origin` + SSO Auth0
+
+**Livrable** : le flux Auth0 testé avec `cy.session` + `cy.origin`.
+
+- Compte Auth0 gratuit, tenant SPA, `.env` non commité.
+- Branche `feat/auth0` avec `src/index.auth0.tsx` (fourni par la RWA).
+- Deux variantes documentées : login programmatique (API Auth0) vs `cy.origin` (UI Auth0) — quand utiliser laquelle.
+- Vidéo 60 s du test qui passe.
+
+**Référentiel** : Authentification (Expert). C'est la ligne la plus rare sur un profil francophone — ne pas la sauter.
+
+---
+
+## Semaine 10 — Playwright, IA, et clôture
+
+**Livrable** : positionnement polyglotte + gouvernance IA.
+
+- `playwright/` : les 5 scénarios critiques (login, création de transaction, notifications, paramètres, onboarding) réécrits en Playwright TS.
+- ADR-005 : "Migrer, garder ou hybrider" — tableau de décision avec critères (WebKit, DX, component testing, coût Cloud, équipe).
+- **IA** : générer 3 specs avec `cy.prompt` (Cypress 15.4+, nécessite Cloud) et 3 avec un LLM externe ; revue écrite de chaque test généré comme une PR junior — assertions creuses relevées, sélecteurs fragiles corrigés. Conclusion : quand l'IA fait gagner du temps, quand elle en coûte.
+- README final bilingue FR/EN : 1 page, décisions d'architecture, chiffres (temps de suite, taux de flake, couverture), liens vers les 5 ADR.
+- Épingler en "Featured" sur LinkedIn.
+
+**Référentiel** : Migration/coexistence Playwright (Expert), Gouvernance de l'IA.
+
+---
+
+## Matrice de couverture du référentiel
+
+| Ligne du référentiel | Semaine | Preuve dans le dépôt |
+|---|---|---|
+| Commandes & internes (Expert) | 1 | `00-foundations/` |
+| Réseau cy.intercept (Expert) | 5 | `network/` |
+| Authentification (Expert) | 2, 9 | `cy.login`, branche `feat/auth0` |
+| Custom commands typées (Expert) | 3 | `index.d.ts` |
+| Architecture / App Actions / seeding | 3, 4 | `app-actions.ts`, `plugins/db.ts`, ADR-002 |
+| Component testing (Expert) | 8 | `src/**/*.cy.tsx`, ADR-004 |
+| Node / plugins (Expert) | 4 | `plugins/db.ts` |
+| CI/CD & parallélisation (Expert) | 6 | `e2e.yml`, ADR-003 |
+| Diagnostic flakiness (Expert) | 7 | `flakiness-report.md`, `cy:burn` |
+| Visual / a11y | 8 | `cypress-axe`, PR correctifs |
+| Coexistence Playwright | 10 | `playwright/`, ADR-005 |
+| JS profond | 1 | tests cassés-corrigés |
+| TypeScript | 0, 3 | `tsconfig` strict, declaration merging |
+| Node.js | 4 | plugin |
+| HTTP/REST | 2, 5 | `cy.request`, intercepts |
+| Sélecteurs a11y-first | 3 | `cy.getBySel` + rôles ARIA |
+| Git | 0-10 | ADR, PR, branches |
+| Docker & CI YAML | 6 | workflow |
+| Design logiciel | 3 | ADR-002 |
+| Debugging & profiling | 7 | Test Replay, burn |
+| Sécurité | 4 | `.env.example`, secrets GitHub |
+| Gouvernance IA | 10 | revue des tests générés |
+
+**Non couvert volontairement** : visual regression (Percy/Applitools — coût, faible valeur sur une app démo) ; Currents en production (payant). Les deux sont mentionnés dans ADR-003 comme options, pas implémentés.
+
+---
+
+## Rythme de publication LinkedIn
+
+Un post par semaine, le lundi, format identique : le problème rencontré → la décision → le chiffre. Jamais "j'ai appris Cypress". Le post de la semaine 7 (flakiness) et celui de la semaine 10 (Playwright) sont ceux qui génèrent le plus de commentaires : réserver du temps pour répondre.
+
+## Critère d'abandon
+
+Si la semaine 3 n'est pas mergée au bout de 5 semaines calendaires, le projet est réduit à 5 semaines (0, 1, 2, 3, 6) et publié tel quel. Un dépôt à 50 % publié vaut plus qu'un dépôt à 90 % privé.

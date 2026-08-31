@@ -1,0 +1,55 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(yarn *)",
+      "Bash(npx cypress *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout -b *)",
+      "Read(cypress/**)",
+      "Read(src/**)",
+      "Read(docs/**)",
+      "Edit(cypress/**)",
+      "Edit(docs/**)",
+      "Edit(.github/**)",
+      "Write(cypress/**)",
+      "Write(docs/**)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(cypress.env.json)",
+      "Read(**/*.pem)",
+      "Bash(git push --force*)",
+      "Bash(rm -rf *)",
+      "Bash(yarn add cypress@*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-spec.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/typecheck.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "qa-test-generator": {
+      "command": "node",
+      "args": ["<chemin-local>/qa-test-generator/dist/index.js"]
+    },
+    "qa-accessibility": {
+      "command": "node",
+      "args": ["<chemin-local>/qa-accessibility/dist/index.js"]
+    }
+  }
+}
