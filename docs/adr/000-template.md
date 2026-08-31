@@ -7,12 +7,14 @@
 ## Contexte
 
 ## Options considérées
+
 | Option | Avantages | Inconvénients | Coût |
-|---|---|---|---|
+| ------ | --------- | ------------- | ---- |
 
 ## Décision
 
 ## Conséquences
+
 - Positives :
 - Négatives assumées :
 - Surveillé via :

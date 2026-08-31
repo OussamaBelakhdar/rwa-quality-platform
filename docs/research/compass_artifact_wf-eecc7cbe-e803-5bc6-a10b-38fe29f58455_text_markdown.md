@@ -1,6 +1,7 @@
 # Référentiel « Expert Cypress » 2026 — Compétences Cypress + Ingénierie logicielle
 
 ## TL;DR
+
 - **Un « expert Cypress » en 2026 = maîtrise de l'architecture interne de Cypress (queue de commandes, retry-ability, gestion du sujet) + réseau/auth avancés (cy.intercept, cy.session, cy.origin) + component testing + CI/CD à l'échelle + une base solide de génie logiciel (JS/TS profond, Node.js, HTTP, Git, Docker) — le tout doublé désormais d'une gouvernance de l'IA (cy.prompt, Studio AI, self-healing). Il n'existe AUCUNE certification Cypress officielle ni vendeur-neutre en 2026.**
 - **État du marché 2026 : Cypress a plateauté (~7,4 M de téléchargements npm hebdo) tandis que Playwright l'a dépassé d'un facteur supérieur à dix (~78 M) ; le State of JS 2025 (publié janvier 2026) donne ~91 % de satisfaction Playwright vs ~72 % Cypress, « l'écart le plus large jamais enregistré entre les deux principaux outils E2E ». Le marché francophone recrute majoritairement des profils « QA automaticien » polyvalents, pas des « experts Cypress » purs — le titre vendable en 2026 est « ingénieur QA polyglotte Cypress + Playwright ».**
 - **Pour un bootcamp honnête : réservez le label « Expert » aux sujets qui exigent une compréhension des internes et des arbitrages d'architecture (diagnostic de flakiness, cy.origin multi-domaine, plugins Node, parallélisation, typings TS des custom commands, stratégie E2E/composant/API), et non à la simple connaissance des commandes.**
@@ -17,34 +18,34 @@
 
 ## Référentiel à 3 niveaux — Compétences CYPRESS
 
-| Domaine | Intermédiaire | Avancé | Expert |
-|---|---|---|---|
-| **Commandes & internes** | Écrire des tests avec cy.get/click/type, assertions .should() | Comprendre queries vs actions vs assertions ; retry-ability de base | Maîtriser la queue de commandes, la gestion du sujet, les frontières de retry (mid-chain assertions), le détachement DOM ; savoir réécrire en `.should(callback)` |
-| **Réseau (cy.intercept)** | Stubber une réponse simple, attendre un alias | Spy vs stub, modifier requêtes/réponses, matchers dynamiques | Chaînes d'interception complexes, throttling/latence, tests d'edge cases réseau, séquençage d'alias, contrôle du serveur pour tests déterministes |
-| **Authentification** | Login via UI | cy.session avec cache, login programmatique via API | cy.session + cy.origin pour SSO/Auth0/Okta/Cognito multi-domaines ; stratégie de cache de session à l'échelle |
-| **Custom commands** | Créer une commande simple | Overwrite de commandes, options | Typings TypeScript (declaration merging), autocomplétion IDE, publication en plugin |
-| **Architecture de test** | Page Objects basiques | App Actions vs Page Objects, fixtures | Arbitrage POM/App Actions ; seeding via API/cy.task ; architecture monorepo, centaines de specs |
-| **Component testing** | Monter un composant simple | React/Vue/Angular avec props/events | Signals Angular, harnais personnalisés, arbitrage composant vs E2E vs API |
-| **Node / plugins** | Utiliser cy.task | Écrire des tâches Node, variables d'env | Authoring de plugins, seeding BD, système de fichiers, preprocessors |
-| **CI/CD & parallélisation** | Lancer en CI (GitHub Actions) | Docker, sharding, reporting (mochawesome/JUnit/Allure) | Parallélisation Cloud vs alternatives (Currents/Sorry-Cypress), orchestration, optimisation du temps de suite |
-| **Diagnostic** | Lire le Command Log | Debug DevTools, retries de test | Diagnostic systématique de flakiness, Test Replay, profiling de suite |
-| **Qualité transverse** | — | Visual testing, cypress-axe (accessibilité) | Stratégie a11y à l'échelle, visual regression, coexistence/migration avec Playwright |
+| Domaine                     | Intermédiaire                                                 | Avancé                                                              | Expert                                                                                                                                                            |
+| --------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Commandes & internes**    | Écrire des tests avec cy.get/click/type, assertions .should() | Comprendre queries vs actions vs assertions ; retry-ability de base | Maîtriser la queue de commandes, la gestion du sujet, les frontières de retry (mid-chain assertions), le détachement DOM ; savoir réécrire en `.should(callback)` |
+| **Réseau (cy.intercept)**   | Stubber une réponse simple, attendre un alias                 | Spy vs stub, modifier requêtes/réponses, matchers dynamiques        | Chaînes d'interception complexes, throttling/latence, tests d'edge cases réseau, séquençage d'alias, contrôle du serveur pour tests déterministes                 |
+| **Authentification**        | Login via UI                                                  | cy.session avec cache, login programmatique via API                 | cy.session + cy.origin pour SSO/Auth0/Okta/Cognito multi-domaines ; stratégie de cache de session à l'échelle                                                     |
+| **Custom commands**         | Créer une commande simple                                     | Overwrite de commandes, options                                     | Typings TypeScript (declaration merging), autocomplétion IDE, publication en plugin                                                                               |
+| **Architecture de test**    | Page Objects basiques                                         | App Actions vs Page Objects, fixtures                               | Arbitrage POM/App Actions ; seeding via API/cy.task ; architecture monorepo, centaines de specs                                                                   |
+| **Component testing**       | Monter un composant simple                                    | React/Vue/Angular avec props/events                                 | Signals Angular, harnais personnalisés, arbitrage composant vs E2E vs API                                                                                         |
+| **Node / plugins**          | Utiliser cy.task                                              | Écrire des tâches Node, variables d'env                             | Authoring de plugins, seeding BD, système de fichiers, preprocessors                                                                                              |
+| **CI/CD & parallélisation** | Lancer en CI (GitHub Actions)                                 | Docker, sharding, reporting (mochawesome/JUnit/Allure)              | Parallélisation Cloud vs alternatives (Currents/Sorry-Cypress), orchestration, optimisation du temps de suite                                                     |
+| **Diagnostic**              | Lire le Command Log                                           | Debug DevTools, retries de test                                     | Diagnostic systématique de flakiness, Test Replay, profiling de suite                                                                                             |
+| **Qualité transverse**      | —                                                             | Visual testing, cypress-axe (accessibilité)                         | Stratégie a11y à l'échelle, visual regression, coexistence/migration avec Playwright                                                                              |
 
 ## Référentiel — Compétences PROGRAMMATION & INGÉNIERIE (et pourquoi)
 
-| Compétence | Niveau attendu (expert) | Pourquoi c'est critique pour Cypress |
-|---|---|---|
-| **JavaScript profond** | Event loop, closures, promesses | Les chaînes Cypress ne sont PAS des promesses natives (pas d'async/await sur `cy.*`) ; confondre les deux est la première source de bugs de test |
-| **TypeScript** | Generics, declaration merging, strict mode | Indispensable pour typer les custom commands, les fixtures et obtenir l'autocomplétion ; standard de fait des suites 2026 |
-| **Node.js** | Tasks, plugins, FS, env vars | `cy.task` et les plugins s'exécutent en Node ; le seeding et l'isolation d'environnement en dépendent |
-| **HTTP / REST / GraphQL** | Verbes, statuts, headers, sérialisation | Pré-requis à `cy.intercept` et `cy.request` ; seeding via API |
-| **DOM / CSS / sélecteurs** | Sélecteurs accessibility-first (Testing Library) | Sélecteurs robustes = tests non-flaky ; `data-*` et rôles ARIA plutôt que sélecteurs fragiles |
-| **Git** | Workflows, branches, revue | Tests versionnés, revue de code de test comme du code applicatif |
-| **Docker & CI/CD YAML** | Images Cypress, pipelines | Exécution reproductible, parallélisation, isolation |
-| **Design logiciel** | SOLID/DRY appliqués au code de test | Suites maintenables à l'échelle ; arbitrage DRY vs lisibilité |
-| **Debugging & profiling** | DevTools, Command Log, Test Replay | Réduction du coût de maintenance (le poste de coût principal des suites) |
-| **Sécurité** | Secrets, isolation d'env | Ne pas fuiter de credentials en CI ; environnements isolés |
-| **Gouvernance de l'IA** | cy.prompt, Copilot, MCP, revue | En 2026, savoir QUAND utiliser l'IA et VÉRIFIER son output (traiter les tests générés comme une PR de junior) est une compétence experte |
+| Compétence                 | Niveau attendu (expert)                          | Pourquoi c'est critique pour Cypress                                                                                                             |
+| -------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **JavaScript profond**     | Event loop, closures, promesses                  | Les chaînes Cypress ne sont PAS des promesses natives (pas d'async/await sur `cy.*`) ; confondre les deux est la première source de bugs de test |
+| **TypeScript**             | Generics, declaration merging, strict mode       | Indispensable pour typer les custom commands, les fixtures et obtenir l'autocomplétion ; standard de fait des suites 2026                        |
+| **Node.js**                | Tasks, plugins, FS, env vars                     | `cy.task` et les plugins s'exécutent en Node ; le seeding et l'isolation d'environnement en dépendent                                            |
+| **HTTP / REST / GraphQL**  | Verbes, statuts, headers, sérialisation          | Pré-requis à `cy.intercept` et `cy.request` ; seeding via API                                                                                    |
+| **DOM / CSS / sélecteurs** | Sélecteurs accessibility-first (Testing Library) | Sélecteurs robustes = tests non-flaky ; `data-*` et rôles ARIA plutôt que sélecteurs fragiles                                                    |
+| **Git**                    | Workflows, branches, revue                       | Tests versionnés, revue de code de test comme du code applicatif                                                                                 |
+| **Docker & CI/CD YAML**    | Images Cypress, pipelines                        | Exécution reproductible, parallélisation, isolation                                                                                              |
+| **Design logiciel**        | SOLID/DRY appliqués au code de test              | Suites maintenables à l'échelle ; arbitrage DRY vs lisibilité                                                                                    |
+| **Debugging & profiling**  | DevTools, Command Log, Test Replay               | Réduction du coût de maintenance (le poste de coût principal des suites)                                                                         |
+| **Sécurité**               | Secrets, isolation d'env                         | Ne pas fuiter de credentials en CI ; environnements isolés                                                                                       |
+| **Gouvernance de l'IA**    | cy.prompt, Copilot, MCP, revue                   | En 2026, savoir QUAND utiliser l'IA et VÉRIFIER son output (traiter les tests générés comme une PR de junior) est une compétence experte         |
 
 ## Signal marché (chiffres et sources)
 
@@ -86,6 +87,7 @@
 6. **Seuils qui changeraient la stratégie** : si Cypress lançait une certification officielle, ou si les téléchargements npm Cypress repassaient en croissance nette, ou si `cy.prompt` sortait du statut expérimental avec adoption large — réévaluer le poids relatif Cypress/Playwright dans le curriculum.
 
 ## Caveats
+
 - Les chiffres npm/stars varient selon la date du snapshot ; fourchettes données volontairement (référence la plus fiable : npmtrends + TestMu AI août 2026).
 - Le chiffre du marché de l'automatisation (35,52 → 169,33 Md$) provient de sources secondaires, non d'un rapport primaire vérifié.
 - Les comptages d'offres d'emploi Indeed sont des instantanés (sept-nov 2025), non des séries statistiques longitudinales ; aucun chiffre officiel de part de marché « Cypress vs Playwright » sur le marché de l'emploi français n'a pu être vérifié depuis une source primaire.

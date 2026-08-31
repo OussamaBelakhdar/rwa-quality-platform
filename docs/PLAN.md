@@ -8,15 +8,15 @@
 
 ## Semaine 0 — Fondation (prérequis, non négociable)
 
-| Tâche | Critère de fin |
-|---|---|
-| Fork + renommage `rwa-quality-platform` | Dépôt public, licence MIT conservée |
-| Node aligné sur `.node-version` (**22.20.0**) | `node -v` correspond ; `yarn dev` up sur 3000 (front) + 3001 (API) |
-| Retirer `projectId: "7s5okt"` de `cypress.config.ts` | Plus aucune référence à Cypress Cloud dans le dépôt ni la CI (P6) |
-| `specPattern` → `cypress/e2e/**/*.cy.{ts,tsx}` | L'upstream utilise `cypress/tests/**/*.spec.ts` ; une seule convention `.cy.ts` pour e2e et component, celle que ciblent les garde-fous du dépôt |
-| Supprimer `cypress/tests/**`, vider `cypress/support`, retirer `@percy/cypress` et les `cy.visualSnapshot` | Suite = 0 test, `yarn lint` vert |
-| `cypress/tsconfig.json` strict | `yarn types` passe |
-| **ADR-001** — `Cypress.expose()` comme frontière config/secret | ADR accepté, index d'`ARCHITECTURE.md` à jour |
+| Tâche                                                                                                      | Critère de fin                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Fork + renommage `rwa-quality-platform`                                                                    | Dépôt public, licence MIT conservée                                                                                                              |
+| Node aligné sur `.node-version` (**22.20.0**)                                                              | `node -v` correspond ; `yarn dev` up sur 3000 (front) + 3001 (API)                                                                               |
+| Retirer `projectId: "7s5okt"` de `cypress.config.ts`                                                       | Plus aucune référence à Cypress Cloud dans le dépôt ni la CI (P6)                                                                                |
+| `specPattern` → `cypress/e2e/**/*.cy.{ts,tsx}`                                                             | L'upstream utilise `cypress/tests/**/*.spec.ts` ; une seule convention `.cy.ts` pour e2e et component, celle que ciblent les garde-fous du dépôt |
+| Supprimer `cypress/tests/**`, vider `cypress/support`, retirer `@percy/cypress` et les `cy.visualSnapshot` | Suite = 0 test, `yarn lint` vert                                                                                                                 |
+| `cypress/tsconfig.json` strict                                                                             | `yarn types` passe                                                                                                                               |
+| **ADR-001** — `Cypress.expose()` comme frontière config/secret                                             | ADR accepté, index d'`ARCHITECTURE.md` à jour                                                                                                    |
 
 > Il n'y a **pas** de migration de version à faire : l'upstream est déjà sur la dernière branche stable et sa config a déjà basculé de `Cypress.env()` vers `Cypress.expose()`. Le sujet d'ADR-001 est cette frontière `expose`/`env`, pas une montée de version que je n'aurais pas faite. Les versions exactes constatées au moment du fork sont relevées dans l'ADR.
 
@@ -169,30 +169,30 @@
 
 ## Matrice de couverture du référentiel
 
-| Ligne du référentiel | Semaine | Preuve dans le dépôt |
-|---|---|---|
-| Commandes & internes (Expert) | 1 | `00-foundations/` |
-| Réseau cy.intercept (Expert) | 5 | `network/` |
-| Authentification (Expert) | 2, 9 | `cy.login`, branche `feat/auth0` |
-| Custom commands typées (Expert) | 3 | `index.d.ts` |
-| Architecture / App Actions / seeding | 3, 4 | `app-actions/`, `plugins/db.task.ts`, `backend/test-data.routes.ts`, ADR-002, ADR-006 |
-| Component testing (Expert) | 8 | `src/**/*.cy.tsx`, ADR-004 |
-| Node / plugins (Expert) | 4 | `plugins/db.task.ts` + endpoints `/testData` |
-| CI/CD & parallélisation (Expert) | 6 | `e2e.yml`, ADR-003 |
-| Diagnostic flakiness (Expert) | 7 | `flakiness-report.md`, `cy:burn`, branche `flake-demo` upstream |
-| Visual / a11y | 8 | `cypress-axe`, PR correctifs |
-| Coexistence Playwright | 10 | `playwright/`, ADR-005 |
-| JS profond | 1 | tests cassés-corrigés |
-| TypeScript | 0, 3 | `cypress/tsconfig.json` strict, declaration merging, frontière `expose`/`env` (ADR-001) |
-| Node.js | 4 | plugin |
-| HTTP/REST | 2, 5 | `cy.request`, intercepts |
-| Sélecteurs a11y-first | 3 | `cy.getBySel` + rôles ARIA |
-| Git | 0-10 | ADR, PR, branches |
-| Docker & CI YAML | 6 | workflow |
-| Design logiciel | 3 | ADR-002 |
-| Debugging & profiling | 7 | Test Replay, burn |
-| Sécurité | 4, 6 | `.env.local`/`cypress.env.json` gitignorés, secrets GitHub, SHA-pin des actions |
-| Gouvernance IA | 10 | revue des tests générés |
+| Ligne du référentiel                 | Semaine | Preuve dans le dépôt                                                                    |
+| ------------------------------------ | ------- | --------------------------------------------------------------------------------------- |
+| Commandes & internes (Expert)        | 1       | `00-foundations/`                                                                       |
+| Réseau cy.intercept (Expert)         | 5       | `network/`                                                                              |
+| Authentification (Expert)            | 2, 9    | `cy.login`, branche `feat/auth0`                                                        |
+| Custom commands typées (Expert)      | 3       | `index.d.ts`                                                                            |
+| Architecture / App Actions / seeding | 3, 4    | `app-actions/`, `plugins/db.task.ts`, `backend/test-data.routes.ts`, ADR-002, ADR-006   |
+| Component testing (Expert)           | 8       | `src/**/*.cy.tsx`, ADR-004                                                              |
+| Node / plugins (Expert)              | 4       | `plugins/db.task.ts` + endpoints `/testData`                                            |
+| CI/CD & parallélisation (Expert)     | 6       | `e2e.yml`, ADR-003                                                                      |
+| Diagnostic flakiness (Expert)        | 7       | `flakiness-report.md`, `cy:burn`, branche `flake-demo` upstream                         |
+| Visual / a11y                        | 8       | `cypress-axe`, PR correctifs                                                            |
+| Coexistence Playwright               | 10      | `playwright/`, ADR-005                                                                  |
+| JS profond                           | 1       | tests cassés-corrigés                                                                   |
+| TypeScript                           | 0, 3    | `cypress/tsconfig.json` strict, declaration merging, frontière `expose`/`env` (ADR-001) |
+| Node.js                              | 4       | plugin                                                                                  |
+| HTTP/REST                            | 2, 5    | `cy.request`, intercepts                                                                |
+| Sélecteurs a11y-first                | 3       | `cy.getBySel` + rôles ARIA                                                              |
+| Git                                  | 0-10    | ADR, PR, branches                                                                       |
+| Docker & CI YAML                     | 6       | workflow                                                                                |
+| Design logiciel                      | 3       | ADR-002                                                                                 |
+| Debugging & profiling                | 7       | Test Replay, burn                                                                       |
+| Sécurité                             | 4, 6    | `.env.local`/`cypress.env.json` gitignorés, secrets GitHub, SHA-pin des actions         |
+| Gouvernance IA                       | 10      | revue des tests générés                                                                 |
 
 **Non couvert volontairement** : visual regression (Percy/Applitools — coût, faible valeur sur une app démo) ; Currents en production (payant). Les deux sont mentionnés dans ADR-003 comme options, pas implémentés.
 
