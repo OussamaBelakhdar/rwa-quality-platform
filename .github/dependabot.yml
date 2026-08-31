@@ -26,12 +26,20 @@ updates:
         patterns: ["@types/*"]
       lint:
         patterns: ["eslint", "eslint-*", "@typescript-eslint/*", "prettier"]
-      transitive-security:
-        applies-to: security-updates
-        patterns: ["*"]
+    # Pas de groupe `applies-to: security-updates`. Un groupe fourre-tout
+    # produit une PR unique où une montée majeure risquée se cache au milieu
+    # de neuf correctifs anodins — c'est exactement ce qui est arrivé avec la
+    # PR #12 (uuid 8 -> 14 et http-proxy-middleware 0.19 -> 2.x noyés dans 11
+    # mises à jour). Les correctifs de sécurité arrivent donc un par un :
+    # plus bruyant, mais chaque majeure est relisible seule.
     ignore:
-      # Montées majeures à instruire à la main : elles touchent l'authentification,
-      # le proxy de dev ou la génération d'identifiants du seed.
+      # ATTENTION — une condition `ignore` assortie de `update-types` ne
+      # s'applique QU'AUX mises à jour de version. Dependabot ignore ce filtre
+      # pour les mises à jour de sécurité. Ces trois lignes empêchent donc les
+      # majeures de revenir chaque semaine par le canal « version », mais elles
+      # n'empêchent PAS une majeure d'arriver par le canal « sécurité ».
+      # C'est voulu : une faille dans passport ou uuid doit remonter, même si
+      # le correctif impose une majeure. Elle arrivera seule, donc relisible.
       - dependency-name: "passport*"
         update-types: ["version-update:semver-major"]
       - dependency-name: "http-proxy-middleware"
