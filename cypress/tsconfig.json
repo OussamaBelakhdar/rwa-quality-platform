@@ -1,14 +1,34 @@
 {
+  // Étend la config racine (convention de l'amont). N'ajoute ici que ce qui
+  // durcit le contrat du code de test — voir .claude/rules/typescript.md.
   "extends": "../tsconfig.json",
   "include": ["./**/*.ts", "../cypress.d.ts"],
   "exclude": [],
   "compilerOptions": {
-    "types": ["cypress", "@percy/cypress"],
-    "lib": ["es2015", "dom"],
+    // @percy/cypress retiré avec la suite héritée (ARCHITECTURE §11).
+    "types": ["cypress", "node"],
+    "lib": ["es2020", "dom", "dom.iterable"],
     "isolatedModules": false,
     "module": "commonjs",
     "moduleResolution": "node",
-    "allowJs": true,
+    "allowJs": false,
     "noEmit": true,
-  },
+
+    // Contrat strict du dossier cypress/
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Imports : pas de ../../.. (rules/typescript.md)
+    "baseUrl": "..",
+    "paths": {
+      "@support/*": ["cypress/support/*"],
+      "@plugins/*": ["cypress/plugins/*"],
+      "@models/*": ["src/models/*"]
+    }
+  }
 }
