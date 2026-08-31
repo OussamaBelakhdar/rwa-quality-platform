@@ -4,6 +4,8 @@ import type { DataTestKey } from "./selectors/data-test";
 import type { DataTestPrefix, SeedScenario } from "./types";
 // Type importé de l'application, jamais redéclaré (.claude/rules/typescript.md).
 import type { authService } from "../../src/machines/authMachine";
+import type { publicTransactionsMachine } from "../../src/machines/publicTransactionsMachine";
+import type { Interpreter } from "xstate";
 
 declare global {
   /** Surface de test exposée par l'application sous garde `window.Cypress`. */
@@ -14,6 +16,12 @@ declare global {
      * force l'attente au lieu de la confier à la discipline (ADR-006).
      */
     authService?: typeof authService;
+    /** Enregistré par TransactionPublicList sous garde `window.Cypress`, et seulement pendant que le composant est monté. */
+    publicTransactionService?: Interpreter<
+      (typeof publicTransactionsMachine)["context"],
+      (typeof publicTransactionsMachine)["schema"],
+      never
+    >;
   }
 
   namespace Cypress {

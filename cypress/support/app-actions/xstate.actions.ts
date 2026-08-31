@@ -29,3 +29,25 @@ export const loginByXstate = (username: string, password: string): void => {
 
   cy.wait(login).its("response.statusCode").should("eq", 200);
 };
+
+/**
+ * Envoie `FETCH` au service XState de la liste publique, avec un filtre
+ * optionnel. C'est le même événement que le composant émet lui-même
+ * (`TransactionPublicList.tsx:33`), sur le service qu'il enregistre sur
+ * `window` (`ligne 27`).
+ *
+ * Distinct d'un `cy.getBySel("nav-personal-tab").click()`, qui démonte le
+ * composant par React Router : ici le composant reste monté et c'est la
+ * machine qui reconstruit ses lignes.
+ *
+ * Nuance vérifiée empiriquement : un `FETCH` sans filtre ne détache **pas**
+ * les lignes. Les données revenant identiques, React réconcilie et réutilise
+ * les mêmes noeuds — la liste est virtualisée (`react-virtualized`), mais
+ * c'est la réconciliation, pas la virtualisation, qui les préserve. Il faut
+ * que le jeu de résultats change pour observer un détachement.
+ */
+export const fetchPublicTransactions = (filtre?: Record<string, number>): void => {
+  cy.window({ log: false })
+    .should("have.property", "publicTransactionService")
+    .invoke("send", "FETCH", filtre ?? {});
+};
