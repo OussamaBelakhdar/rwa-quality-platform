@@ -217,7 +217,7 @@
       "bankName": "D'Amore Inc Bank",
       "accountNumber": "5785581121",
       "routingNumber": "501852312",
-      "isDeleted": true,
+      "isDeleted": false,
       "createdAt": "2023-04-03T08:50:04.983Z",
       "modifiedAt": "2024-03-07T11:35:16.676Z"
     },
