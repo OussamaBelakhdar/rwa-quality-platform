@@ -1,4 +1,5 @@
 import {
+  delayTransactionDetail,
   stubBankAccountsEnErreur,
   stubNotificationsEnErreur,
   stubTransactionDetailEnErreur,
@@ -57,5 +58,18 @@ describe("Réseau — erreurs sur les autres surfaces", { tags: ["@network", "@r
     cy.wait(flux);
 
     ecranDErreur(ERREUR_500);
+  });
+  it("le détail affiche un indicateur pendant le chargement, au lieu d'une page blanche", () => {
+    // RÉGRESSION. Le conteneur n'affichait « Loading... » que sur l'état
+    // `idle`, quitté dès le `FETCH` : la page restait blanche pendant TOUTE la
+    // requête. Le retard rend la fenêtre observable — sans lui, l'assertion
+    // dépendrait de la vitesse de la machine (cf. `latence.cy.ts`).
+    const flux = delayTransactionDetail(1500);
+
+    cy.visit("/transaction/peu-importe");
+    cy.getBySel("transaction-detail-loading").should("be.visible");
+
+    cy.wait(flux);
+    cy.getBySel("transaction-detail-loading").should("not.exist");
   });
 });

@@ -1,4 +1,4 @@
-import { simuler } from "@support/intercepts/factories";
+import { retarder, simuler } from "@support/intercepts/factories";
 import type { InterceptAlias } from "@support/types";
 
 /**
@@ -38,3 +38,10 @@ export const stubBankAccountsEnErreur = (statusCode = 500): InterceptAlias =>
 /** `GET /transactions/:id` — le détail d'une transaction. */
 export const stubTransactionDetailEnErreur = (statusCode = 500): InterceptAlias =>
   simuler(api("/transactions/*"), "transactionDetailErreur", { statusCode, body: {} });
+
+/**
+ * Retarde la VRAIE réponse du détail, pour rendre observable l'état de
+ * chargement — qui n'était rendu nulle part avant la semaine 5.
+ */
+export const delayTransactionDetail = (ms: number): InterceptAlias =>
+  retarder(api("/transactions/*"), "transactionDetailRetarde", ms);

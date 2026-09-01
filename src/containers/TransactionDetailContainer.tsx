@@ -43,7 +43,7 @@ const TransactionDetailsContainer: React.FC<Props> = ({ authService }) => {
         BLANCHE pendant toute la requête.
       */}
       {(transactionDetailState.matches("idle") || transactionDetailState.matches("loading")) && (
-        <div>
+        <div data-test="transaction-detail-loading">
           Loading...
           <br />
         </div>

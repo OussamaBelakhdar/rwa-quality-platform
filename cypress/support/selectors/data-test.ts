@@ -67,6 +67,7 @@ export const DATA_TEST_KEYS = [
   "transaction-create-submit-request",
   "transaction-description",
   "transaction-detail-header",
+  "transaction-detail-loading",
   "transaction-like-count",
   "transaction-list",
   "transaction-list-empty-create-transaction-button",
