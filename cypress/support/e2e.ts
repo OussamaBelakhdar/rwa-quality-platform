@@ -7,6 +7,13 @@ import { register as registerCypressGrep } from "@cypress/grep";
 // niveau sur chaque describe ; sans ce plugin la règle serait déclarative.
 registerCypressGrep();
 
+// Fail-fast (ARCHITECTURE.md §5) : une variable manquante ou un serveur lancé
+// sans `yarn dev:test` arrête la suite en deux secondes, en nommant la cause,
+// plutôt que de produire un échec incompréhensible au quinzième test.
+before(() => {
+  cy.task("env:validate", null, { log: false });
+});
+
 beforeEach(() => {
   // Middleware conservé de l'upstream : sans lui, le serveur répond 304 sur les
   // requêtes API et les assertions portent sur une réponse mise en cache.

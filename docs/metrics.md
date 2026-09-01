@@ -108,3 +108,19 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Ordre `--spec` honoré par Cypress | **vérifié** dans les deux sens en comparant les lignes `Running:`                                                                                                                                                                        |
 | `data/database.json`              | **retiré du suivi git** — le commit précédent y avait embarqué un utilisateur de test, hash bcrypt inclus                                                                                                                                |
 | Casts dans `cypress/`             | **0**                                                                                                                                                                                                                                    |
+
+## Semaine 4 — points « Recommandé » de la revue, traités
+
+| Amélioration                   | Preuve                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Tests                          | **40** · `cy:run` et `cy:random` à 40/40                                                                                        |
+| Validation d'entrée des routes | `400` qui **nomme les champs manquants** au lieu d'un 500 au corps vide ; `senderId` inconnu nommé aussi                        |
+| Traversée de chemin            | `POST /seed/..%2F..%2Fpackage` → **400**. `seedDatabaseWith` prend une union fermée, plus une chaîne libre                      |
+| Ancre de chemin                | `__dirname` partout dans `database.ts` ; `process.cwd()` et `__dirname` coexistaient et auraient cassé sous un `WORKDIR` Docker |
+| Source unique des scénarios    | le backend publie `GET /testData/seed/scenarios`, un contrat le compare au type `SeedScenario`                                  |
+| `env:validate` (§4, §5)        | **livré et prouvé** : contre un serveur sans `dev:test`, arrêt en **119 ms** avec la cause et les ADR cités                     |
+| Contrats de seeding            | **1** — la tâche `db:seed` de l'amont est retirée, `db:reset` typée reste seule                                                 |
+| Duplication P5                 | la lecture de `defaultPassword` était copiée mot pour mot entre deux commandes — factorisée dans `env.commands.ts`              |
+| `cypress/plugins/index.ts`     | créé : la règle le référençait, le fichier n'existait pas                                                                       |
+| Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
+| `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
