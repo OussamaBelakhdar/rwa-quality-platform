@@ -39,6 +39,7 @@
     "paths": {
       "@support/*": ["cypress/support/*"],
       "@plugins/*": ["cypress/plugins/*"],
+      "@fixtures/*": ["cypress/fixtures/*"],
       "@models/*": ["src/models/*"]
     }
   }

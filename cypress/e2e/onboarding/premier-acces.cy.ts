@@ -1,5 +1,5 @@
 import { completeOnboarding } from "@support/app-actions/xstate.actions";
-import { userBuilder } from "../../fixtures/builders/user.builder";
+import { userBuilder } from "@fixtures/builders/user.builder";
 
 // Niveau E2E : l'onboarding est un dialogue piloté par une machine XState,
 // déclenché par l'absence de compte bancaire. Ni un test de composant ni

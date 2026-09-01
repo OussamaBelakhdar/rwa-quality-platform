@@ -21,6 +21,7 @@ export type SeedScenario = "empty" | "default";
 /** Préfixes légitimes de `data-test`, pour `cy.getBySelLike`. */
 export type DataTestPrefix =
   | "transaction-item"
+  | "transaction-amount"
   | "bankaccount-list-item"
   | "notification-list-item";
 
