@@ -12,8 +12,19 @@ describe("Fondations — frontières de retry", { tags: ["@foundations", "@regre
     // Le clic déclenche un GET ; la liste est vide à l'instant qui suit.
     // Aucun cy.wait ici : c'est le retry de l'assertion qui fait le travail.
     // Avec `{ timeout: 0 }`, cette même ligne échouerait.
+    //
+    // L'assertion porte sur le CONTENU et non sur un simple compte : la liste
+    // personnelle ne doit contenir que des transactions impliquant
+    // l'utilisateur connecté. Une assertion de longueur passerait aussi sur la
+    // liste publique restée à l'écran — elle ne prouverait donc pas que le
+    // rafraîchissement a eu lieu.
     cy.getBySel("nav-personal-tab").click();
-    cy.getBySelLike("transaction-item").should("have.length.greaterThan", 0);
+
+    cy.getBySelLike("transaction-item").should(($lignes) => {
+      expect($lignes.length, "la liste personnelle est peuplée").to.be.greaterThan(0);
+      const etrangeres = $lignes.toArray().filter((l) => !(l.textContent ?? "").includes("Ted P"));
+      expect(etrangeres, "chaque ligne implique l'utilisateur connecté").to.have.length(0);
+    });
   });
 
   it("fige la valeur sortie de la chaîne, pendant que la chaîne reste vivante", () => {

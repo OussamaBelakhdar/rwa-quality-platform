@@ -46,8 +46,13 @@ describe(
       cy.focused().should("match", "a, button, input, select, textarea, [tabindex]");
     });
 
-    // Note : `Cypress.stop()` (et non cy.stop) interrompt le runner. Outil de
-    // mise au point en mode interactif ; l'appeler dans une suite automatisée
-    // arrêterait l'exécution, donc il est documenté, pas appelé.
+    it("expose Cypress.stop, dont la démonstration ne peut pas vivre ici", () => {
+      // `Cypress.stop()` interrompt le runner : l'appeler dans une suite
+      // automatisée arrêterait l'exécution. On en vérifie donc le contrat —
+      // une montée de Cypress qui supprimerait l'API ferait échouer ce test —
+      // et la démonstration réelle vit dans `cypress/manual/stop-demo.cy.ts`,
+      // hors du specPattern, lançable par `yarn cy:demo:stop`.
+      expect(Cypress.stop, "l'API du runner existe").to.be.a("function");
+    });
   }
 );

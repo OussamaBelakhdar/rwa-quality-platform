@@ -6,7 +6,8 @@ import { interceptLogin } from "@support/intercepts/auth.intercepts";
  * Seul endroit du dépôt autorisé à toucher `cy.window()` : les specs passent
  * par ces app actions (.claude/rules/testing.md #12).
  *
- * DETTE — bascule sur `window.__services__` sous garde `VITE_TEST_HOOKS`
+ * DETTE (2026-09-01, échéance semaine 3) — bascule sur `window.__services__`
+ * sous garde `VITE_TEST_HOOKS`
  * (ADR-006, semaine 3). Cette implémentation lit `window.authService`, exposé
  * par l'amont sous garde `window.Cypress`, ce que la règle #12 et
  * ARCHITECTURE.md §4 désignent comme n'étant PAS la voie d'accès du projet.

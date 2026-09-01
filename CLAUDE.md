@@ -24,6 +24,8 @@ Fork de `cypress-io/cypress-realworld-app` dont la suite de tests a été suppri
 - `yarn cy:run --env grep=@smoke` — par tag
 - `yarn cy:component` — component tests
 - `yarn cy:burn` — 10 exécutions, taux d'échec par test, retries forcés à zéro. Sépare les tests _cassés_ (échouent toujours) des tests _flaky_ (échouent parfois). `CY_BURN_RUNS=<n>` pour changer le nombre d'exécutions
+- `yarn cy:demo:stop` — démonstration de `Cypress.stop()`, hors du specPattern (elle arrête le runner : jamais dans la suite)
+- `yarn check:selectors` — l'union `DataTestKey` et les `data-test` de `src/` concordent (chaîné dans `yarn lint`)
 - `yarn cy:random` — ordre de specs aléatoire (preuve d'isolation, P1). La graine est imprimée ; `CY_RANDOM_SEED=<n> yarn cy:random` rejoue exactement le même ordre
 - `yarn types` — tsc strict sur app + cypress
 - `yarn lint`

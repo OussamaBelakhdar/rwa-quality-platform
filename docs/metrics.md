@@ -43,3 +43,27 @@ Une case vide signifie « pas encore mesurable », jamais « non mesuré ».
 | Garde-fou sélecteurs                          | `yarn check:selectors`                                          | 75 clés, `src/` et l'union comparées dans les deux sens ; chaîné dans `yarn lint`                                      |
 | Règles TS appliquées au code de test          | `no-explicit-any`, `ban-ts-comment` en `error` sur `cypress/**` | vérifié par sonde : les deux rejettent                                                                                 |
 | **Base de référence semaine 2**               | **12–13 s** pour 20 tests                                       | sans `cy.session` : `cy.login` charge `/signin` puis la spec charge sa page — deux chargements par test                |
+
+## Semaine 2 — `cy.session` (2026-09-01)
+
+Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même machine, Electron.
+
+| Métrique                     | Avant                                 | Après   | Écart     |
+| ---------------------------- | ------------------------------------- | ------- | --------- |
+| Durée de suite               | 12–13 s                               | **8 s** | **−35 %** |
+| Chargements de page par test | 2 (`/signin` puis la page de la spec) | 1       | −50 %     |
+
+| Autre                                   | Valeur                                                          |
+| --------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite complète (22 tests, auth incluse) | 10–11 s                                                         |
+| Isolation `yarn cy:random`              | 3 ordres, 22/22 — le cache de session ne crée pas de couplage   |
+| `yarn cy:burn`                          | 10 × 22 = 220 exécutions, **0,00 %**                            |
+| Login UI restant                        | **1 spec** (`e2e/auth/login.cy.ts`, 2 tests)                    |
+| Chemin d'échec de `validate()`          | **exercé et prouvé**                                            | `e2e/auth/session.cy.ts` ; sans `validate()` le test échoue (vérifié par mutation)                                                          |
+| `Cypress.stop()`                        | contrat vérifié en suite, démonstration réelle hors specPattern | `yarn cy:demo:stop`                                                                                                                         |
+| Règle #6 (tags) outillée                | `check-spec.sh`                                                 | vérifié par 3 sondes : sans tag → bloqué, domaine seul → bloqué, conforme → passe                                                           |
+| Garde-fou préfixes                      | `check:selectors` couvre `DataTestPrefix`                       | vérifié : un préfixe inventé est nommé                                                                                                      |
+| Assertions vérifiées par mutation       | 4                                                               | specs 05, 06 et les deux tests de `auth/session.cy.ts`                                                                                      |
+| Coût réel de `cy.seed()`                | **1,5–5 ms** par appel                                          | mesuré, pas supposé : ~40 ms sur les 25 tests, soit **0,25 %** d'une suite de 16 s. L'hypothèse « prochain gisement de temps » était fausse |
+| Déterminisme du seed                    | mêmes IDs après reseed                                          | c'est ce qui permet au cache `cy.session` de survivre d'un test à l'autre                                                                   |
+| Assertions vérifiées par mutation       | **6**                                                           | specs 05, 06, 08 et les deux de `auth/session.cy.ts`                                                                                        |

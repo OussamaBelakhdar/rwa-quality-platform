@@ -9,8 +9,3 @@ export const interceptLogin = (): InterceptAlias => {
   cy.intercept("POST", "/login").as("loginUser");
   return "@loginUser";
 };
-
-export const interceptCheckAuth = (): InterceptAlias => {
-  cy.intercept("GET", "/checkAuth").as("checkAuth");
-  return "@checkAuth";
-};

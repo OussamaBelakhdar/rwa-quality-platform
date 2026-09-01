@@ -34,6 +34,7 @@
   - _Constaté en semaine 1_ : un `FETCH` envoyé à `publicTransactionService` ne détache rien si les données reviennent identiques — React réconcilie et réutilise les noeuds. Le détachement demande que le jeu de résultats change ; la spec envoie donc `FETCH` avec un filtre `amountMin/amountMax` qui vide la liste.
 - Assertions mid-chain : `.should(callback)` avec retry sur plusieurs conditions.
 - Démonstration `cy.press()` / `cy.stop()` (Cypress 14+).
+  - _Constaté_ : c'est `Cypress.stop()`, pas `cy.stop()`, et il interrompt le runner — donc impossible à exécuter dans une suite verte. La spec 04 en vérifie le contrat ; la démonstration réelle vit dans `cypress/manual/`, lançable par `yarn cy:demo:stop`. Piège au passage : `Cypress.stop()` n'est pas une commande de la file et s'exécute à la collecte, arrêtant le runner **avant** le `cy.visit` — il faut l'appeler depuis un `cy.then`.
 
 **README section** : "Ce que la queue de commandes change" — un schéma, trois règles.
 **Référentiel** : Commandes & internes (Expert), JavaScript profond.
@@ -45,6 +46,7 @@
 **Livrable** : `cy.login(username)` typée, session cachée, zéro login UI hors du test de login lui-même.
 
 - Login via `cy.request` sur `/login` (l'API Express existe), cookie de session capturé.
+  - _Constaté en semaine 2_ : le cookie ne suffit pas. `authMachine` démarre en `unauthorized` et ne consulte pas `/checkAuth` de lui-même ; il reprend l'état persisté dans `localStorage.authState`. Reconstruire cet état à la main coupleraît le code de test aux internes XState (refusé par ADR-006). Le setup de `cy.session` amorce donc la machine une fois, et le cache capture cookies **et** localStorage — c'est de là que vient le gain. `cy.request` est utilisé là où il est le bon outil : `validate()`.
 - `cy.session` avec `validate()` qui vérifie `/checkAuth`.
 - Un seul test `login.cy.ts` couvre l'UI ; tout le reste passe par la session.
 - Mesure : temps de suite avant/après sur les 8 specs de la semaine 1 (chiffre dans le README).

@@ -23,6 +23,10 @@ yarn && yarn dev   # front :3000, API :3001
 
 ## État
 
+**Semaine 2 — session.** `cy.session` avec `validate()` sur `/checkAuth`. Sur les 8 specs de la semaine 1, à périmètre égal : **12–13 s → 8 s, soit −35 %**, en passant de deux chargements de page par test à un seul. Un seul test parcourt encore le formulaire de connexion.
+
+Le gain ne vient pas du cache de cookie mais du cache de `localStorage` : l'état d'authentification de cette application est persisté par sa machine XState, pas porté par la session serveur. Un `cy.request('/login')` seul laisse l'interface déconnectée — c'est ce que les quatre premiers tests de la semaine 1 ont démontré en échouant.
+
 **Semaine 1 — fondations.** 8 specs, 19 tests, 12 s, vertes sur 3 exécutions consécutives.
 
 ### Ce que la file de commandes change
