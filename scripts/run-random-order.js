@@ -16,7 +16,13 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const E2E_DIR = path.join(__dirname, "..", "cypress", "e2e");
+// Doit suivre le `specPattern` de cypress.config.ts. En semaine 3 le pattern
+// est passé à `cypress/{e2e,api}/**` sans que ce script suive : cy:random
+// exécutait 30 tests quand cy:run en exécutait 34, et l'affirmait vert. Une
+// preuve d'isolation qui couvre moins que la suite est une preuve fausse.
+// La garde en bas du fichier empêche que ça se reproduise silencieusement.
+const RACINE_CYPRESS = path.join(__dirname, "..", "cypress");
+const DOSSIERS_SPECS = ["e2e", "api"].map((d) => path.join(RACINE_CYPRESS, d));
 
 /** Générateur déterministe (mulberry32) : même graine, même ordre. */
 function mulberry32(seed) {
@@ -38,9 +44,23 @@ function collectSpecs(dir) {
   });
 }
 
-const specs = collectSpecs(E2E_DIR);
+const specs = DOSSIERS_SPECS.flatMap(collectSpecs);
 if (specs.length === 0) {
-  console.error(`Aucune spec trouvée sous ${E2E_DIR}`);
+  console.error(`Aucune spec trouvée sous ${DOSSIERS_SPECS.join(", ")}`);
+  process.exit(1);
+}
+
+// Garde : toute spec de `cypress/` hors des dossiers balayés et hors
+// `cypress/manual/` (démonstrations, hors specPattern par conception) est
+// signalée. Sans elle, ajouter un domaine ferait silencieusement rétrécir la
+// preuve d'isolation.
+const oubliees = collectSpecs(RACINE_CYPRESS).filter(
+  (f) => !specs.includes(f) && !f.includes(`${path.sep}manual${path.sep}`)
+);
+if (oubliees.length) {
+  console.error("\nSpecs non couvertes par l'ordre aléatoire :");
+  oubliees.forEach((f) => console.error(`  ${path.relative(process.cwd(), f)}`));
+  console.error("\nAjouter leur dossier à DOSSIERS_SPECS, ou les exclure explicitement.\n");
   process.exit(1);
 }
 

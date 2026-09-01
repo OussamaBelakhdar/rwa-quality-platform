@@ -74,6 +74,17 @@
       "balance": 49474,
       "createdAt": "2023-12-07T04:39:38.383Z",
       "modifiedAt": "2024-03-07T00:07:36.510Z"
+    },
+    {
+      "id": "FnwEqSSsT",
+      "uuid": "309187ac-2bba-4a9e-a4d5-9bbb37aff052",
+      "firstName": "Sans",
+      "lastName": "Compte",
+      "username": "sans_compte_1788257979125",
+      "password": "$2a$10$UitW95XSxAa3Y2yhpqoEEe.dCBjaiWu9ZOK8TiQrnwpxz9fXRGuOG",
+      "balance": 0,
+      "createdAt": "2026-09-01T10:19:39.179Z",
+      "modifiedAt": "2026-09-01T10:19:39.179Z"
     }
   ],
   "contacts": [

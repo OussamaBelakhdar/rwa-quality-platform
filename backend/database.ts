@@ -91,12 +91,18 @@ const adapter = new FileSync<DbSchema>(databaseFile);
 
 const db = low(adapter);
 
-export const seedDatabase = () => {
-  const testSeed = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), "data", "database-seed.json"), "utf-8")
-  );
+export const seedDatabase = () => seedDatabaseWith("database-seed.json");
 
-  // seed database with test data
+/**
+ * Réinitialise la base depuis un fichier de graine de `data/`.
+ *
+ * Le backend est le SEUL écrivain lowdb : il tient son instance en mémoire, et
+ * une écriture faite derrière son dos diverge ou se fait écraser
+ * (docs/ARCHITECTURE.md §4, couche L1). Les tests passent donc par HTTP.
+ */
+export const seedDatabaseWith = (nomFichier: string) => {
+  const chemin = path.join(process.cwd(), "data", nomFichier);
+  const testSeed = JSON.parse(fs.readFileSync(chemin, "utf-8"));
   db.setState(testSeed).write();
   return;
 };

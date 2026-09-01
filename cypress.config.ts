@@ -7,6 +7,7 @@ import codeCoverageTask from "@cypress/code-coverage/task";
 import { defineConfig } from "cypress";
 import viteConfig from "./vite.cypress.config.ts";
 import { plugin as registerGrepPlugin } from "@cypress/grep/plugin";
+import { enregistrerTachesDb } from "./cypress/plugins/db.task";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -87,6 +88,10 @@ export default defineConfig({
 
         return Array.isArray(query) ? Promise.map(query, fetchData) : fetchData(query);
       };
+
+      // Tâches L1 du projet : proxy HTTP typé vers /testData
+      // (cypress/plugins/db.task.ts). Le backend reste le seul écrivain lowdb.
+      on("task", enregistrerTachesDb(config.expose.apiUrl));
 
       on("task", {
         async "db:seed"() {
