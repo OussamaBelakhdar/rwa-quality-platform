@@ -61,3 +61,6 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Login UI restant                        | **1 spec** (`e2e/auth/login.cy.ts`, 2 tests)                    |
 | Chemin d'échec de `validate()`          | **exercé et prouvé**                                            | `e2e/auth/session.cy.ts` ; sans `validate()` le test échoue (vérifié par mutation) |
 | `Cypress.stop()`                        | contrat vérifié en suite, démonstration réelle hors specPattern | `yarn cy:demo:stop`                                                                |
+| Règle #6 (tags) outillée                | `check-spec.sh`                                                 | vérifié par 3 sondes : sans tag → bloqué, domaine seul → bloqué, conforme → passe  |
+| Garde-fou préfixes                      | `check:selectors` couvre `DataTestPrefix`                       | vérifié : un préfixe inventé est nommé                                             |
+| Assertions vérifiées par mutation       | 4                                                               | specs 05, 06 et les deux tests de `auth/session.cy.ts`                             |

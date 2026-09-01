@@ -28,12 +28,11 @@ describe("Fondations — alias de query", { tags: ["@foundations", "@regression"
 
     cy.getBySel("nav-personal-tab").click();
 
-    cy.get("@noeud").should((noeud: unknown) => {
+    cy.get("@noeud").should((noeud: HTMLElement) => {
       // L'alias de valeur n'a rien à rejouer : il rend l'ancien noeud, détaché.
       // C'est l'exact contraire du test précédent, sur la même navigation :
       // c'est cette opposition qui prouve la distinction.
-      expect(Cypress.dom.isDetached(Cypress.$(noeud as HTMLElement)), "instantané détaché").to.be
-        .true;
+      expect(Cypress.dom.isDetached(Cypress.$(noeud)), "instantané détaché").to.be.true;
     });
   });
 });

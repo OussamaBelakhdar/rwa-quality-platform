@@ -8,8 +8,10 @@
  * l'union, et en ajouter un laisserait les specs sans typage. La convention
  * devient une gate au lieu d'une intention (.claude/rules/testing.md #9).
  *
- * Les clés dynamiques (`data-test={`transaction-item-${id}`}`) sont hors
- * périmètre : elles sont couvertes par le type DataTestPrefix.
+ * Couvre aussi `DataTestPrefix` (support/types.ts) : chaque préfixe déclaré
+ * doit correspondre à au moins un `data-test` dynamique de `src/`. Sans quoi
+ * `cy.getBySelLike` accepterait à la compilation un préfixe qui ne sélectionne
+ * rien — le typage donnerait une garantie qu'il n'a pas.
  */
 const fs = require("fs");
 const path = require("path");
@@ -38,8 +40,21 @@ const dansUnion = new Set([...union.matchAll(/^\s+"([^"]+)",$/gm)].map((m) => m[
 const manquantes = [...dansSrc].filter((k) => !dansUnion.has(k)).sort();
 const fantomes = [...dansUnion].filter((k) => !dansSrc.has(k)).sort();
 
-if (manquantes.length === 0 && fantomes.length === 0) {
-  console.log(`selectors: ${dansUnion.size} clés, src/ et l'union concordent.`);
+// Préfixes dynamiques : `data-test={`transaction-item-${id}`}`
+const TYPES = path.join(RACINE, "cypress", "support", "types.ts");
+const blocPrefix = /DataTestPrefix\s*=\s*([^;]+);/.exec(fs.readFileSync(TYPES, "utf8"));
+const prefixes = blocPrefix ? [...blocPrefix[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]) : [];
+const sourceBrute = fichiersSource(SRC)
+  .map((f) => fs.readFileSync(f, "utf8"))
+  .join("\n");
+const prefixesOrphelins = prefixes.filter(
+  (p) => !new RegExp(`data-test=[{"]\`?${p}`).test(sourceBrute)
+);
+
+if (manquantes.length === 0 && fantomes.length === 0 && prefixesOrphelins.length === 0) {
+  console.log(
+    `selectors: ${dansUnion.size} clés et ${prefixes.length} préfixes, src/ et les types concordent.`
+  );
   process.exit(0);
 }
 
@@ -50,6 +65,12 @@ if (manquantes.length) {
 if (fantomes.length) {
   console.error(`\n${fantomes.length} clé(s) dans l'union mais disparues de src/ :`);
   fantomes.forEach((k) => console.error(`  - ${k}`));
+}
+if (prefixesOrphelins.length) {
+  console.error(
+    `\n${prefixesOrphelins.length} préfixe(s) DataTestPrefix sans correspondance dans src/ :`
+  );
+  prefixesOrphelins.forEach((p) => console.error(`  ? ${p}`));
 }
 console.error(`\nMettre à jour ${path.relative(RACINE, UNION)} (.claude/rules/testing.md #9).\n`);
 process.exit(1);

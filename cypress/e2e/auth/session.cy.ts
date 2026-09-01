@@ -1,3 +1,5 @@
+import { interceptLogin } from "@support/intercepts/auth.intercepts";
+
 // Niveau E2E : le contrat de `cy.session` ne s'observe qu'avec un vrai serveur
 // capable d'invalider une session. Ni un composant ni un test de contrat ne
 // peuvent exercer le cycle cache → validate → re-setup.
@@ -35,13 +37,19 @@ describe("Auth — cache de session", { tags: ["@auth", "@regression"] }, () => 
     cy.getBySelLike("transaction-item").should("have.length.greaterThan", 0);
   });
 
-  it("sert la session en cache sans repasser par le formulaire", () => {
+  it("restaure la session sans rejouer le login", () => {
+    // Premier appel : crée la session, ou la restaure si un run précédent
+    // l'a mise en cache. Peu importe — ce qui suit ne dépend pas de ce choix.
     cy.login("Heath93");
-    cy.visit("/");
 
-    // Preuve que la restauration suffit : on n'est jamais passé par /signin
-    // dans ce test, et l'application est authentifiée.
-    cy.location("pathname").should("eq", "/");
-    cy.getBySel("sidenav-username").should("contain", "Heath93");
+    // À partir d'ici, tout POST /login serait la preuve que le cache n'a pas
+    // servi. Vérifier le nom d'utilisateur ne prouverait rien : il vient de
+    // localStorage, restauré par cy.session, pas du serveur.
+    const connexion = interceptLogin();
+    cy.login("Heath93");
+
+    cy.visit("/");
+    cy.getBySelLike("transaction-item").should("have.length.greaterThan", 0);
+    cy.get(`${connexion}.all`).should("have.length", 0);
   });
 });

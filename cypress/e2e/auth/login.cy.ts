@@ -15,8 +15,11 @@ describe("Auth — connexion par le formulaire", { tags: ["@auth", "@smoke"] }, 
     const connexion = interceptLogin();
 
     cy.env<{ defaultPassword?: string }>(["defaultPassword"]).then(({ defaultPassword }) => {
+      // Pas de `as string` : un cast non vérifié appartient à la même famille
+      // que `any`, que rules/typescript.md interdit. La garde rend le type sûr.
+      if (!defaultPassword) throw new Error("env.defaultPassword est vide.");
       cy.getBySel("signin-username").type("Heath93");
-      cy.getBySel("signin-password").type(defaultPassword as string, { log: false });
+      cy.getBySel("signin-password").type(defaultPassword, { log: false });
       cy.getBySel("signin-submit").click();
     });
 

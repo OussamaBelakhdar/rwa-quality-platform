@@ -49,6 +49,21 @@ if [[ $is_spec -eq 1 ]]; then
   if grep -nE "cy\.visit\(['\"]/signin" "$file" && [[ "$file" != *auth/* ]]; then
     echo "P2 violé : login UI hors du domaine auth/ — utiliser cy.login()." >&2; fail=1
   fi
+
+  # Règle #6 : un tag de domaine ET un tag de niveau sur chaque describe.
+  # Ne s'applique qu'aux specs de la suite : cypress/manual/ est hors du
+  # specPattern par conception (démonstrations lancées à la main).
+  case "$file" in
+    cypress/e2e/*|cypress/api/*|*/cypress/e2e/*|*/cypress/api/*)
+      if grep -qE '^describe\(' "$file" || grep -qE '^\s*describe\(' "$file"; then
+        if ! grep -qE 'tags:\s*\[' "$file"; then
+          echo "Règle #6 : aucun tag sur le describe — un domaine (@auth, @transactions, @foundations…) ET un niveau (@smoke ou @regression)." >&2; fail=1
+        elif ! grep -qE '@(smoke|regression|quarantine)' "$file"; then
+          echo "Règle #6 : tag de niveau manquant — @smoke, @regression ou @quarantine." >&2; fail=1
+        fi
+      fi
+      ;;
+  esac
 fi
 
 [[ $fail -eq 1 ]] && exit 2
