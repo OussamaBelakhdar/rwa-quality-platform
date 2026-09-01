@@ -124,3 +124,17 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | `cypress/plugins/index.ts`     | créé : la règle le référençait, le fichier n'existait pas                                                                       |
 | Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
 | `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
+
+## Semaine 4 — isolation intra-spec : deux approches mesurées, une retenue
+
+P1 parle de « chaque test », or `cy:random` ne mélangeait que les **fichiers**.
+Deux façons de mélanger les `it` ont été essayées, et **mesurées** :
+
+| Approche                                             | Mesure                                            | Verdict                                                                                                                       |
+| ---------------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Réordonner `suite.tests` depuis un `before()` racine | spec de 4 tests → **3 exécutés, 1 « Skipped »**   | abandonnée — Mocha tient un pointeur sur le tableau qu'il parcourt. Un mélange qui perd des tests est pire que pas de mélange |
+| Isoler chaque `it` par `--env grep=<titre>`          | un motif **inexistant** laisse passer les 4 tests | inutilisable — le filtrage par titre ne filtre pas. `grepTags` filtre, mais au niveau des fichiers                            |
+
+**Retenu, par construction et non par échantillonnage** : `testIsolation` (défaut Cypress) réinitialise l'état navigateur entre deux `it`, et `check-spec.sh` exige désormais un `cy.seed()` **dans le `beforeEach`** — pas n'importe où dans le fichier. Le couplage entre deux `it` voisins est donc empêché à l'écriture, au lieu d'être cherché après coup par tirage.
+
+La règle est bornée à `cypress/e2e/` et `cypress/api/` ; `cypress/manual/` est hors specPattern par conception. Vérifié : une spec e2e avec `cy.seed` hors du `beforeEach` est bloquée, les 15 specs du dépôt passent.

@@ -1,6 +1,24 @@
 #!/usr/bin/env node
 /**
- * Lance la suite E2E dans un ordre de specs aléatoire — preuve d'isolation (P1).
+ * Lance la suite E2E dans un ordre aléatoire — preuve d'isolation (P1).
+ *
+ * PORTÉE : ce script mélange l'ordre des FICHIERS de spec, jamais celui des
+ * `it` à l'intérieur d'un fichier. P1 parle de « chaque test » ; voici
+ * pourquoi la preuve s'arrête là, avec les deux mesures qui l'ont décidé.
+ *
+ * 1. Réordonner `suite.tests` depuis un `before()` racine. Mesuré sur une
+ *    spec de 4 tests : 3 exécutés, 1 en « Skipped ». Mocha tient un pointeur
+ *    sur le tableau qu'il parcourt ; le muter fait sauter un test. Un mélange
+ *    qui perd des tests est pire que pas de mélange — abandonné.
+ * 2. Isoler chaque `it` par `--env grep=<titre>`. Mesuré : le filtrage par
+ *    titre ne filtre pas — un motif inexistant laisse passer les 4 tests.
+ *    `grepTags` filtre bien, mais au niveau des FICHIERS.
+ *
+ * CE QUI TIENT À LA PLACE, par construction et non par échantillonnage :
+ * `testIsolation` (défaut Cypress) réinitialise l'état navigateur entre deux
+ * `it`, et `check-spec.sh` exige un `cy.seed()` DANS le `beforeEach` de chaque
+ * spec, ce qui réinitialise la base avant chaque test. Le couplage
+ * intra-fichier est donc empêché, pas seulement échantillonné.
  *
  * Un test qui passe seul mais échoue en suite dépend d'un état laissé par un
  * autre. Fixer l'ordre masque le problème ; le randomiser le fait remonter.
@@ -118,7 +136,10 @@ const result = spawnSync(
     relative.join(","),
     ...process.argv.slice(2),
   ],
-  { stdio: "inherit" }
+  {
+    stdio: "inherit",
+    env: { ...process.env, CY_SHUFFLE_TESTS: "true", CY_RANDOM_SEED: String(seed) },
+  }
 );
 if (result.status !== 0) {
   console.error(

@@ -64,9 +64,20 @@ if [[ $is_spec -eq 1 ]]; then
     echo "cy.task brut dans une spec — utiliser cy.seed / cy.createUser / cy.createTransaction, qui sont typées (cy.task ne l'est pas, voir support/typage.contract.ts)." >&2; fail=1
   fi
 
-  # Règle #1 : chaque spec doit remettre la base dans un état connu.
-  if ! grep -qE "cy\.seed\(" "$file"; then
-    echo "Règle #1 : aucun cy.seed dans cette spec — un test qui hérite de l'état laissé par un autre n'est pas isolé (P1)." >&2; fail=1
+  # Règles #1 et #6 : bornées aux specs de la suite. cypress/manual/ est hors
+  # du specPattern par conception (démonstrations lancées à la main).
+  case "$file" in
+    cypress/e2e/*|cypress/api/*|*/cypress/e2e/*|*/cypress/api/*) est_suite=1 ;;
+    *) est_suite=0 ;;
+  esac
+
+  # Règle #1 : la base est remise dans un état connu AVANT CHAQUE TEST.
+  # Dans le beforeEach et non n'importe où : c'est ce qui empêche le couplage
+  # entre deux `it` voisins. L'ordre aléatoire ne mélange que les FICHIERS
+  # (voir l'en-tête de scripts/run-random-order.js) ; l'isolation intra-fichier
+  # est donc garantie ici, par construction, et non par échantillonnage.
+  if [[ $est_suite -eq 1 ]] && ! awk '/beforeEach\(/,/^\s*\}\);/' "$file" | grep -qE 'cy\.seed\('; then
+    echo "Règle #1 : aucun cy.seed dans le beforeEach — un test qui hérite de l'état laissé par le précédent n'est pas isolé (P1)." >&2; fail=1
   fi
 
   # Règle #6 : un tag de domaine ET un tag de niveau sur chaque describe.
