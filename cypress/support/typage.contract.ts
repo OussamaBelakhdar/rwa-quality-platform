@@ -13,6 +13,8 @@
  * seulement compilé.
  */
 
+import type { EtatDonnees } from "@support/types";
+
 export function contratDeTypage(): void {
   // ── cy.getBySel : clé exacte, issue de l'union générée depuis src/ ──
   cy.getBySel("sidenav-username");
@@ -44,6 +46,19 @@ export function contratDeTypage(): void {
   cy.login("Heath93");
   // @ts-expect-error le nom d'utilisateur est obligatoire
   cy.login();
+
+  // ── EtatDonnees : dérivé de DataSchema, pas recopié ──
+  // Semaine 5 : `cy.appState` était typée `string` au motif que « les machines
+  // de cette application ont toutes des états plats ». Six des neuf services
+  // du registre sont bâtis sur `dataMachine`, dont `success` est composite.
+  // Ces quatre lignes empêchent la même erreur de revenir en silence.
+  const etatPlat: EtatDonnees = "failure";
+  const etatCompose: EtatDonnees = { success: "withoutData" };
+  // @ts-expect-error une faute de frappe dans un sous-état ne compile pas
+  const sousEtatFaux: EtatDonnees = { success: "withoutDta" };
+  // @ts-expect-error `success` n'est PAS une feuille : la chaîne seule est refusée
+  const successAplati: EtatDonnees = "success";
+  void [etatPlat, etatCompose, sousEtatFaux, successAplati];
 }
 
 /**

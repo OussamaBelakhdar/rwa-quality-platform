@@ -27,7 +27,10 @@ describe("Réseau — réponse modifiée à la volée", { tags: ["@network", "@r
 
     cy.wait(flux).then(({ response }) => {
       const { id } = premiereDe(response?.body as ReponseTransactions);
-      cy.getBySelWithId("transaction-amount", id).should("contain", "$1,234,567.89");
+      // `have.text` et non `contain` : le signe fait partie du rendu, et
+      // `contain` laisserait passer un préfixe inattendu — c'est précisément
+      // ce que le test suivant démontre.
+      cy.getBySelWithId("transaction-amount", id).should("have.text", "-$1,234,567.89");
     });
   });
 
@@ -47,7 +50,7 @@ describe("Réseau — réponse modifiée à la volée", { tags: ["@network", "@r
       // négatif. Le backend ne renvoyant jamais de négatif, le cas n'existait
       // pour personne — c'est précisément ce qu'un stub réseau va chercher.
       const { id } = premiereDe(response?.body as ReponseTransactions);
-      cy.getBySelWithId("transaction-amount", id).should("contain", "--$5.00");
+      cy.getBySelWithId("transaction-amount", id).should("have.text", "--$5.00");
     });
   });
   it("un solde négatif est affiché tel quel, sans traitement particulier", () => {

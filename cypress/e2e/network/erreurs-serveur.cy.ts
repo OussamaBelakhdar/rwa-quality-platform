@@ -4,6 +4,7 @@ import {
   stubPublicTransactionsEnErreur,
   stubPublicTransactionsInjoignable,
 } from "@support/intercepts/transactions.intercepts";
+import type { EtatDonnees } from "@support/types";
 
 // Niveau E2E : le 500 et la coupure réseau n'existent que sur la pile réelle,
 // et ce qui est vérifié ici est l'écart entre l'état de la machine et ce que
@@ -21,7 +22,14 @@ import {
  * l'écart deviendra visible au lieu de rester une coïncidence de rédaction.
  */
 const memeEcranQuAucuneDonnee = (): void => {
-  cy.getBySel("empty-list-header").should("be.visible");
+  // `have.text` et non `be.visible` : « visible » serait vrai pour n'importe
+  // quel contenu. Ce que la spec doit fixer, c'est la CHAÎNE exacte que les
+  // trois causes produisent — sinon « le même écran » reste une figure de
+  // style. `EmptyList.tsx:29` rend « No {entity} ».
+  cy.getBySel("empty-list-header").should("have.text", "No Transactions");
+  // La liste elle-même n'est pas seulement vide : elle n'est pas rendue
+  // (`TransactionList.tsx:51` la conditionne à `transactions.length > 0`).
+  cy.getBySel("transaction-list").should("not.exist");
   cy.contains(/error|erreur|retry|réessayer/i).should("not.exist");
 };
 
@@ -75,10 +83,15 @@ describe("Réseau — erreurs serveur", { tags: ["@network", "@regression"] }, (
     // état opposé : l'utilisateur ne peut pas savoir s'il n'a pas de
     // transaction ou si le service est tombé.
     //
-    // `deep.equal` et non `eq` : `success` est un état IMBRIQUÉ, XState en
-    // rend un objet. C'est ce test qui a révélé que `cy.appState` était typée
+    // `deep.equal` et non `eq` : `success` est un état IMBRIQUÉ, XState en rend
+    // un objet. C'est ce test qui a révélé que `cy.appState` était typée
     // `string` à tort (corrigé en semaine 5, `support/types.ts`).
-    cy.appState("publicTransactions").should("deep.equal", { success: "withoutData" });
+    //
+    // La valeur est annotée `EtatDonnees`, type DÉRIVÉ de `DataSchema` : une
+    // faute de frappe dans « withoutData » ne compile pas. Sans l'annotation,
+    // ce serait une chaîne magique dans une assertion Chai, que rien ne relit.
+    const succesSansDonnee: EtatDonnees = { success: "withoutData" };
+    cy.appState("publicTransactions").should("deep.equal", succesSansDonnee);
     memeEcranQuAucuneDonnee();
   });
 });

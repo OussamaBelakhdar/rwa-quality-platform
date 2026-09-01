@@ -140,23 +140,29 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 
 ### Ce que le stub réseau a trouvé, que le backend ne pouvait pas produire
 
-C'est le rendement de la semaine : six comportements que la suite ne pouvait pas
+C'est le rendement de la semaine : sept comportements que la suite ne pouvait pas
 atteindre avant — quatre défauts ou risques de l'application amont, une
-contrainte de conception, et un défaut du code de test lui-même.
+contrainte de conception, et **deux défauts de l'outillage de test lui-même**.
 
-| Constat                                                           | Preuve                                                                                                                                             | Statut                                                                          |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Un **500 se rend comme une liste vide** — pas de message d'erreur | `dataMachine` entre bien en `failure` avec un `message` (`dataMachine.ts:104`) qu'aucun composant ne lit                                           | défaut amont, **constaté par 2 tests**, non corrigé ici                         |
-| Une **coupure réseau** produit exactement le même rendu qu'un 500 | même état `failure`, même `empty-list-header`                                                                                                      | défaut amont, constaté                                                          |
-| Un **montant négatif** se rend `--$5.00`                          | `TransactionAmount.tsx:45` préfixe `-`, `formatAmount` en produit un second                                                                        | défaut amont, constaté. Le backend n'en renvoie jamais : personne ne l'avait vu |
-| Un **`FETCH` envoyé pendant `loading` est perdu en silence**      | l'état `loading` de `dataMachine` ne déclare aucune transition sur `FETCH` ; la requête de page 2 ne partait jamais                                | contrainte de conception, documentée dans la spec et dans `PLAN.md`             |
-| L'application **n'a aucun timeout HTTP**                          | `asyncUtils.ts:3` crée axios sans `timeout`. L'E2E qui le prouvait par le succès a été **retiré** : 9 s pour une propriété statique, refusé par P3 | risque amont, constaté. Un backend lent laisse la liste en `loading` sans fin   |
-| `cy.appState` rendait un **objet sous un type `string`**          | `dataMachine.success` a trois sous-états (`dataMachine.ts:85-99`) ; le type L2 affirmait que « toutes les machines ont des états plats »           | **défaut du code de test, corrigé** — type `EtatXState` livré en semaine 5      |
+| Constat                                                           | Preuve                                                                                                                                                                                                                        | Statut                                                                                                                                          |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Un **500 se rend comme une liste vide** — pas de message d'erreur | `dataMachine` entre bien en `failure` avec un `message` (`dataMachine.ts:104`) qu'aucun composant ne lit                                                                                                                      | défaut amont, **constaté par 2 tests**, non corrigé ici                                                                                         |
+| Une **coupure réseau** produit exactement le même rendu qu'un 500 | même état `failure`, même `empty-list-header`                                                                                                                                                                                 | défaut amont, constaté                                                                                                                          |
+| Un **montant négatif** se rend `--$5.00`                          | `TransactionAmount.tsx:45` préfixe `-`, `formatAmount` en produit un second                                                                                                                                                   | défaut amont, constaté. Le backend n'en renvoie jamais : personne ne l'avait vu                                                                 |
+| Un **`FETCH` envoyé pendant `loading` est perdu en silence**      | l'état `loading` de `dataMachine` ne déclare aucune transition sur `FETCH` ; la requête de page 2 ne partait jamais                                                                                                           | contrainte de conception, documentée dans la spec et dans `PLAN.md`                                                                             |
+| L'application **n'a aucun timeout applicatif**                    | `asyncUtils.ts:3` crée axios sans `timeout` ; axios 1.20.0 vaut `timeout: 0` par défaut (« a timeout is not created »). L'E2E qui le prouvait par le succès a été **retiré** : 9 s pour une propriété statique, refusé par P3 | risque amont, constaté. Un backend lent laisse la liste en `loading` sans fin                                                                   |
+| `cy.appState` rendait un **objet sous un type `string`**          | `dataMachine.success` a trois sous-états (`dataMachine.ts:85-99`) ; le type L2 affirmait que « toutes les machines ont des états plats »                                                                                      | **défaut du code de test, corrigé et verrouillé** — type `EtatDonnees` dérivé de `DataSchema`, contrat mutation-testé dans `typage.contract.ts` |
+| `check-spec.sh` bloquait sa **propre documentation**              | la règle « pas de `any` » grepait le fichier entier : un commentaire citant `task(event: string, arg?: any)` la déclenchait. Préexistant sur `main`                                                                           | **défaut du garde-fou, corrigé** — règle rendue sensible aux commentaires, 8 cas mutation-testés                                                |
 
-Aucun n'est atteignable sans intercept : le backend réel ne renvoie ni 500 ni
-montant négatif, ne se coupe pas, et répond trop vite pour qu'un timeout se
-pose. Le dernier est le plus instructif — **un test a trouvé un bug dans la
-couche de test** : un type y affirmait une propriété du domaine qui était fausse.
+Les cinq premiers ne sont atteignables que par intercept : le backend réel ne
+renvoie ni 500 ni montant négatif, ne se coupe pas, et répond trop vite pour
+qu'un timeout se pose.
+
+Les deux derniers ne viennent pas d'un intercept mais du fait d'en écrire un, et
+ce sont les plus instructifs — **l'outillage de test a produit deux faux
+témoignages** : un type qui affirmait une propriété du domaine qui était fausse,
+et un garde-fou qui refusait sa propre documentation. Les deux disaient « tout
+va bien » à leur manière. C'est le motif de la semaine 4, une couche plus bas.
 
 ### Deux mesures d'isolation écartées, et pourquoi elles sont écrites ici
 

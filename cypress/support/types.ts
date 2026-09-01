@@ -1,3 +1,5 @@
+import type { DataSchema } from "../../src/machines/dataMachine";
+
 /**
  * Types partagés de la couche L2. Vivent ici plutôt que dans le fichier qui
  * s'en sert en premier : sinon `transactions.intercepts.ts` devrait importer
@@ -44,6 +46,32 @@ export type DataTestPrefix =
  * Constaté par un test qui stube une liste vide.
  */
 export type EtatXState = string | { [cle: string]: EtatXState };
+
+/**
+ * Valeur d'état DÉRIVÉE d'un schéma de machine, jamais recopiée.
+ *
+ * Applique la règle XState : une feuille rend son nom, un état composite rend
+ * `{ parent: enfant }`. Le type suit donc la machine — ajouter un sous-état à
+ * `success` dans `src/` fait échouer à la compilation toute spec qui l'ignore,
+ * au lieu de la laisser échouer après 4 s de retry.
+ */
+type ValeurDeSchema<S> = S extends { states: infer Etats }
+  ? {
+      [K in Extract<keyof Etats, string>]: Etats[K] extends { states: infer SousEtats }
+        ? { [P in K]: Extract<keyof SousEtats, string> }
+        : K;
+    }[Extract<keyof Etats, string>]
+  : never;
+
+/**
+ * États observables des six services bâtis sur `dataMachine` :
+ * `notifications`, `bankAccounts`, `publicTransactions`,
+ * `contactsTransactions`, `personalTransactions`, `createTransaction`.
+ *
+ * Les trois autres services du registre — `auth`, `snackbar`, `userOnboarding` —
+ * ont des états plats et rendent une simple chaîne.
+ */
+export type EtatDonnees = ValeurDeSchema<DataSchema>;
 
 export interface ServiceXState {
   getSnapshot(): { value: EtatXState };

@@ -36,7 +36,14 @@ fi
 if grep -nE '@ts-ignore' "$file"; then
   echo "@ts-ignore interdit — utiliser @ts-expect-error commenté, ou corriger le type (rules/typescript.md)." >&2; fail=1
 fi
-if grep -nE '(:|as|<)[[:space:]]*any\b' "$file"; then
+# `any` : on ignore les lignes de COMMENTAIRE. Une prose qui cite la signature
+# de `cy.task` (`task(event: string, arg?: any)`) n'introduit pas de `any` —
+# et un garde-fou qui bloque sa propre documentation apprend à le contourner.
+# Les lignes sont blanchies, pas supprimées, pour que `grep -n` garde les vrais
+# numéros. Un commentaire de FIN de ligne reste couvert : `const x: any; // ...`
+# ne commence pas par un marqueur de commentaire.
+if awk '{ if ($0 ~ /^[[:space:]]*(\/\/|\*|\/\*)/) print ""; else print }' "$file" \
+   | grep -nE '(:|as|<)[[:space:]]*any\b'; then
   echo "'any' interdit — utiliser unknown + narrowing (rules/typescript.md)." >&2; fail=1
 fi
 
