@@ -67,3 +67,18 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Coût réel de `cy.seed()`                | **1,5–5 ms** par appel                                          | mesuré, pas supposé : ~40 ms sur les 25 tests, soit **0,25 %** d'une suite de 16 s. L'hypothèse « prochain gisement de temps » était fausse |
 | Déterminisme du seed                    | mêmes IDs après reseed                                          | c'est ce qui permet au cache `cy.session` de survivre d'un test à l'autre                                                                   |
 | Assertions vérifiées par mutation       | **6**                                                           | specs 05, 06, 08 et les deux de `auth/session.cy.ts`                                                                                        |
+
+## Semaine 3 — App Actions typées (2026-09-01)
+
+| Métrique                                     | Valeur                                                                                                                                                                  |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tests                                        | **26** (25 + `cy.appState`)                                                                                                                                             |
+| Expositions `window` non gardées dans `src/` | **0** (9 sur 9 gardées ; la fuite de `TransactionCreateContainer` est fermée)                                                                                           |
+| Points d'exposition lus par L2               | **1** (`window.__services__`) au lieu de 6 dispersés                                                                                                                    |
+| Casts non vérifiés dans `cypress/`           | **0**                                                                                                                                                                   |
+| Contrat de typage                            | `support/typage.contract.ts` — 6 `@ts-expect-error`, vérifié par mutation : élargir `DataTestKey` à `string` casse `yarn types`                                         |
+| Registre absent d'un build par défaut        | **vérifié à l'exécution** : `window.__services__ === undefined` après `yarn build` ; présent après `yarn build:test`                                                    |
+| ADR acceptés                                 | 001, 002, 006                                                                                                                                                           |
+| `yarn cy:burn`                               | 10 × 26 = 260 exécutions, **0,00 %**                                                                                                                                    |
+| Suite                                        | 26/26, 17 s ; ordre aléatoire 26/26                                                                                                                                     |
+| Note d'environnement                         | le burn échoue au lancement du navigateur si des processus Cypress traînent (`browser CRI connection was reset`) — le script le distingue d'un échec de suite et le dit |

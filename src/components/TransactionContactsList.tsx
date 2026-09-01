@@ -8,6 +8,7 @@ import {
 } from "../models";
 import TransactionList from "./TransactionList";
 import { contactsTransactionsMachine } from "../machines/contactsTransactionsMachine";
+import { registerScopedService } from "../utils/testHooks";
 
 export interface TransactionContactListProps {
   filterComponent: ReactNode;
@@ -21,6 +22,11 @@ const TransactionContactsList: React.FC<TransactionContactListProps> = ({
   amountRangeFilters,
 }) => {
   const [current, send, contactTransactionService] = useMachine(contactsTransactionsMachine);
+  // Registre du projet (ADR-006) : enregistré au montage, retiré au démontage.
+  React.useEffect(
+    () => registerScopedService("contactsTransactions", contactTransactionService),
+    [contactTransactionService]
+  );
   const { pageData, results } = current.context;
 
   // @ts-ignore

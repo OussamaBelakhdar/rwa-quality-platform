@@ -1,7 +1,8 @@
 /// <reference types="cypress" />
 
 import type { DataTestKey } from "./selectors/data-test";
-import type { DataTestPrefix, SeedScenario } from "./types";
+import type { DataTestPrefix, SeedScenario, ServiceXState } from "./types";
+import type { ServiceName } from "./app-actions/xstate.actions";
 // Type importé de l'application, jamais redéclaré (.claude/rules/typescript.md).
 import type { authService } from "../../src/machines/authMachine";
 import type { publicTransactionsMachine } from "../../src/machines/publicTransactionsMachine";
@@ -16,6 +17,12 @@ declare global {
      * force l'attente au lieu de la confier à la discipline (ADR-006).
      */
     authService?: typeof authService;
+    /**
+     * Registre du projet (ADR-006). Peuplé uniquement si `VITE_TEST_HOOKS`
+     * était vrai au build. Optionnel par conception : le type force l'attente
+     * au lieu de la confier à la discipline.
+     */
+    __services__?: Partial<Record<ServiceName, ServiceXState>>;
     /** Enregistré par TransactionPublicList sous garde `window.Cypress`, et seulement pendant que le composant est monté. */
     publicTransactionService?: Interpreter<
       (typeof publicTransactionsMachine)["context"],
@@ -37,6 +44,8 @@ declare global {
       seed(scenario?: SeedScenario): Chainable<unknown>;
       /** Connecte un utilisateur par l'API, sans passer par le formulaire. */
       login(username: string): Chainable<void>;
+      /** Lit l'état courant d'une machine XState (ADR-006). */
+      appState(nom: ServiceName): Chainable<unknown>;
     }
   }
 }

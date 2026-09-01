@@ -8,6 +8,7 @@ import {
 } from "../models";
 import TransactionList from "./TransactionList";
 import { personalTransactionsMachine } from "../machines/personalTransactionsMachine";
+import { registerScopedService } from "../utils/testHooks";
 
 export interface TransactionPersonalListProps {
   filterComponent: ReactNode;
@@ -21,6 +22,11 @@ const TransactionPersonalList: React.FC<TransactionPersonalListProps> = ({
   amountRangeFilters,
 }) => {
   const [current, send, personalTransactionService] = useMachine(personalTransactionsMachine);
+  // Registre du projet (ADR-006) : enregistré au montage, retiré au démontage.
+  React.useEffect(
+    () => registerScopedService("personalTransactions", personalTransactionService),
+    [personalTransactionService]
+  );
   const { pageData, results } = current.context;
 
   // @ts-ignore

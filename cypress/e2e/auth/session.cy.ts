@@ -52,4 +52,17 @@ describe("Auth — cache de session", { tags: ["@auth", "@regression"] }, () => 
     cy.getBySelLike("transaction-item").should("have.length.greaterThan", 0);
     cy.get(`${connexion}.all`).should("have.length", 0);
   });
+
+  it("lit l'état de la machine d'authentification sans passer par l'UI", () => {
+    // `cy.appState` interroge le registre `window.__services__` (ADR-006).
+    // Avant login, la machine est dans un état non autorisé ; après, elle est
+    // passée par LOGIN. C'est l'assertion la plus directe possible sur
+    // l'authentification : elle lit la machine, pas son reflet dans le DOM.
+    cy.visit("/signin");
+    cy.appState("auth").should("not.equal", "authorized");
+
+    cy.login("Heath93");
+    cy.visit("/");
+    cy.appState("auth").should("be.oneOf", ["authorized", "refreshing", "updating"]);
+  });
 });

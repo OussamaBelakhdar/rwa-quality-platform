@@ -12,6 +12,7 @@ import SignInForm from "../components/SignInForm";
 import SignUpForm from "../components/SignUpForm";
 import { bankAccountsMachine } from "../machines/bankAccountsMachine";
 import PrivateRoutesContainer from "./PrivateRoutesContainer";
+import { registerScopedService, registerService } from "../utils/testHooks";
 
 const PREFIX = "App";
 
@@ -32,6 +33,11 @@ if (window.Cypress) {
   window.authService = authService;
 }
 
+// Registre du projet (ADR-006). Le bloc ci-dessus vient de l'amont et reste
+// intact — pas de conflit lors d'une resynchronisation. C'est celui-ci que la
+// couche L2 lit. authService est un singleton de module : il s'enregistre ici.
+registerService("auth", authService);
+
 const App: React.FC = () => {
   const [authState] = useActor(authService);
   const [, , notificationsService] = useMachine(notificationsMachine);
@@ -39,6 +45,18 @@ const App: React.FC = () => {
   const [, , snackbarService] = useMachine(snackbarMachine);
 
   const [, , bankAccountsService] = useMachine(bankAccountsMachine);
+
+  // Services portés par ce composant : enregistrés au montage, retirés au
+  // démontage (ADR-006). Leur durée de vie n'est pas celle d'authService.
+  React.useEffect(
+    () => registerScopedService("notifications", notificationsService),
+    [notificationsService]
+  );
+  React.useEffect(() => registerScopedService("snackbar", snackbarService), [snackbarService]);
+  React.useEffect(
+    () => registerScopedService("bankAccounts", bankAccountsService),
+    [bankAccountsService]
+  );
 
   const isLoggedIn =
     authState.matches("authorized") ||

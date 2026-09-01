@@ -20,6 +20,7 @@ Fork de `cypress-io/cypress-realworld-app` dont la suite de tests a été suppri
 ## Commandes
 
 - `yarn dev` — démarre front + API (reseed lowdb au démarrage)
+- `yarn dev:test` — **idem avec `VITE_TEST_HOOKS=true`** : c'est contre celui-ci que la suite doit tourner. Sans lui, `window.__services__` est absent et toute app action échoue (ADR-006)
 - `yarn cypress:open` / `yarn cy:run` — suite E2E
 - `yarn cy:run --env grep=@smoke` — par tag
 - `yarn cy:component` — component tests
@@ -35,7 +36,7 @@ Fork de `cypress-io/cypress-realworld-app` dont la suite de tests a été suppri
 ```
 cypress/e2e/<domaine-metier>/     specs, jamais par page ni par outil
 cypress/support/commands/         une responsabilité par fichier
-cypress/support/app-actions/      XState via window.__services__ (si VITE_TEST_HOOKS)
+cypress/support/app-actions/      registre window.__services__ (requiert yarn dev:test)
 cypress/support/intercepts/       factories qui retournent leur alias
 cypress/support/selectors/        DataTestKey — union typée
 cypress/plugins/                  proxy HTTP vers /testData — jamais d'écriture lowdb
