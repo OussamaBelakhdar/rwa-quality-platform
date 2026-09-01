@@ -130,28 +130,58 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Métrique                      | Valeur                               | Note                                                                                                           |
 | ----------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | Specs E2E                     | 18 fichiers (13 → 18)                | `cypress/e2e/network/` : 5 fichiers                                                                            |
-| Tests                         | **50** (40 → 50)                     | 10 tests réseau                                                                                                |
-| Suite complète                | vert, **48 s**                       | 50/50, y compris la spec de contrat `api/`                                                                     |
-| `cypress/e2e/network/` seul   | **13 s**, 10/10                      | 3 exécutions consécutives vertes                                                                               |
-| `yarn cy:random`              | vert, 50/50                          | preuve d'isolation (P1) maintenue avec le nouveau domaine                                                      |
-| `yarn cy:burn` sur `network/` | **10 × 10 = 100 exécutions, 0,00 %** | retries forcés à zéro ; seuil §6 : 2 %                                                                         |
+| Tests                         | **52** (40 → 52)                     | 12 tests réseau                                                                                                |
+| Suite complète                | vert, **48 s**                       | 52/52                                                                                                          |
+| `cypress/e2e/network/` seul   | **22 s**, 12/12                      | 3 exécutions consécutives vertes                                                                               |
+| `yarn cy:random`              | vert, **6 ordres sur 6**, 48 s       | preuve d'isolation (P1) maintenue. Deux mesures écartées : voir ci-dessous                                     |
+| `yarn cy:burn` sur `network/` | **10 × 12 = 120 exécutions, 0,00 %** | retries forcés à zéro ; seuil §6 : 2 %                                                                         |
 | Factories d'intercept         | 8 exports, **4 corps** de fonction   | ADR-008 : les exports par endpoint sont des noms, la logique de chaque famille n'existe qu'en un exemplaire    |
 | Alias TypeScript              | +1 (`@fixtures/*`)                   | supprime les derniers imports relatifs vers `cypress/fixtures/` (6 sites, dont 2 en dette depuis la semaine 4) |
 
 ### Ce que le stub réseau a trouvé, que le backend ne pouvait pas produire
 
-C'est le rendement de la semaine : quatre comportements que la suite ne pouvait
-pas atteindre avant, dont trois sont des défauts de l'application amont.
+C'est le rendement de la semaine : six comportements que la suite ne pouvait pas
+atteindre avant — quatre défauts ou risques de l'application amont, une
+contrainte de conception, et un défaut du code de test lui-même.
 
-| Constat                                                           | Preuve                                                                                                              | Statut                                                                          |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Un **500 se rend comme une liste vide** — pas de message d'erreur | `dataMachine` entre bien en `failure` avec un `message` (`dataMachine.ts:104`) qu'aucun composant ne lit            | défaut amont, **constaté par 2 tests**, non corrigé ici                         |
-| Une **coupure réseau** produit exactement le même rendu qu'un 500 | même état `failure`, même `empty-list-header`                                                                       | défaut amont, constaté                                                          |
-| Un **montant négatif** se rend `--$5.00`                          | `TransactionAmount.tsx:45` préfixe `-`, `formatAmount` en produit un second                                         | défaut amont, constaté. Le backend n'en renvoie jamais : personne ne l'avait vu |
-| Un **`FETCH` envoyé pendant `loading` est perdu en silence**      | l'état `loading` de `dataMachine` ne déclare aucune transition sur `FETCH` ; la requête de page 2 ne partait jamais | contrainte de conception, documentée dans la spec et dans `PLAN.md`             |
+| Constat                                                           | Preuve                                                                                                                                             | Statut                                                                          |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Un **500 se rend comme une liste vide** — pas de message d'erreur | `dataMachine` entre bien en `failure` avec un `message` (`dataMachine.ts:104`) qu'aucun composant ne lit                                           | défaut amont, **constaté par 2 tests**, non corrigé ici                         |
+| Une **coupure réseau** produit exactement le même rendu qu'un 500 | même état `failure`, même `empty-list-header`                                                                                                      | défaut amont, constaté                                                          |
+| Un **montant négatif** se rend `--$5.00`                          | `TransactionAmount.tsx:45` préfixe `-`, `formatAmount` en produit un second                                                                        | défaut amont, constaté. Le backend n'en renvoie jamais : personne ne l'avait vu |
+| Un **`FETCH` envoyé pendant `loading` est perdu en silence**      | l'état `loading` de `dataMachine` ne déclare aucune transition sur `FETCH` ; la requête de page 2 ne partait jamais                                | contrainte de conception, documentée dans la spec et dans `PLAN.md`             |
+| L'application **n'a aucun timeout HTTP**                          | `asyncUtils.ts:3` crée axios sans `timeout`. L'E2E qui le prouvait par le succès a été **retiré** : 9 s pour une propriété statique, refusé par P3 | risque amont, constaté. Un backend lent laisse la liste en `loading` sans fin   |
+| `cy.appState` rendait un **objet sous un type `string`**          | `dataMachine.success` a trois sous-états (`dataMachine.ts:85-99`) ; le type L2 affirmait que « toutes les machines ont des états plats »           | **défaut du code de test, corrigé** — type `EtatXState` livré en semaine 5      |
 
-Aucun des quatre n'est atteignable sans intercept : le backend réel ne renvoie
-ni 500, ni montant négatif, et ne se coupe pas.
+Aucun n'est atteignable sans intercept : le backend réel ne renvoie ni 500 ni
+montant négatif, ne se coupe pas, et répond trop vite pour qu'un timeout se
+pose. Le dernier est le plus instructif — **un test a trouvé un bug dans la
+couche de test** : un type y affirmait une propriété du domaine qui était fausse.
+
+### Deux mesures d'isolation écartées, et pourquoi elles sont écrites ici
+
+Deux exécutions de `cy:random` ont échoué pendant la clôture — 2 tests de
+`e2e/onboarding/premier-acces.cy.ts` (semaine 4), sur un `POST /login` en 401.
+Ni l'une ni l'autre n'est retenue comme mesure, et la raison est vérifiable :
+
+| Fait                                                                   | Mesure                                                                   |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Les deux échecs ont eu lieu pendant qu'un **autre run Cypress** vivait | 5 processus `cypress` concurrents constatés au moment du second          |
+| Durée de la première : **37 min 19 s** pour une suite de 48 s          | **46× le nominal** — le budget de 4 s des assertions n'a plus aucun sens |
+| Rejeu de la graine exacte, machine libre (`CY_RANDOM_SEED=1566325581`) | **52/52** — donc ni dépendance d'ordre, ni couplage entre specs          |
+| `cy:burn` sur la spec incriminée, isolée                               | **40 exécutions, 0 échec**                                               |
+| `cy:random`, machine libre                                             | **6 ordres, 6 verts**, 48 s chacun                                       |
+
+Écrit ici plutôt que supprimé pour deux raisons. La première : un vert obtenu
+après avoir jeté un rouge doit dire ce qu'il a jeté, sinon c'est le vert qui
+ment. La seconde : la conclusion « c'est un flake » a été formulée AVANT d'être
+mesurée, et elle était fausse — le coupable est le banc de mesure, pas la spec.
+C'est le même piège que la semaine 4, à l'envers.
+
+**Ce que ça laisse ouvert** : ces tests tiennent un aller-retour `POST /login`
+dans le budget de 4 s par défaut. Sous une charge 46× supérieure, ils cèdent.
+Le sharding de la semaine 6 mettra plusieurs runs en parallèle sur une même
+machine — c'est exactement cette condition. À revérifier là, pas à supposer.
 
 ### Deux pièges d'API relevés en écrivant
 

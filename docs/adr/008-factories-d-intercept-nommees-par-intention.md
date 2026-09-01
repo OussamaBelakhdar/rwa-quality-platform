@@ -1,8 +1,10 @@
 # ADR-008 — Nommer les factories d'intercept par intention plutôt que paramétrer une factory unique
 
-**Statut** : proposé
+**Statut** : accepté
 **Date** : 2026-09-01
 **Semaine du plan** : 5
+
+> Passé à « accepté » après revue `adr-challenger`. Trois points en sont issus et figurent dans le corps : l'option A-bis (union discriminée à export unique) est désormais traitée comme une option à part entière et rejetée sur un critère unique et vérifiable ; l'option D (générique paramétré par endpoint) est adoptée **à l'intérieur** de la couche et refusée à sa frontière ; la croissance multi-domaine est chiffrée, et le seuil de surveillance est assumé comme une heuristique de revue humaine, non comme une gate automatisée.
 
 ## Contexte
 

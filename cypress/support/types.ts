@@ -31,13 +31,21 @@ export type DataTestPrefix =
  * de ces deux membres, et ADR-006 refuse de coupler le code de test aux
  * internes de la machine.
  */
+/**
+ * Valeur d'état d'une machine XState v4 : une chaîne pour un état plat, un
+ * OBJET pour un état imbriqué — `{ success: "withoutData" }`.
+ *
+ * Ce type disait `string` jusqu'en semaine 5, au motif que « les machines de
+ * cette application ont toutes des états plats ». C'était faux :
+ * `dataMachine.success` a trois sous-états (`unknown`, `withData`,
+ * `withoutData`, voir `dataMachine.ts:85-99`), et il porte les quatre listes
+ * de l'application. `cy.appState` rendait donc un objet sous un type `string`,
+ * en silence — exactement ce que le commentaire d'origine promettait d'éviter.
+ * Constaté par un test qui stube une liste vide.
+ */
+export type EtatXState = string | { [cle: string]: EtatXState };
+
 export interface ServiceXState {
-  /**
-   * `value` est typée `string` : les machines de cette application ont toutes
-   * des états plats. XState sait rendre un objet pour un état imbriqué ; le
-   * jour où une machine en aura, ce type devra changer, et le compilateur le
-   * signalera au lieu de laisser `cy.appState` rendre un objet en silence.
-   */
-  getSnapshot(): { value: string };
+  getSnapshot(): { value: EtatXState };
   send(evenement: string, charge?: Record<string, unknown>): void;
 }

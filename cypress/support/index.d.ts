@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
 import type { DataTestKey } from "./selectors/data-test";
-import type { DataTestPrefix, SeedScenario, ServiceXState } from "./types";
+import type { DataTestPrefix, EtatXState, SeedScenario, ServiceXState } from "./types";
 import type { ServiceName } from "./app-actions/xstate.actions";
 import type { NouvelleTransaction } from "../plugins/db.task";
 import type { UtilisateurSansMotDePasse } from "../fixtures/builders/user.builder";
@@ -57,8 +57,8 @@ declare global {
       createTransaction(details: NouvelleTransaction): Chainable<Transaction>;
       /** Connecte un utilisateur par l'API, sans passer par le formulaire. */
       login(username: string): Chainable<void>;
-      /** Lit l'état courant d'une machine XState (ADR-006). */
-      appState(nom: ServiceName): Chainable<string>;
+      /** Lit l'état courant d'une machine XState — chaîne si plat, objet si imbriqué (ADR-006). */
+      appState(nom: ServiceName): Chainable<EtatXState>;
     }
   }
 }

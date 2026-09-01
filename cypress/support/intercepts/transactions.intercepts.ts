@@ -1,4 +1,5 @@
 import type { ReponseTransactions } from "@fixtures/builders/transaction.builder";
+import { espionner, muter, retarder, simuler } from "@support/intercepts/factories";
 import type { InterceptAlias } from "@support/types";
 
 /**
@@ -22,56 +23,12 @@ import type { InterceptAlias } from "@support/types";
  * Conséquence outillable, et vraie raison du choix : `grep -rn "stub" cypress/e2e/`
  * énumère exactement les endroits où un test a cessé d'exercer le contrat réel.
  *
- * Le corps de chaque famille est écrit UNE fois (`espionner`, `retarder`,
- * `muter`, `simuler`) ; les exports par endpoint ne sont que des noms. Ajouter
- * un domaine coûte donc des lignes de nommage, pas de logique.
+ * Le corps de chaque famille vit dans `factories.ts` et n'existe qu'en un
+ * exemplaire ; les exports ci-dessous ne sont que des noms. Ajouter un domaine
+ * coûte des lignes de nommage, pas de logique.
  */
 
 const URL_PUBLIQUE = "/transactions/public*";
-
-/* ── Cœur générique, non exporté : L3 n'écrit jamais d'URL ───────────────── */
-
-const espionner = (url: string, alias: string): InterceptAlias => {
-  cy.intercept("GET", url).as(alias);
-  return `@${alias}`;
-};
-
-/**
- * Retarde la VRAIE réponse.
- *
- * `cy.intercept(url, { delay })` ferait autre chose : un `StaticResponse` sans
- * corps, donc un stub vide servi en retard. Pour retarder ce que le backend a
- * réellement renvoyé, le retard se pose sur la réponse dans `req.continue`.
- */
-const retarder = (url: string, alias: string, ms: number): InterceptAlias => {
-  cy.intercept("GET", url, (req) =>
-    req.continue((res) => {
-      res.setDelay(ms);
-    })
-  ).as(alias);
-  return `@${alias}`;
-};
-
-const muter = (
-  url: string,
-  alias: string,
-  mutation: (corps: ReponseTransactions) => void
-): InterceptAlias => {
-  cy.intercept("GET", url, (req) =>
-    req.continue((res) => {
-      mutation(res.body as ReponseTransactions);
-    })
-  ).as(alias);
-  return `@${alias}`;
-};
-
-/** Réponses que le backend ne produit pas. L'union interdit `{ statusCode, forceNetworkError }`. */
-type ReponseSimulee = { statusCode: number; body: object } | { forceNetworkError: true };
-
-const simuler = (url: string, alias: string, reponse: ReponseSimulee): InterceptAlias => {
-  cy.intercept("GET", url, reponse).as(alias);
-  return `@${alias}`;
-};
 
 /* ── Espions ─────────────────────────────────────────────────────────────── */
 
@@ -103,7 +60,7 @@ export const delayPublicTransactions = (ms: number): InterceptAlias =>
 
 export const mutatePublicTransactions = (
   mutation: (corps: ReponseTransactions) => void
-): InterceptAlias => muter(URL_PUBLIQUE, "publicTransactionsMutees", mutation);
+): InterceptAlias => muter<ReponseTransactions>(URL_PUBLIQUE, "publicTransactionsMutees", mutation);
 
 /* ── Stubs : le backend n'est pas joint ──────────────────────────────────── */
 

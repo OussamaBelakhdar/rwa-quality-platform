@@ -1,4 +1,6 @@
+import { reponseTransactions } from "@fixtures/builders/transaction.builder";
 import {
+  stubPublicTransactions,
   stubPublicTransactionsEnErreur,
   stubPublicTransactionsInjoignable,
 } from "@support/intercepts/transactions.intercepts";
@@ -6,6 +8,22 @@ import {
 // Niveau E2E : le 500 et la coupure réseau n'existent que sur la pile réelle,
 // et ce qui est vérifié ici est l'écart entre l'état de la machine et ce que
 // l'utilisateur voit. Ni un test de composant ni `cy.request` ne peut le voir.
+
+/**
+ * Le rendu que l'application produit pour TROIS causes différentes : une
+ * erreur serveur, une coupure de transport, et un succès sans résultat.
+ *
+ * Cette fonction est locale au fichier et partagée par les trois tests
+ * volontairement. Ce que la spec démontre n'est pas « chacun affiche une liste
+ * vide » — trois assertions recopiées le diraient aussi, et divergeraient au
+ * premier correctif. C'est « les trois passent par la MÊME assertion » : le
+ * jour où l'application distinguera l'une des causes, ce test-là échouera, et
+ * l'écart deviendra visible au lieu de rester une coïncidence de rédaction.
+ */
+const memeEcranQuAucuneDonnee = (): void => {
+  cy.getBySel("empty-list-header").should("be.visible");
+  cy.contains(/error|erreur|retry|réessayer/i).should("not.exist");
+};
 
 describe("Réseau — erreurs serveur", { tags: ["@network", "@regression"] }, () => {
   beforeEach(() => {
@@ -19,6 +37,7 @@ describe("Réseau — erreurs serveur", { tags: ["@network", "@regression"] }, (
     cy.visit("/");
     cy.wait(flux);
 
+    // La CAUSE est bien captée : c'est ce qui rend le test suivant accablant.
     cy.appState("publicTransactions").should("eq", "failure");
   });
 
@@ -30,10 +49,8 @@ describe("Réseau — erreurs serveur", { tags: ["@network", "@regression"] }, (
 
     // DÉFAUT DE L'APPLICATION, pas du test. `dataMachine` a bien un état
     // `failure` avec un `message`, mais aucun composant ne le lit : le rendu
-    // retombe sur `showEmptyList` (TransactionList.tsx:44). Une panne du
-    // serveur est donc indiscernable d'un compte sans transaction.
-    cy.getBySel("empty-list-header").should("be.visible");
-    cy.contains(/error|erreur|retry|réessayer/i).should("not.exist");
+    // retombe sur `showEmptyList` (TransactionList.tsx:44).
+    memeEcranQuAucuneDonnee();
   });
 
   it("une coupure réseau produit exactement le même rendu qu'un 500", () => {
@@ -45,6 +62,23 @@ describe("Réseau — erreurs serveur", { tags: ["@network", "@regression"] }, (
     // réponse n'arrive jamais, et `cy.wait` échouerait sur « no response ever
     // occurred ». L'assertion sur l'état est retriable, elle suffit.
     cy.appState("publicTransactions").should("eq", "failure");
-    cy.getBySel("empty-list-header").should("be.visible");
+    memeEcranQuAucuneDonnee();
+  });
+
+  it("une réponse 200 sans résultat se rend exactement comme une erreur 500", () => {
+    const flux = stubPublicTransactions(reponseTransactions([]));
+
+    cy.visit("/");
+    cy.wait(flux);
+
+    // Ici la machine est en SUCCÈS. Même écran que les deux tests ci-dessus,
+    // état opposé : l'utilisateur ne peut pas savoir s'il n'a pas de
+    // transaction ou si le service est tombé.
+    //
+    // `deep.equal` et non `eq` : `success` est un état IMBRIQUÉ, XState en
+    // rend un objet. C'est ce test qui a révélé que `cy.appState` était typée
+    // `string` à tort (corrigé en semaine 5, `support/types.ts`).
+    cy.appState("publicTransactions").should("deep.equal", { success: "withoutData" });
+    memeEcranQuAucuneDonnee();
   });
 });

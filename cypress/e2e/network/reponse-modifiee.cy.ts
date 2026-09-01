@@ -1,4 +1,6 @@
+import { mutateCheckAuth } from "@support/intercepts/auth.intercepts";
 import { mutatePublicTransactions } from "@support/intercepts/transactions.intercepts";
+import { sendToService } from "@support/app-actions/xstate.actions";
 import { premiereDe } from "@fixtures/builders/transaction.builder";
 import type { ReponseTransactions } from "@fixtures/builders/transaction.builder";
 
@@ -47,5 +49,20 @@ describe("Réseau — réponse modifiée à la volée", { tags: ["@network", "@r
       const { id } = premiereDe(response?.body as ReponseTransactions);
       cy.getBySelWithId("transaction-amount", id).should("contain", "--$5.00");
     });
+  });
+  it("un solde négatif est affiché tel quel, sans traitement particulier", () => {
+    const flux = mutateCheckAuth((corps) => {
+      // Le backend ne descend jamais un solde sous zéro : il refuse le
+      // paiement avant. Le rendu de ce cas n'avait donc jamais été exercé.
+      corps.user.balance = -12345;
+    });
+
+    cy.visit("/");
+    // `/checkAuth` n'est appelé que par l'état `refreshing` d'`authMachine` :
+    // sans cet événement, l'intercept n'attraperait rien.
+    sendToService("auth", "REFRESH");
+
+    cy.wait(flux);
+    cy.getBySel("sidenav-user-balance").should("have.text", "-$123.45");
   });
 });
