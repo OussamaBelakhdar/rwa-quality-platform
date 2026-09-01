@@ -28,7 +28,7 @@ import { interceptTransactions } from "@support/intercepts/transactions.intercep
 describe("<Domaine> — <comportement>", { tags: ["@<domaine>", "@regression"] }, () => {
   beforeEach(() => {
     cy.seed("default");
-    cy.login("Katharina_Bernier");
+    cy.login("Heath93");
     cy.visit("/<route>");
   });
 
