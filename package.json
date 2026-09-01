@@ -147,6 +147,7 @@
     "copy:mock:awsexportses5": "ncp scripts/mock-aws-exports-es5.js aws-exports-es5.js",
     "cy:burn": "node scripts/burn.js",
     "cy:component": "cypress run --component",
+    "cy:demo:stop": "cypress open --e2e --config specPattern=cypress/manual/**/*.cy.ts",
     "cy:random": "node scripts/run-random-order.js",
     "cy:run": "cypress run --e2e",
     "cypress:open": "cypress open",

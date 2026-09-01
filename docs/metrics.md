@@ -53,9 +53,11 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Durée de suite               | 12–13 s                               | **8 s** | **−35 %** |
 | Chargements de page par test | 2 (`/signin` puis la page de la spec) | 1       | −50 %     |
 
-| Autre                                   | Valeur                                                        |
-| --------------------------------------- | ------------------------------------------------------------- |
-| Suite complète (22 tests, auth incluse) | 10–11 s                                                       |
-| Isolation `yarn cy:random`              | 3 ordres, 22/22 — le cache de session ne crée pas de couplage |
-| `yarn cy:burn`                          | 10 × 22 = 220 exécutions, **0,00 %**                          |
-| Login UI restant                        | **1 spec** (`e2e/auth/login.cy.ts`, 2 tests)                  |
+| Autre                                   | Valeur                                                          |
+| --------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Suite complète (22 tests, auth incluse) | 10–11 s                                                         |
+| Isolation `yarn cy:random`              | 3 ordres, 22/22 — le cache de session ne crée pas de couplage   |
+| `yarn cy:burn`                          | 10 × 22 = 220 exécutions, **0,00 %**                            |
+| Login UI restant                        | **1 spec** (`e2e/auth/login.cy.ts`, 2 tests)                    |
+| Chemin d'échec de `validate()`          | **exercé et prouvé**                                            | `e2e/auth/session.cy.ts` ; sans `validate()` le test échoue (vérifié par mutation) |
+| `Cypress.stop()`                        | contrat vérifié en suite, démonstration réelle hors specPattern | `yarn cy:demo:stop`                                                                |

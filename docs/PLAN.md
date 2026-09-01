@@ -34,6 +34,7 @@
   - _Constaté en semaine 1_ : un `FETCH` envoyé à `publicTransactionService` ne détache rien si les données reviennent identiques — React réconcilie et réutilise les noeuds. Le détachement demande que le jeu de résultats change ; la spec envoie donc `FETCH` avec un filtre `amountMin/amountMax` qui vide la liste.
 - Assertions mid-chain : `.should(callback)` avec retry sur plusieurs conditions.
 - Démonstration `cy.press()` / `cy.stop()` (Cypress 14+).
+  - _Constaté_ : c'est `Cypress.stop()`, pas `cy.stop()`, et il interrompt le runner — donc impossible à exécuter dans une suite verte. La spec 04 en vérifie le contrat ; la démonstration réelle vit dans `cypress/manual/`, lançable par `yarn cy:demo:stop`. Piège au passage : `Cypress.stop()` n'est pas une commande de la file et s'exécute à la collecte, arrêtant le runner **avant** le `cy.visit` — il faut l'appeler depuis un `cy.then`.
 
 **README section** : "Ce que la queue de commandes change" — un schéma, trois règles.
 **Référentiel** : Commandes & internes (Expert), JavaScript profond.
