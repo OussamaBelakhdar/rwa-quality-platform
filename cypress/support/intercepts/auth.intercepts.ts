@@ -1,4 +1,4 @@
-import { muter } from "@support/intercepts/factories";
+import { api, espionner, muter } from "@support/intercepts/factories";
 import type { InterceptAlias } from "@support/types";
 import type { User } from "../../../src/models";
 
@@ -12,10 +12,7 @@ export interface ReponseCheckAuth {
  * alias, pour que l'appelant fasse `cy.wait(interceptLogin())` sans jamais
  * réécrire la chaîne (ARCHITECTURE.md §4, couche L2).
  */
-export const interceptLogin = (): InterceptAlias => {
-  cy.intercept("POST", "/login").as("loginUser");
-  return "@loginUser";
-};
+export const interceptLogin = (): InterceptAlias => espionner(api("/login"), "loginUser", "POST");
 
 /**
  * Modifie le profil renvoyé par `/checkAuth` avant qu'il n'atteigne
@@ -26,4 +23,4 @@ export const interceptLogin = (): InterceptAlias => {
  * (`authMachine.ts:81-86`). La spec doit donc le déclencher par une app action.
  */
 export const mutateCheckAuth = (mutation: (corps: ReponseCheckAuth) => void): InterceptAlias =>
-  muter<ReponseCheckAuth>("/checkAuth", "checkAuthMute", mutation);
+  muter<ReponseCheckAuth>(api("/checkAuth"), "checkAuthMute", mutation);

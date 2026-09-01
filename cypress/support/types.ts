@@ -40,7 +40,7 @@ export type DataTestPrefix =
  * Ce type disait `string` jusqu'en semaine 5, au motif que « les machines de
  * cette application ont toutes des états plats ». C'était faux :
  * `dataMachine.success` a trois sous-états (`unknown`, `withData`,
- * `withoutData`, voir `dataMachine.ts:85-99`), et il porte les quatre listes
+ * `withoutData`, voir l'état `success` de `dataMachine`), et il porte les quatre listes
  * de l'application. `cy.appState` rendait donc un objet sous un type `string`,
  * en silence — exactement ce que le commentaire d'origine promettait d'éviter.
  * Constaté par un test qui stube une liste vide.

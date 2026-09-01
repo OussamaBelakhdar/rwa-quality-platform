@@ -1,5 +1,5 @@
 import type { ReponseTransactions } from "@fixtures/builders/transaction.builder";
-import { espionner, muter, retarder, simuler } from "@support/intercepts/factories";
+import { api, espionner, muter, retarder, simuler } from "@support/intercepts/factories";
 import type { InterceptAlias } from "@support/types";
 
 /**
@@ -28,12 +28,12 @@ import type { InterceptAlias } from "@support/types";
  * coûte des lignes de nommage, pas de logique.
  */
 
-const URL_PUBLIQUE = "/transactions/public*";
+const URL_PUBLIQUE = api("/transactions/public*");
 
 /* ── Espions ─────────────────────────────────────────────────────────────── */
 
 export const interceptTransactions = (): InterceptAlias =>
-  espionner("/transactions*", "transactions");
+  espionner(api("/transactions*"), "transactions");
 
 export const interceptPublicTransactions = (): InterceptAlias =>
   espionner(URL_PUBLIQUE, "publicTransactions");

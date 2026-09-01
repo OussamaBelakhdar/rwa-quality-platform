@@ -1,16 +1,5 @@
-import { retarder, simuler } from "@support/intercepts/factories";
+import { api, retarder, simuler } from "@support/intercepts/factories";
 import type { InterceptAlias } from "@support/types";
-
-/**
- * Les matchers sont ANCRÉS SUR L'API (`Cypress.expose("apiUrl")`), pas écrits
- * en chemin relatif.
- *
- * Constaté : `"/notifications*"` matchait aussi la navigation du navigateur
- * vers `http://localhost:3000/notifications` — le front et l'API partagent ce
- * chemin — et `cy.visit` recevait le 500 destiné à l'appel XHR. Un matcher
- * relatif ne dit pas à QUI il parle.
- */
-const api = (chemin: string): string => `${Cypress.expose("apiUrl")}${chemin}`;
 
 /**
  * Stubs d'échec pour les autres surfaces bâties sur `dataMachine`

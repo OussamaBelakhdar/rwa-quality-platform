@@ -15,6 +15,23 @@ import type { InterceptAlias } from "@support/types";
 
 const alias = (nom: string): InterceptAlias => `@${nom}`;
 
+/**
+ * Ancre un chemin sur l'API — TOUT matcher de ce dossier passe par ici.
+ *
+ * Un matcher relatif ne dit pas à qui il parle. Constaté : `"/notifications*"`
+ * matchait aussi la NAVIGATION du navigateur vers
+ * `http://localhost:3000/notifications`, parce que le front et l'API partagent
+ * ce chemin, et `cy.visit` recevait le 500 destiné à l'appel XHR.
+ *
+ * Les autres matchers du dossier n'avaient jamais collisionné — par chance :
+ * la route front du détail est `/transaction/:id` au SINGULIER, l'API est
+ * `/transactions/:id`. Une convention de nommage de l'amont n'est pas une
+ * garantie. Toutes les requêtes de l'application sont absolues vers
+ * `http://localhost:<backendPort>` (aucun proxy Vite ; `src/setupProxy.js` est
+ * un vestige CRA), donc l'ancrage est exact, pas approximatif.
+ */
+export const api = (chemin: string): string => `${Cypress.expose("apiUrl")}${chemin}`;
+
 /** Méthode HTTP du matcher. `POST` sert au moins à `/graphql`, par où passent les comptes bancaires. */
 export type Methode = "GET" | "POST";
 
