@@ -8,16 +8,21 @@ describe("Fondations — naviguer dans le sujet", { tags: ["@foundations", "@reg
     cy.visit("/");
   });
 
-  it("descend dans une propriété avec .its, en conservant le retry", () => {
-    cy.getBySelLike("transaction-item").its("length").should("be.greaterThan", 0);
+  it("descend de deux niveaux dans le sujet avec .its, sans rompre le retry", () => {
+    // `.its` traverse des propriétés successives et reste retriable. Drainer
+    // `0.textContent` plutôt que `length` évite de refaire la preuve de la
+    // spec 02 : ce qui est démontré ici, c'est la traversée, pas le compte.
+    cy.getBySel("sidenav-user-balance")
+      .its("0.textContent")
+      .should("match", /^-?\$[\d,]+\.\d{2}$/);
   });
 
-  it("appelle une méthode du sujet avec .invoke, sans figer la chaîne", () => {
-    // Contraste avec le `.then` de la spec 03 : ici la chaîne reste
-    // retriable de bout en bout, l'assertion peut donc rejouer.
-    cy.getBySel("sidenav-user-balance")
-      .invoke("text")
-      .should("match", /^-?\$[\d,]+\.\d{2}$/);
+  it("appelle une méthode du sujet AVEC arguments via .invoke", () => {
+    // Ce que `.invoke` ajoute à `.its` : il appelle une fonction du sujet et
+    // lui passe des arguments. `slice(0, 3)` renvoie un nouveau jQuery, qui
+    // redevient le sujet de la chaîne — la démonstration porte sur l'appel,
+    // pas sur le contenu de la liste (déjà prouvé en spec 02).
+    cy.getBySelLike("transaction-item").invoke("slice", 0, 3).should("have.length", 3);
   });
 
   it("réintroduit une valeur externe dans la chaîne avec cy.wrap", () => {
