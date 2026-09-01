@@ -28,13 +28,6 @@ export type ServiceName =
   | "userOnboarding";
 
 /**
- * Envoie un événement à un service, en attendant qu'il soit enregistré.
- *
- * `.should("have.nested.property", …)` rejoue jusqu'à ce que le service
- * apparaisse : c'est ce qui empêche le `TypeError` non retriable qu'un
- * déréférencement direct produirait sur un composant pas encore monté.
- */
-/**
  * Attend qu'un service soit enregistré, puis le rend.
  *
  * `should(callback)` rejoue jusqu'à l'apparition du service : c'est ce qui

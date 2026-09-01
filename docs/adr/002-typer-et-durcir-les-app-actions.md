@@ -1,62 +1,86 @@
-# ADR-002 — Typer et durcir les App Actions héritées de l'amont, sans ajouter de couche par-dessus
+# ADR-002 — Typer et durcir les App Actions héritées de l'amont, sans couche par-dessus
 
 **Statut** : accepté
 **Date** : 2026-09-01
 **Semaine du plan** : 3
+**Révision** : v2 — après revue `adr-challenger`. La v1 affirmait plusieurs crans au-dessus de ce qu'elle démontrait, s'appuyait sur une justification circulaire, et estimait un coût pour un travail déjà réalisé.
 
 ## Contexte
 
-Le plan annonçait un ADR « Page Objects vs App Actions ». La question ne se pose pas dans ces termes : **l'amont n'a jamais eu de Page Objects.** `cypress/support/commands.ts` fournit déjà `getBySel`, `getBySelLike`, `login` (UI), `loginByApi`, `loginByXstate`, `logoutByXstate`, `reactComponent`, `setTransactionAmountRange` — soit des App Actions et des sélecteurs, dans un fichier unique et sans typage utile.
+**L'argument d'architecture d'abord.** Cette application pilote son état par des machines XState. Une App Action envoie un événement à la machine et l'état change ; un Page Object rejouerait le même changement **par l'interface**, plus lentement et avec plus de points de rupture, pour aboutir au même état. Sur une application à machines exposées, le Page Object n'est pas une abstraction supplémentaire : c'est un détour.
 
-La vraie décision est donc : **que faire de ce qui existe ?**
+**Le fait historique ensuite, en confirmation** : l'amont n'a jamais eu de Page Objects. `cypress/support/commands.ts` fournissait déjà `getBySel`, `getBySelLike`, `login` (UI), `loginByApi`, `loginByXstate`, `logoutByXstate`, `reactComponent`, `setTransactionAmountRange` — des App Actions et des sélecteurs, dans un fichier unique et sans typage utile. La question n'est donc pas « POM ou App Actions » mais **que faire de ce qui existe**.
 
-Trois faits établis en semaines 1 et 2 la contraignent :
+Trois faits contraignent la réponse, tous vérifiables dans le dépôt :
 
-1. **L'App Action n'est pas une commodité ici, c'est le seul chemin.** Un `cy.request('POST /login')` valide pose un cookie que le serveur reconnaît devant une interface déconnectée : `authMachine` démarre en `unauthorized` (`authMachine.ts:43`) et reprend son état depuis `localStorage`, sans jamais interroger `/checkAuth`. Les quatre premiers tests de la semaine 1 l'ont démontré en échouant.
-2. **L'interface peut mentir sur l'authentification.** `cy.session` restaurant `localStorage`, l'application paraît connectée alors que la session serveur est morte. Toute assertion d'authentification qui ne traverse pas l'API est un faux positif en puissance. Une couche qui masquerait l'API derrière des abstractions de page aggraverait ce risque.
-3. **Le typage est ce qui manque, pas l'abstraction.** `getBySel(selector: string)` accepte n'importe quelle chaîne : une faute de frappe devient un échec au bout de 4 secondes de retry, sur toutes les machines, pour toujours.
+1. **L'App Action est le seul chemin qui produise un état cohérent.** `authMachine.ts:43` démarre en `unauthorized` et les lignes 264-281 reprennent l'état depuis `localStorage.authState`, sans jamais interroger `/checkAuth`. Un `cy.request('POST /login')` valide pose donc un cookie que le serveur reconnaît devant une interface déconnectée.
+2. **L'interface peut mentir sur l'authentification** — et c'est **prouvé par un test** : `cypress/e2e/auth/session.cy.ts` détruit la session serveur puis vérifie que `validate()` rejoue le setup. Vérifié par mutation : sans `validate()`, le test échoue. Toute assertion d'authentification qui ne traverse pas l'API est un faux positif en puissance.
+3. **Le typage manque, pas l'abstraction.** `getBySel(selector: string)` acceptait n'importe quelle chaîne.
 
 ## Options considérées
 
-| Option                                                     | Avantages                                                                                                                                                                          | Inconvénients                                                                                                                                                                           | Coût                                   |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| **1 — Garder `commands.ts` tel quel**                      | 0 travail ; conforme à l'amont                                                                                                                                                     | Aucun typage : `getBySel("transacton-list")` compile. Un fichier unique qui grossit — signal n°1 d'une suite non maintenue (§3)                                                         | 0, dette permanente                    |
-| **2 — Ajouter des Page Objects par-dessus**                | Familier ; ce qu'un recruteur attend                                                                                                                                               | Redondant : les App Actions atteignent l'état directement, un POM le rejouerait par l'UI. Ajoute une couche à maintenir entre L2 et L3 sans supprimer celle du dessous. Et §11 l'exclut | ~1 semaine + maintenance               |
-| **3 — Typer, découper, brancher `cy.session`** _(retenue)_ | La faute de frappe devient une erreur de compilation ; une responsabilité par fichier ; le gain de session est mesuré (−35 %) ; les abstractions s'arrêtent à L2 comme §11 l'exige | Divergence avec l'amont sur l'organisation des fichiers                                                                                                                                 | ~2 j                                   |
-| **4 — Tout réécrire en ignorant les patterns amont**       | Liberté totale                                                                                                                                                                     | Perdrait `loginByXstate`, dont la semaine 1 a montré qu'il était la seule voie viable. Réinventer pour se distinguer est un coût sans contrepartie                                      | ~1 semaine, résultat probablement pire |
+Le coût de l'option retenue est **mesuré**, pas estimé : elle est livrée. Les autres sont ancrées sur un périmètre — 13 conteneurs dans `src/containers/`, 75 sélecteurs typés.
+
+| Option                                                     | Avantages                                                                                                                                                        | Inconvénients                                                                                                                                                                      | Coût                                                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **1 — Garder `commands.ts` tel quel**                      | 0 travail                                                                                                                                                        | Aucun typage : `getBySel("transacton-list")` compile et échoue après 4 s de retry. Un fichier unique qui grossit                                                                   | 0, dette permanente                                                               |
+| **2 — Ajouter des Page Objects par-dessus**                | Point unique de renommage quand un écran change ; vocabulaire métier lisible par un non-Cypress. **C'est le vrai argument adverse, et il n'est pas négligeable** | Rejoue par l'UI un état que l'App Action atteint directement. Ajoute une couche à maintenir **sans supprimer celle du dessous** : la redondance est l'objection, pas la profondeur | ~13 conteneurs × leurs sélecteurs, plus la maintenance à chaque évolution d'écran |
+| **3 — Typer, découper, brancher `cy.session`** _(retenue)_ | La faute de frappe devient une erreur de compilation au point d'appel ; une responsabilité par fichier ; les abstractions restent nommées L2                     | Divergence avec l'amont sur l'organisation des fichiers ; empaquette trois décisions orthogonales (typage, découpage, session)                                                     | **Mesuré : 14 fichiers, 513 lignes dont 205 de commentaires**                     |
+| **4 — Tout réécrire en ignorant les patterns amont**       | Liberté totale                                                                                                                                                   | Perdrait `loginByXstate`, dont le fait 1 montre qu'il est la seule voie viable                                                                                                     | Supérieur à l'option 3 pour un résultat probablement pire                         |
+
+Le gain de `cy.session` (**12–13 s → 8 s sur 20 tests, en local, Electron, non shardé**) n'apparaît pas dans la colonne « avantages » : il aurait été obtenu sous n'importe quelle option. Il ne départage rien, il est simplement livré dans le même lot.
 
 ## Décision
 
 **Conserver les patterns de l'amont, en durcir le contrat, ne rien empiler par-dessus.**
 
-Ce que le projet ajoute :
+Ce que le projet ajoute : typage fermé des entrées (`DataTestKey`, `DataTestPrefix`, `SeedScenario`, `ServiceName`, `InterceptAlias`, `ServiceXState` — 6 exports dans 3 fichiers), une responsabilité par fichier, `cy.session` avec `validate()`, des factories d'intercept qui rendent leur alias typé, et un registre unique de services XState (ADR-006).
 
-- **Typage fermé des entrées.** `getBySel(key: DataTestKey)` — union littérale des 75 clés relevées dans `src/`, tenue à jour par `yarn check:selectors`, qui compare les deux sens et est chaîné dans `yarn lint`. Idem `DataTestPrefix` pour `getBySelLike`, `SeedScenario` pour `cy.seed`, `ServiceName` pour `cy.appState`.
-- **Une responsabilité par fichier.** `commands/{dom,data,auth,app-state}.commands.ts`, `app-actions/`, `intercepts/`, `selectors/`, `types.ts`.
-- **`cy.session` avec `validate()`.** Mesuré : 12–13 s → 8 s à périmètre égal.
-- **Des factories d'intercept qui rendent leur alias**, typé `` `@${string}` `` : une factory qui oublie le `@` ne compile pas.
-- **Un registre unique de services XState** (ADR-006) au lieu des six expositions dispersées.
+Ce que le projet refuse : aucune couche Page Object, aucun framework maison, aucune abstraction qui masque l'API — compte tenu du fait 2, une assertion d'authentification doit pouvoir traverser le réseau.
 
-Ce que le projet refuse d'ajouter :
+### Portée exacte de la garantie de typage
 
-- **Aucune couche Page Object.** Les abstractions s'arrêtent à L2 (§11).
-- **Aucun framework maison.** Les commandes restent des commandes Cypress.
-- **Aucune abstraction qui masque l'API.** Compte tenu du fait n°2, une assertion d'authentification doit pouvoir traverser le réseau ; l'encapsuler serait dangereux.
+L'affirmation « une faute de frappe est une erreur de compilation » est vraie **au point d'appel**, et il faut dire où elle s'arrête :
+
+| Écriture                                     | Rattrapée par                                                                                                     |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `cy.getBySel("transacton-list")`             | **le compilateur** (union fermée)                                                                                 |
+| `cy.getBySelLike("prefixe-faux")`            | **le compilateur** (`DataTestPrefix`)                                                                             |
+| `cy.get('[data-test="transacton-list"]')`    | **le hook `check-spec.sh`** — ajouté après cette revue, qui avait montré que rien ne l'attrapait                  |
+| `cy.get('#id')`, `cy.get('.classe')`         | le hook                                                                                                           |
+| `cy.findByRole("buton")`                     | **rien** — rôle et nom accessible sont des chaînes libres. Reste à la revue                                       |
+| Un nouveau `data-test` dynamique dans `src/` | **rien dans ce sens** : `check-selectors.js` vérifie que chaque préfixe déclaré existe dans `src/`, pas l'inverse |
+
+Deux trous connus, écrits ici plutôt que découverts.
+
+### Sort des commandes de l'amont
+
+Les quatre commandes citées au Contexte — `loginByApi`, `logoutByXstate`, `reactComponent`, `setTransactionAmountRange` — **n'existent pas dans le code livré** : la suite héritée a été supprimée en semaine 0. « Conserver les patterns » signifie conserver l'approche, pas les fichiers. Elles reviendront typées quand une spec en aura besoin (`logoutByXstate` en semaine 2 si un test de déconnexion arrive, `setTransactionAmountRange` en semaine 5 avec les filtres). Les nommer sans les livrer aurait laissé croire à un patrimoine qui n'existe plus.
+
+### Ce qui devient portable en semaine 10
+
+`DataTestKey` et `check-selectors.js` sont le seul actif de cette décision **indépendant du runner** : un test Playwright a les mêmes sélecteurs à désigner. Ils vivent aujourd'hui dans `cypress/support/selectors/`, c'est-à-dire dans la couche que §10 annonce comme réécrite lors d'une migration. **À trancher en semaine 10** : les monter dans `shared/` avec les builders, ou accepter de les dupliquer. Ce n'est pas tranché ici parce que le coût dépend de ce que le module Playwright consommera réellement.
 
 ## Conséquences
 
-- Positives : une faute de frappe de sélecteur est une erreur de compilation, pas un échec à 4 s. Le contrat est vérifié par le compilateur (`cypress/support/typage.contract.ts` : chaque `@ts-expect-error` échoue si l'erreur attendue disparaît). Les fichiers restent lisibles.
-- Négatives assumées : l'union des clés doit être maintenue — d'où le garde-fou. Et le découpage diverge de l'amont, ce qui rendra une resynchronisation de `cypress/` bruyante ; sans importance, la suite étant réécrite (ADR-001).
-- Négative de lisibilité : un lecteur habitué au POM ne trouvera pas ce qu'il cherche. Le README doit dire pourquoi en une phrase, pas laisser deviner.
-- Surveillé via : `yarn check:selectors`, le contrat de typage, ESLint (`no-explicit-any` et `ban-ts-comment` en `error` sur `cypress/**`) et la revue `test-reviewer`.
+- Positives : la faute de frappe est rattrapée au point d'appel par le compilateur, ailleurs par le hook. Le contrat est vérifié par le compilateur (`typage.contract.ts`) et par le service de langage (`check-autocompletion.js`), tous deux chaînés dans `yarn lint`.
+- Négatives assumées : l'union doit être maintenue — d'où le garde-fou. Le découpage diverge de l'amont, ce qui rendra une resynchronisation de `cypress/` bruyante ; sans importance, la suite étant réécrite (ADR-001).
+- **Exception assumée à la règle de dépendance du §2.** Cette règle veut qu'une couche n'appelle que celle du dessous. `session.cy.ts` fait un `cy.request` direct vers `/logout` — une spec (L3) qui parle à L0. C'est délibéré : invalider une session serveur est précisément ce que le test doit provoquer, et l'encapsuler dans une commande masquerait ce que le test démontre. L'exception est bornée aux assertions et provocations d'état d'authentification, et elle est nommée ici plutôt que laissée en contradiction silencieuse avec §2.
+- Négative de lisibilité : un lecteur habitué au POM ne trouvera pas ce qu'il cherche. Le README doit dire pourquoi en une phrase.
+- Surveillé via : `check-selectors`, `check-autocompletion`, `typage.contract.ts`, ESLint (`no-explicit-any`, `ban-ts-comment` en `error` sur `cypress/**`), `check-spec.sh` et la revue `test-reviewer`.
+
+## Quand cette décision devrait être réexaminée
+
+- **Un domaine sans machine XState.** L'argument central — « l'App Action atteint l'état directement » — ne s'y applique plus. `user-settings` et `bank-accounts` sont dans ce cas ; ils arrivent en semaines 4 et 8. Si leurs specs deviennent longues et répétitives, le POM redevient un candidat sérieux **pour ces domaines-là**.
+- **À l'échelle du §10** (500 specs) : si le coût de renommage d'un écran devient mesurable, le point unique qu'offre un POM cesse d'être théorique.
 
 ## Réversibilité
 
-| À défaire                 | Périmètre                                                                        |
-| ------------------------- | -------------------------------------------------------------------------------- |
-| Le typage fermé           | 4 types dans `support/types.ts` et `selectors/`, élargis à `string`              |
-| Le découpage              | `git mv` vers un `commands.ts` unique                                            |
-| `cy.session`              | 1 bloc dans `auth.commands.ts`                                                   |
-| Ajouter un POM par-dessus | possible à tout moment **sans toucher les specs** : elles n'appellent que `cy.*` |
+| À défaire                 | Périmètre                                                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Le typage fermé           | 6 exports dans 3 fichiers (`types.ts`, `selectors/data-test.ts`, `app-actions/xstate.actions.ts`), élargis à `string`                                      |
+| Le découpage              | `git mv` vers un `commands.ts` unique — 14 fichiers                                                                                                        |
+| `cy.session`              | 1 bloc dans `auth.commands.ts`                                                                                                                             |
+| Ajouter un POM par-dessus | Les specs ne dépendent d'**aucune abstraction de page**. Leurs imports L2 sont des factories d'intercept et des app actions, qu'un POM n'invaliderait pas. |
 
-Le dernier point est ce qui rend la décision peu risquée : refuser le POM aujourd'hui n'interdit pas de l'ajouter demain, alors que l'inverse — retirer une couche dont 200 specs dépendent — coûterait la réécriture de L3.
+La dernière ligne est ce qui rend la décision peu risquée : refuser le POM aujourd'hui n'interdit pas de l'ajouter demain, alors que retirer un POM dont les specs dépendent coûterait la réécriture de L3.

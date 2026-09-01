@@ -40,6 +40,13 @@ if [[ $is_spec -eq 1 ]]; then
   if grep -nE "cy\.get\(['\"](#|\.)" "$file"; then
     echo "Sélecteur fragile (#id / .class) — utiliser cy.getBySel ou cy.findByRole." >&2; fail=1
   fi
+  # data-test écrit en dur : cy.getBySel existe et sa clé est typée. Sans cette
+  # règle, `cy.get('[data-test="transacton-list"]')` compile, passe le lint, et
+  # échoue au bout de 4 s de retry — exactement ce que le typage devait éviter.
+  # cy.get('@alias') reste autorisé : c'est la lecture d'un alias, pas un sélecteur.
+  if grep -nE "cy\.get\([^)]*data-test" "$file"; then
+    echo "data-test écrit en dur — utiliser cy.getBySel(key) : la clé est typée, la faute de frappe devient une erreur de compilation (rules/testing.md #9)." >&2; fail=1
+  fi
   if grep -nE 'it\.skip|describe\.skip|it\.only|describe\.only' "$file"; then
     echo "skip/only interdits — utiliser le tag @quarantine avec ticket (voir rules/testing.md)." >&2; fail=1
   fi
