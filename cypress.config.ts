@@ -145,8 +145,23 @@ export default defineConfig({
 
       codeCoverageTask(on, config);
 
-      // Filtrage par tag côté Node : permet `--env grep=@smoke` de ne charger
-      // que les specs concernées (.claude/rules/testing.md #6).
+      // Pont env → expose pour @cypress/grep 7.
+      //
+      // La v7 lit TOUTES ses options depuis `config.expose` (côté Node) et
+      // `Cypress.expose()` (côté navigateur) — c'est la même migration que
+      // celle d'ADR-001. Or `--env grep=…` écrit dans `config.env`. Sans ce
+      // pont, le filtrage ne s'applique NI aux specs NI aux tests, et la
+      // commande sort en vert en ayant tout exécuté : un filtre qui ne filtre
+      // pas est pire qu'un filtre absent, parce qu'on lui fait confiance.
+      for (const cle of ["grep", "grepTags", "grepUntagged", "grepBurn", "grepOmitFiltered"]) {
+        if (config.env[cle] !== undefined) {
+          config.expose[cle] = config.env[cle];
+        }
+      }
+      // Pré-filtrage des specs : évite de charger un fichier dont aucun test
+      // ne correspond. Le filtrage fin des `it` reste fait au runtime.
+      config.expose.grepFilterSpecs = true;
+
       registerGrepPlugin(config);
 
       // Derive the auth-provider guard flags from the fully-resolved

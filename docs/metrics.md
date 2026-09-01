@@ -25,24 +25,24 @@ Une case vide signifie « pas encore mesurable », jamais « non mesuré ».
 
 ## Semaine 1 — fondations (2026-08-31)
 
-| Métrique                                      | Valeur                                                          | Note                                                                                                                   |
-| --------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Specs E2E                                     | **8**                                                           | `cypress/e2e/00-foundations/`                                                                                          |
-| Tests                                         | **20**                                                          | 20 passants, 0 en quarantaine. Dont un test qui échoue réellement, son échec intercepté par `cy.on("fail")` et asserté |
-| Durée de suite (séquentiel, Electron)         | **12 s**                                                        | mesure locale, non shardée                                                                                             |
-| Stabilité                                     | **3/3 exécutions consécutives vertes**                          | aucun retry déclenché                                                                                                  |
-| Filtrage par tag                              | fonctionnel                                                     | `--env grep=@foundations` → 8 specs                                                                                    |
-| Capacités L2 livrées                          | 4 commandes, 1 app action, 3 factories d'intercept              | `getBySel`, `getBySelLike`, `seed`, `login`                                                                            |
-| Clés `data-test` typées                       | 75                                                              | union littérale, faute de frappe = erreur de compilation                                                               |
-| `yarn types` / `tsc -p cypress` / `yarn lint` | verts                                                           | —                                                                                                                      |
-| Isolation (`yarn cy:random`)                  | **3 ordres aléatoires, 19/19 à chaque fois**                    | graines 989457388, 43520517, 162811761 ; ordre rejouable via `CY_RANDOM_SEED`                                          |
-| Taux de flake (`yarn cy:burn`)                | **0,00 %**                                                      | 10 exécutions × 19 tests = 190 exécutions, 0 échec, retries désactivés. Seuil §6 : 2 %                                 |
-| Durée du burn                                 | 3 min 04                                                        | 10 exécutions séquentielles                                                                                            |
-| Revue `test-reviewer`                         | **passée, 8 points bloquants corrigés**                         | dont `yarn types` qui ne compilait pas `cypress/`                                                                      |
-| Assertions vérifiées par mutation             | 2/2 discriminantes                                              | specs 05 et 06 : inverser l'attendu fait bien échouer                                                                  |
-| Garde-fou sélecteurs                          | `yarn check:selectors`                                          | 75 clés, `src/` et l'union comparées dans les deux sens ; chaîné dans `yarn lint`                                      |
-| Règles TS appliquées au code de test          | `no-explicit-any`, `ban-ts-comment` en `error` sur `cypress/**` | vérifié par sonde : les deux rejettent                                                                                 |
-| **Base de référence semaine 2**               | **12–13 s** pour 20 tests                                       | sans `cy.session` : `cy.login` charge `/signin` puis la spec charge sa page — deux chargements par test                |
+| Métrique                                      | Valeur                                                          | Note                                                                                                                                                  |
+| --------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Specs E2E                                     | **8**                                                           | `cypress/e2e/00-foundations/`                                                                                                                         |
+| Tests                                         | **20**                                                          | 20 passants, 0 en quarantaine. Dont un test qui échoue réellement, son échec intercepté par `cy.on("fail")` et asserté                                |
+| Durée de suite (séquentiel, Electron)         | **12 s**                                                        | mesure locale, non shardée                                                                                                                            |
+| Stabilité                                     | **3/3 exécutions consécutives vertes**                          | aucun retry déclenché                                                                                                                                 |
+| Filtrage par tag                              | **CETTE LIGNE ÉTAIT FAUSSE** — corrigée en semaine 4            | `--env grep=@foundations` retournait « 8 specs », c'est-à-dire la totalité de la suite d'alors : rien n'était filtré. Voir la section de la semaine 4 |
+| Capacités L2 livrées                          | 4 commandes, 1 app action, 3 factories d'intercept              | `getBySel`, `getBySelLike`, `seed`, `login`                                                                                                           |
+| Clés `data-test` typées                       | 75                                                              | union littérale, faute de frappe = erreur de compilation                                                                                              |
+| `yarn types` / `tsc -p cypress` / `yarn lint` | verts                                                           | —                                                                                                                                                     |
+| Isolation (`yarn cy:random`)                  | **3 ordres aléatoires, 19/19 à chaque fois**                    | graines 989457388, 43520517, 162811761 ; ordre rejouable via `CY_RANDOM_SEED`                                                                         |
+| Taux de flake (`yarn cy:burn`)                | **0,00 %**                                                      | 10 exécutions × 19 tests = 190 exécutions, 0 échec, retries désactivés. Seuil §6 : 2 %                                                                |
+| Durée du burn                                 | 3 min 04                                                        | 10 exécutions séquentielles                                                                                                                           |
+| Revue `test-reviewer`                         | **passée, 8 points bloquants corrigés**                         | dont `yarn types` qui ne compilait pas `cypress/`                                                                                                     |
+| Assertions vérifiées par mutation             | 2/2 discriminantes                                              | specs 05 et 06 : inverser l'attendu fait bien échouer                                                                                                 |
+| Garde-fou sélecteurs                          | `yarn check:selectors`                                          | 75 clés, `src/` et l'union comparées dans les deux sens ; chaîné dans `yarn lint`                                                                     |
+| Règles TS appliquées au code de test          | `no-explicit-any`, `ban-ts-comment` en `error` sur `cypress/**` | vérifié par sonde : les deux rejettent                                                                                                                |
+| **Base de référence semaine 2**               | **12–13 s** pour 20 tests                                       | sans `cy.session` : `cy.login` charge `/signin` puis la spec charge sa page — deux chargements par test                                               |
 
 ## Semaine 2 — `cy.session` (2026-09-01)
 
@@ -138,3 +138,30 @@ Deux façons de mélanger les `it` ont été essayées, et **mesurées** :
 **Retenu, par construction et non par échantillonnage** : `testIsolation` (défaut Cypress) réinitialise l'état navigateur entre deux `it`, et `check-spec.sh` exige désormais un `cy.seed()` **dans le `beforeEach`** — pas n'importe où dans le fichier. Le couplage entre deux `it` voisins est donc empêché à l'écriture, au lieu d'être cherché après coup par tirage.
 
 La règle est bornée à `cypress/e2e/` et `cypress/api/` ; `cypress/manual/` est hors specPattern par conception. Vérifié : une spec e2e avec `cy.seed` hors du `beforeEach` est bloquée, les 15 specs du dépôt passent.
+
+## Semaine 4 — le filtrage par tag ne filtrait rien
+
+Affirmé fonctionnel depuis la semaine 1, sur la foi d'un « 8 specs found » qui
+était en réalité la suite entière.
+
+**Cause** : `@cypress/grep` 7.0.0 lit toutes ses options depuis `config.expose`
+(côté Node) et `Cypress.expose()` (côté navigateur) — la même migration que
+celle d'ADR-001. Or `--env grep=…` écrit dans `config.env`. Le plugin ne
+trouvait donc rien, et sortait en vert après avoir tout exécuté.
+
+**Diagnostic** : un motif volontairement inexistant (`grep=ZZZINEXISTANT`)
+laissait passer les 4 tests d'une spec. Un filtre qui ne filtre pas est pire
+qu'un filtre absent, parce qu'on lui fait confiance.
+
+**Correctif** : un pont `config.env` → `config.expose` dans `setupNodeEvents`,
+plus `grepFilterSpecs` activé pour le pré-filtrage des fichiers.
+
+**Vérifié aux deux niveaux :**
+
+| Commande                                    | Résultat                              |
+| ------------------------------------------- | ------------------------------------- |
+| aucun filtre                                | 13 specs, **40/40**                   |
+| `--env grepTags=@auth`                      | **2 specs** (login, session), 5 tests |
+| `--env grepTags=@smoke`                     | **1 spec** (login)                    |
+| `--env grep=CORRIG` sur une spec de 4 tests | **1 exécuté, 3 en attente**           |
+| `--env grepTags=@nexistepas`                | aucune spec retenue                   |
