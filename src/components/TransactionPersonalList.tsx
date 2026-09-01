@@ -52,6 +52,9 @@ const TransactionPersonalList: React.FC<TransactionPersonalListProps> = ({
         loadNextPage={loadNextPage}
         pagination={pageData as TransactionPagination}
         showCreateButton={true}
+        hasError={current.matches("failure")}
+        errorMessage={current.context.message}
+        onRetry={() => send("FETCH", { ...dateRangeFilters, ...amountRangeFilters })}
       />
     </>
   );

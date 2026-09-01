@@ -67,9 +67,14 @@ export const mutatePublicTransactions = (
 export const stubPublicTransactions = (corps: ReponseTransactions): InterceptAlias =>
   simuler(URL_PUBLIQUE, "publicTransactionsStub", { statusCode: 200, body: corps });
 
-/** `axios` rejette, `dataMachine` part en `failure`. */
-export const stubPublicTransactionsEnErreur = (statusCode = 500): InterceptAlias =>
-  simuler(URL_PUBLIQUE, "publicTransactionsErreur", { statusCode, body: {} });
+/**
+ * `axios` rejette, `dataMachine` part en `failure`.
+ *
+ * `fois` limite la panne aux N premières requêtes : au-delà, le backend
+ * répond de nouveau. C'est ce qui permet de tester une reprise.
+ */
+export const stubPublicTransactionsEnErreur = (statusCode = 500, fois?: number): InterceptAlias =>
+  simuler(URL_PUBLIQUE, "publicTransactionsErreur", { statusCode, body: {} }, fois);
 
 /**
  * Coupe la requête au niveau transport : pas de statut, pas de corps.

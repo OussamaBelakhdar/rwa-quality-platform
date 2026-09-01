@@ -60,8 +60,27 @@ export const muter = <T>(
 /** Réponses hors du domaine du backend. L'union interdit `{ statusCode, forceNetworkError }`. */
 export type ReponseSimulee = { statusCode: number; body: object } | { forceNetworkError: true };
 
-/** Remplace la réponse : le backend n'est pas joint, et le stub peut mentir sur le contrat. */
-export const simuler = (url: string, nom: string, reponse: ReponseSimulee): InterceptAlias => {
-  cy.intercept("GET", url, reponse).as(nom);
+/**
+ * Remplace la réponse : le backend n'est pas joint, et le stub peut mentir sur
+ * le contrat.
+ *
+ * `fois` borne le nombre de requêtes stubées, après quoi la route est retirée
+ * et les suivantes atteignent le backend. C'est le seul moyen fiable de
+ * simuler « une panne puis un rétablissement » : constaté, deux intercepts au
+ * matcher IDENTIQUE ne se remplacent pas — le stub déclaré en premier continue
+ * de servir, même si un espion est déclaré après lui. (Deux matchers
+ * DIFFÉRENTS, eux, se départagent bien du dernier déclaré au premier : c'est
+ * ce dont dépend `interceptPublicTransactionsPage`.)
+ */
+export const simuler = (
+  url: string,
+  nom: string,
+  reponse: ReponseSimulee,
+  fois?: number
+): InterceptAlias => {
+  cy.intercept(
+    fois === undefined ? { method: "GET", url } : { method: "GET", url, times: fois },
+    reponse
+  ).as(nom);
   return alias(nom);
 };

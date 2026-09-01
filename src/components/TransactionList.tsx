@@ -1,6 +1,6 @@
 import React, { ReactNode } from "react";
 import { styled } from "@mui/material/styles";
-import { Paper, Button, ListSubheader, Grid } from "@mui/material";
+import { Paper, Button, ListSubheader, Grid, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { isEmpty } from "lodash/fp";
 
@@ -30,6 +30,12 @@ export interface TransactionListProps {
   loadNextPage: Function;
   pagination: TransactionPagination;
   filterComponent: ReactNode;
+  /** La machine est en `failure` : la requête n'a pas abouti. */
+  hasError?: Boolean;
+  /** Message porté par la machine, affiché tel quel. */
+  errorMessage?: string;
+  /** Relance la requête. Sans elle, l'écran d'erreur est une impasse. */
+  onRetry?: () => void;
 }
 
 const TransactionList: React.FC<TransactionListProps> = ({
@@ -40,8 +46,15 @@ const TransactionList: React.FC<TransactionListProps> = ({
   loadNextPage,
   pagination,
   filterComponent,
+  hasError,
+  errorMessage,
+  onRetry,
 }) => {
-  const showEmptyList = !isLoading && transactions?.length === 0;
+  // `!hasError` est la correction de fond : sans lui, une requête en échec
+  // retombait sur la liste vide, et un 500 devenait indiscernable d'un compte
+  // sans transaction. Trois causes, un seul écran — l'utilisateur ne pouvait
+  // pas savoir s'il n'avait rien ou si le service était tombé.
+  const showEmptyList = !isLoading && !hasError && transactions?.length === 0;
   const showSkeleton = isLoading && isEmpty(pagination);
 
   return (
@@ -49,6 +62,42 @@ const TransactionList: React.FC<TransactionListProps> = ({
       {filterComponent}
       <ListSubheader component="div">{header}</ListSubheader>
       {showSkeleton && <SkeletonList />}
+      {hasError && (
+        <Grid
+          container
+          direction="column"
+          justifyContent="center"
+          alignItems="center"
+          spacing={2}
+          style={{ padding: 24 }}
+          data-test="transaction-list-error"
+        >
+          <Grid item>
+            <Typography component="h2" variant="h6" color="error">
+              Unable to load transactions
+            </Typography>
+          </Grid>
+          <Grid item>
+            <Typography
+              variant="body2"
+              color="textSecondary"
+              data-test="transaction-list-error-message"
+            >
+              {errorMessage}
+            </Typography>
+          </Grid>
+          <Grid item>
+            <Button
+              variant="contained"
+              color="primary"
+              data-test="transaction-list-error-retry"
+              onClick={() => onRetry && onRetry()}
+            >
+              Retry
+            </Button>
+          </Grid>
+        </Grid>
+      )}
       {transactions.length > 0 && (
         <TransactionInfiniteList
           transactions={transactions}

@@ -35,6 +35,21 @@ export interface DataContext {
   message?: string;
 }
 
+/**
+ * Message lisible tiré d'un événement d'erreur XState.
+ *
+ * `onError` produit `{ type: "error.platform.<id>", data: <erreur> }` ; une
+ * erreur axios est une `Error`, donc porte `message` (« Request failed with
+ * status code 500 », « Network Error »). Tout autre forme retombe sur un
+ * libellé générique plutôt que sur `undefined`.
+ */
+const messageDErreur = (event: unknown): string => {
+  const data = (event as { data?: unknown })?.data;
+  if (data instanceof Error && data.message) return data.message;
+  if (typeof data === "string" && data) return data;
+  return "Something went wrong.";
+};
+
 export const dataMachine = (machineId: string) =>
   Machine<DataContext, DataSchema, DataEvents>(
     {
@@ -121,8 +136,11 @@ export const dataMachine = (machineId: string) =>
           pageData: event.data.pageData,
         })),
 
-        setMessage: /* istanbul ignore next */ assign((ctx, event: any) => ({
-          message: event.message,
+        // XState v4 range l'erreur d'un `invoke` dans `event.data`. Cette
+        // action lisait `event.message` : le message était donc TOUJOURS
+        // `undefined`, et l'état `failure` ne capturait rien d'exploitable.
+        setMessage: assign((ctx, event) => ({
+          message: messageDErreur(event),
         })),
       },
       guards: {
