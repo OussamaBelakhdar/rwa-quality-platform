@@ -7,6 +7,7 @@ import codeCoverageTask from "@cypress/code-coverage/task";
 import { defineConfig } from "cypress";
 import viteConfig from "./vite.cypress.config.ts";
 import { plugin as registerGrepPlugin } from "@cypress/grep/plugin";
+import { enregistrerTachesDb, validerEnvironnement } from "./cypress/plugins";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -88,13 +89,19 @@ export default defineConfig({
         return Array.isArray(query) ? Promise.map(query, fetchData) : fetchData(query);
       };
 
+      // Tâches L1 du projet : proxy HTTP typé vers /testData
+      // (cypress/plugins/). Le backend reste le seul écrivain lowdb.
+      //
+      // La tâche `db:seed` de l'amont a été retirée : deux contrats de seeding
+      // coexistaient (`db:seed` non typée et `db:reset` typée par TaskMap), et
+      // le prochain contributeur en aurait choisi un au hasard.
+      on("task", enregistrerTachesDb(config.expose.apiUrl));
       on("task", {
-        async "db:seed"() {
-          // seed database with test data
-          const { data } = await axios.post(`${testDataApiEndpoint}/seed`);
-          return data;
-        },
+        "env:validate": () =>
+          validerEnvironnement(config.expose.apiUrl, config.env.defaultPassword),
+      });
 
+      on("task", {
         // fetch test data from a database (MySQL, PostgreSQL, etc...)
         "filter:database"(queryPayload) {
           return queryDatabase(queryPayload, (data, attrs) => _.filter(data.results, attrs));
@@ -138,8 +145,23 @@ export default defineConfig({
 
       codeCoverageTask(on, config);
 
-      // Filtrage par tag côté Node : permet `--env grep=@smoke` de ne charger
-      // que les specs concernées (.claude/rules/testing.md #6).
+      // Pont env → expose pour @cypress/grep 7.
+      //
+      // La v7 lit TOUTES ses options depuis `config.expose` (côté Node) et
+      // `Cypress.expose()` (côté navigateur) — c'est la même migration que
+      // celle d'ADR-001. Or `--env grep=…` écrit dans `config.env`. Sans ce
+      // pont, le filtrage ne s'applique NI aux specs NI aux tests, et la
+      // commande sort en vert en ayant tout exécuté : un filtre qui ne filtre
+      // pas est pire qu'un filtre absent, parce qu'on lui fait confiance.
+      for (const cle of ["grep", "grepTags", "grepUntagged", "grepBurn", "grepOmitFiltered"]) {
+        if (config.env[cle] !== undefined) {
+          config.expose[cle] = config.env[cle];
+        }
+      }
+      // Pré-filtrage des specs : évite de charger un fichier dont aucun test
+      // ne correspond. Le filtrage fin des `it` reste fait au runtime.
+      config.expose.grepFilterSpecs = true;
+
       registerGrepPlugin(config);
 
       // Derive the auth-provider guard flags from the fully-resolved

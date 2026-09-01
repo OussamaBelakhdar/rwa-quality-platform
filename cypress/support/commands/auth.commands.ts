@@ -1,4 +1,5 @@
 import { loginByXstate } from "@support/app-actions/xstate.actions";
+import { motDePasseParDefaut } from "@support/commands/env.commands";
 
 /**
  * Connecte un utilisateur sans passer par le formulaire (P2 : l'UI ne sert
@@ -20,14 +21,8 @@ import { loginByXstate } from "@support/app-actions/xstate.actions";
  * `cy.request` reste utilisé là où il est le bon outil : la validation.
  */
 Cypress.Commands.add("login", (username: string) => {
-  cy.env<{ defaultPassword?: string }>(["defaultPassword"]).then(({ defaultPassword }) => {
-    if (!defaultPassword) {
-      throw new Error(
-        "env.defaultPassword est vide — vérifier SEED_DEFAULT_USER_PASSWORD dans .env, .env.local (chargé en premier), ou CYPRESS_defaultPassword en CI."
-      );
-    }
-
-    cy.session([username, "session-v1"], () => loginByXstate(username, defaultPassword), {
+  motDePasseParDefaut().then((motDePasse) => {
+    cy.session([username, "session-v1"], () => loginByXstate(username, motDePasse), {
       /**
        * Rejoué avant chaque restauration. Un cache restauré alors que la
        * session serveur a expiré produirait un échec au milieu du test, loin

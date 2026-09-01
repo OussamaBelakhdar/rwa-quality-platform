@@ -26,4 +26,19 @@ Cypress.Commands.add("getBySelLike", (prefix: DataTestPrefix, options?: Selector
   cy.get(`[data-test^="${prefix}"]`, options)
 );
 
+/**
+ * Sélection d'une clé `data-test` DYNAMIQUE : préfixe typé, identifiant libre.
+ * Rend `transaction-item-<id>` atteignable sans écrire le sélecteur en dur et
+ * sans cast — les deux étant interdits (règle #9, rules/typescript.md).
+ *
+ * `getBySelLike` rend la collection ; celle-ci vise UNE ligne précise, ce qui
+ * permet d'asserter sur l'entité qu'un test vient de créer plutôt que sur
+ * « au moins un élément contient ce texte ».
+ */
+Cypress.Commands.add(
+  "getBySelWithId",
+  (prefixe: DataTestPrefix, id: string, options?: SelectorOptions) =>
+    cy.get(`[data-test="${prefixe}-${id}"]`, options)
+);
+
 export {};

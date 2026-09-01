@@ -8,10 +8,15 @@
 export type InterceptAlias = `@${string}`;
 
 /**
- * Scénarios de seed publiés par ARCHITECTURE.md §4 (couche L2).
- * Seul `default` est livré ; `empty` et `rich` arrivent en semaine 4.
+ * Scénarios de seed. Chacun correspond à un fichier de graine réel de `data/`
+ * (`database-seed.json`, `empty-seed.json`).
+ *
+ * `rich` a été retiré du contrat publié en semaine 4 : un scénario « riche »
+ * est un blob opaque dont personne ne connaît le contenu sans l'ouvrir. Les
+ * endpoints granulaires `db:createUser` et `db:createTransaction` couvrent le
+ * même besoin de façon composable et lisible dans la spec qui les appelle.
  */
-export type SeedScenario = "empty" | "default" | "rich";
+export type SeedScenario = "empty" | "default";
 
 /** Préfixes légitimes de `data-test`, pour `cy.getBySelLike`. */
 export type DataTestPrefix =
@@ -26,6 +31,12 @@ export type DataTestPrefix =
  * internes de la machine.
  */
 export interface ServiceXState {
-  getSnapshot(): { value: unknown };
+  /**
+   * `value` est typée `string` : les machines de cette application ont toutes
+   * des états plats. XState sait rendre un objet pour un état imbriqué ; le
+   * jour où une machine en aura, ce type devra changer, et le compilateur le
+   * signalera au lieu de laisser `cy.appState` rendre un objet en silence.
+   */
+  getSnapshot(): { value: string };
   send(evenement: string, charge?: Record<string, unknown>): void;
 }

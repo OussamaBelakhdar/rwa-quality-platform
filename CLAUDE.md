@@ -22,7 +22,7 @@ Fork de `cypress-io/cypress-realworld-app` dont la suite de tests a été suppri
 - `yarn dev` — démarre front + API (reseed lowdb au démarrage)
 - `yarn dev:test` — **idem avec `VITE_TEST_HOOKS=true`** : c'est contre celui-ci que la suite doit tourner. Sans lui, `window.__services__` est absent et toute app action échoue (ADR-006)
 - `yarn cypress:open` / `yarn cy:run` — suite E2E
-- `yarn cy:run --env grep=@smoke` — par tag
+- `yarn cy:run --env grepTags=@smoke` — par tag de niveau ou de domaine ; `--env grep=<titre>` filtre par titre de test. Les deux passent par un pont `env` → `expose` dans `cypress.config.ts` : `@cypress/grep` 7 ne lit que `expose`
 - `yarn cy:component` — component tests
 - `yarn cy:burn` — 10 exécutions, taux d'échec par test, retries forcés à zéro. Sépare les tests _cassés_ (échouent toujours) des tests _flaky_ (échouent parfois). `CY_BURN_RUNS=<n>` pour changer le nombre d'exécutions
 - `yarn cy:demo:stop` — démonstration de `Cypress.stop()`, hors du specPattern (elle arrête le runner : jamais dans la suite)

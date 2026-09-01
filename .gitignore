@@ -63,3 +63,9 @@ cypress.env.json
 # Reporting
 allure-results/
 allure-report/
+
+# Base de travail : régénérée à chaque `yarn dev` (script predev) et salie par
+# les tests, qui y créent des utilisateurs. La commiter fait entrer des
+# artefacts de test — dont des hashs bcrypt — dans l historique.
+# La graine, elle, reste suivie : data/database-seed.json, data/empty-seed.json.
+data/database.json

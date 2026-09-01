@@ -7,7 +7,10 @@
   "compilerOptions": {
     // @percy/cypress retiré avec la suite héritée (ARCHITECTURE §11).
     "types": ["cypress", "node"],
-    "lib": ["es2020", "dom", "dom.iterable"],
+    // es2022 : requis par l option `cause` de Error, utilisée pour préserver
+    // l erreur d origine dans les tâches L1. Node 22 et les navigateurs ciblés
+    // la supportent.
+    "lib": ["es2022", "dom", "dom.iterable"],
     "isolatedModules": false,
     // @cypress/grep n'expose que le champ "exports" : sa résolution et son
     // augmentation de SuiteConfigOverrides (la clé `tags`) exigent une

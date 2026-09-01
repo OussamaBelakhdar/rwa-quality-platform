@@ -2,7 +2,7 @@
 
 Dérivées des principes P1-P6 de `docs/ARCHITECTURE.md`. Le hook `check-spec.sh` en bloque une partie ; le reste est vérifié en revue par l'agent `test-reviewer`.
 
-1. **Isolation** — chaque spec commence par `cy.seed(...)`. Aucun test ne lit un état laissé par un autre. `yarn cy:random` doit passer. `cy.seed` passe par les endpoints `/testData` du backend ; jamais d'écriture directe dans `data/database.json` ni d'import de lowdb depuis `cypress/`.
+1. **Isolation** — chaque spec appelle `cy.seed(...)` **dans son `beforeEach`**, pas ailleurs (appliqué par `check-spec.sh`). C'est ce qui empêche le couplage entre deux `it` voisins : l'ordre aléatoire ne mélange que les fichiers, l'isolation intra-fichier est donc garantie à l'écriture. Aucun test ne lit un état laissé par un autre. `yarn cy:random` doit passer. `cy.seed` passe par les endpoints `/testData` du backend ; jamais d'écriture directe dans `data/database.json` ni d'import de lowdb depuis `cypress/`.
 2. **Pas de login UI** hors de `cypress/e2e/auth/`. Partout ailleurs : `cy.login(username)` (cy.session).
 3. **Interdit** : `cy.wait(<nombre>)`, `it.only`, `it.skip`, sélecteurs `#id` / `.class`, accès direct à lowdb depuis une spec ou un plugin, mot de passe en dur dans le code (utiliser `cy.env(['defaultPassword'])` — `Cypress.env()` est déprécié depuis Cypress 15.4 et lisible par le code de la page, voir ADR-001).
 4. **`beforeEach` ≤ 3 lignes** : seed, login, visit. Au-delà, la préparation descend en L2 (commande ou app action).

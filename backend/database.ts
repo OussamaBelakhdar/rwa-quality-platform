@@ -91,14 +91,45 @@ const adapter = new FileSync<DbSchema>(databaseFile);
 
 const db = low(adapter);
 
-export const seedDatabase = () => {
-  const testSeed = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), "data", "database-seed.json"), "utf-8")
-  );
+/**
+ * Graines disponibles. Union fermée et non chaîne libre : une fonction
+ * exportée qui lit un fichier puis fait `db.setState` dessus ne doit pas
+ * déléguer sa sûreté à ses appelants — un `req.params` câblé directement
+ * donnerait `../../` suivi d'un écrasement complet de la base.
+ *
+ * C'est aussi la SOURCE UNIQUE de la liste : la route l'expose, et le type
+ * `SeedScenario` côté Cypress est vérifié contre elle par un test de contrat.
+ */
+export const GRAINES = {
+  default: "database-seed.json",
+  empty: "empty-seed.json",
+} as const;
 
-  // seed database with test data
-  db.setState(testSeed).write();
-  return;
+export type NomDeGraine = keyof typeof GRAINES;
+
+export const seedDatabase = () => seedDatabaseWith("default");
+
+/**
+ * Réinitialise la base depuis une graine nommée.
+ *
+ * Le backend est le SEUL écrivain lowdb : il tient son instance en mémoire, et
+ * une écriture faite derrière son dos diverge ou se fait écraser
+ * (docs/ARCHITECTURE.md §4, couche L1). Les tests passent donc par HTTP.
+ */
+export const seedDatabaseWith = (graine: NomDeGraine) => {
+  // Même ancre que `databaseFile` ci-dessus : `__dirname` et non
+  // `process.cwd()`. Les deux coexistaient, ce qui aurait cassé le seed dès
+  // qu'un WORKDIR Docker change (semaines 6-7) pendant que les écritures,
+  // elles, auraient continué.
+  const chemin = path.join(__dirname, "../data", GRAINES[graine]);
+  try {
+    db.setState(JSON.parse(fs.readFileSync(chemin, "utf-8"))).write();
+  } catch (erreur) {
+    throw new Error(
+      `Graine « ${graine} » illisible (${chemin}) : ${erreur instanceof Error ? erreur.message : String(erreur)}`,
+      { cause: erreur }
+    );
+  }
 };
 
 export const getAllUsers = () => db.get(USER_TABLE).value();

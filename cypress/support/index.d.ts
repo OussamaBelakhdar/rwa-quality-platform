@@ -3,6 +3,9 @@
 import type { DataTestKey } from "./selectors/data-test";
 import type { DataTestPrefix, SeedScenario, ServiceXState } from "./types";
 import type { ServiceName } from "./app-actions/xstate.actions";
+import type { NouvelleTransaction } from "../plugins/db.task";
+import type { UtilisateurSansMotDePasse } from "../fixtures/builders/user.builder";
+import type { Transaction, User } from "../../src/models";
 // Type importé de l'application, jamais redéclaré (.claude/rules/typescript.md).
 import type { authService } from "../../src/machines/authMachine";
 import type { publicTransactionsMachine } from "../../src/machines/publicTransactionsMachine";
@@ -40,12 +43,22 @@ declare global {
         prefix: DataTestPrefix,
         options?: Partial<Loggable & Timeoutable>
       ): Chainable<JQuery>;
+      /** Sélectionne une clé `data-test` dynamique : préfixe typé, identifiant libre. */
+      getBySelWithId(
+        prefix: DataTestPrefix,
+        id: string,
+        options?: Partial<Loggable & Timeoutable>
+      ): Chainable<JQuery>;
       /** Remet la base dans son état seedé via la tâche `db:seed` (L1). */
-      seed(scenario?: SeedScenario): Chainable<unknown>;
+      seed(scenario?: SeedScenario): Chainable<null>;
+      /** Crée un utilisateur ; `withBankAccount: false` déclenche l'onboarding. */
+      createUser(details: UtilisateurSansMotDePasse): Chainable<User>;
+      /** Crée une transaction entre deux utilisateurs, sans passer par l'UI. */
+      createTransaction(details: NouvelleTransaction): Chainable<Transaction>;
       /** Connecte un utilisateur par l'API, sans passer par le formulaire. */
       login(username: string): Chainable<void>;
       /** Lit l'état courant d'une machine XState (ADR-006). */
-      appState(nom: ServiceName): Chainable<unknown>;
+      appState(nom: ServiceName): Chainable<string>;
     }
   }
 }
