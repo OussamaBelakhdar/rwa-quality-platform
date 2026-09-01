@@ -24,7 +24,8 @@ export type ServiceName =
   | "publicTransactions"
   | "contactsTransactions"
   | "personalTransactions"
-  | "createTransaction";
+  | "createTransaction"
+  | "userOnboarding";
 
 /**
  * Envoie un événement à un service, en attendant qu'il soit enregistré.
@@ -91,4 +92,30 @@ export const loginByXstate = (username: string, password: string): void => {
 /** Force un rafraîchissement de la liste publique par la machine, sans changer de route. */
 export const fetchPublicTransactions = (filtre: Record<string, number> = {}): void => {
   sendToService("publicTransactions", "FETCH", filtre);
+};
+
+/**
+ * Termine l'onboarding sans parcourir le dialogue.
+ *
+ * Envoie `NEXT` jusqu'à l'état final `done` (`userOnboardingMachine.ts:26-48`)
+ * plutôt que d'écrire l'état directement : la machine garde ses invariants, et
+ * l'app action reste vraie si le nombre d'étapes change.
+ *
+ * NON EXERCÉE PAR LA SUITE aujourd'hui : les cinq utilisateurs seedés ont tous
+ * un compte bancaire, donc le dialogue ne s'ouvre jamais avec `cy.seed
+ * ("default")`. Il faudra un utilisateur sans compte — livrable des endpoints
+ * `/testData` granulaires de la semaine 4. Livrée maintenant parce que le
+ * registre l'exige, signalée comme non couverte plutôt que présentée comme
+ * acquise.
+ */
+export const completeOnboarding = (): void => {
+  const avancer = (restant: number): void => {
+    if (restant === 0) return;
+    appState("userOnboarding").then((etat) => {
+      if (etat === "done") return;
+      sendToService("userOnboarding", "NEXT");
+      avancer(restant - 1);
+    });
+  };
+  avancer(6);
 };
