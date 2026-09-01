@@ -15,9 +15,12 @@ import type { InterceptAlias } from "@support/types";
 
 const alias = (nom: string): InterceptAlias => `@${nom}`;
 
+/** Méthode HTTP du matcher. `POST` sert au moins à `/graphql`, par où passent les comptes bancaires. */
+export type Methode = "GET" | "POST";
+
 /** Observe sans modifier : le backend répond, la réponse passe intacte. */
-export const espionner = (url: string, nom: string): InterceptAlias => {
-  cy.intercept("GET", url).as(nom);
+export const espionner = (url: string, nom: string, methode: Methode = "GET"): InterceptAlias => {
+  cy.intercept(methode, url).as(nom);
   return alias(nom);
 };
 
@@ -76,10 +79,11 @@ export const simuler = (
   url: string,
   nom: string,
   reponse: ReponseSimulee,
-  fois?: number
+  fois?: number,
+  methode: Methode = "GET"
 ): InterceptAlias => {
   cy.intercept(
-    fois === undefined ? { method: "GET", url } : { method: "GET", url, times: fois },
+    fois === undefined ? { method: methode, url } : { method: methode, url, times: fois },
     reponse
   ).as(nom);
   return alias(nom);

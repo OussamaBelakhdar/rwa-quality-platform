@@ -1,10 +1,11 @@
 import React, { ReactNode } from "react";
 import { styled } from "@mui/material/styles";
-import { Paper, Button, ListSubheader, Grid, Typography } from "@mui/material";
+import { Paper, Button, ListSubheader, Grid } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { isEmpty } from "lodash/fp";
 
 import SkeletonList from "./SkeletonList";
+import ErrorState from "./ErrorState";
 import { TransactionResponseItem, TransactionPagination } from "../models";
 import EmptyList from "./EmptyList";
 import TransactionInfiniteList from "./TransactionInfiniteList";
@@ -62,42 +63,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
       {filterComponent}
       <ListSubheader component="div">{header}</ListSubheader>
       {showSkeleton && <SkeletonList />}
-      {hasError && (
-        <Grid
-          container
-          direction="column"
-          justifyContent="center"
-          alignItems="center"
-          spacing={2}
-          style={{ padding: 24 }}
-          data-test="transaction-list-error"
-        >
-          <Grid item>
-            <Typography component="h2" variant="h6" color="error">
-              Unable to load transactions
-            </Typography>
-          </Grid>
-          <Grid item>
-            <Typography
-              variant="body2"
-              color="textSecondary"
-              data-test="transaction-list-error-message"
-            >
-              {errorMessage}
-            </Typography>
-          </Grid>
-          <Grid item>
-            <Button
-              variant="contained"
-              color="primary"
-              data-test="transaction-list-error-retry"
-              onClick={() => onRetry && onRetry()}
-            >
-              Retry
-            </Button>
-          </Grid>
-        </Grid>
-      )}
+      {hasError && <ErrorState entity="transactions" message={errorMessage} onRetry={onRetry} />}
       {transactions.length > 0 && (
         <TransactionInfiniteList
           transactions={transactions}
