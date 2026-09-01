@@ -6,6 +6,7 @@ import {
   createTransaction,
   createUser,
   getAllForEntity,
+  getUserByUsername,
   seedDatabase,
   seedDatabaseWith,
 } from "./database";
@@ -55,6 +56,17 @@ router.post("/seed/:scenario", (req, res) => {
  */
 router.post("/user", (req, res) => {
   const { withBankAccount = true, ...details } = req.body;
+
+  // Refuser un username déjà pris. Sans cette garde, `createUser` en crée un
+  // second silencieusement, et `POST /login` en retourne un au hasard : le
+  // test authentifie alors un utilisateur qu'il n'a pas créé, et échoue plus
+  // loin sur une cause introuvable. Vérifié : deux appels identiques
+  // produisaient deux utilisateurs et un login ambigu.
+  if (getUserByUsername(details.username)) {
+    res.status(409).json({ error: `Le username « ${details.username} » est déjà pris.` });
+    return;
+  }
+
   const user = createUser(details);
   if (withBankAccount) {
     createBankAccountForUser(user.id, {

@@ -57,6 +57,18 @@ if [[ $is_spec -eq 1 ]]; then
     echo "P2 violé : login UI hors du domaine auth/ — utiliser cy.login()." >&2; fail=1
   fi
 
+  # cy.task brut : les surcharges natives de Cypress sont permissives, donc le
+  # nom de tâche et l'entrée ne sont vérifiés par personne. Les commandes typées
+  # (cy.seed, cy.createUser, cy.createTransaction) le sont, elles.
+  if grep -nE "cy\.task\(" "$file"; then
+    echo "cy.task brut dans une spec — utiliser cy.seed / cy.createUser / cy.createTransaction, qui sont typées (cy.task ne l'est pas, voir support/typage.contract.ts)." >&2; fail=1
+  fi
+
+  # Règle #1 : chaque spec doit remettre la base dans un état connu.
+  if ! grep -qE "cy\.seed\(" "$file"; then
+    echo "Règle #1 : aucun cy.seed dans cette spec — un test qui hérite de l'état laissé par un autre n'est pas isolé (P1)." >&2; fail=1
+  fi
+
   # Règle #6 : un tag de domaine ET un tag de niveau sur chaque describe.
   # Ne s'applique qu'aux specs de la suite : cypress/manual/ est hors du
   # specPattern par conception (démonstrations lancées à la main).

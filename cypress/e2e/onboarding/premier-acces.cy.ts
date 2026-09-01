@@ -38,18 +38,39 @@ describe("Onboarding — premier accès", { tags: ["@onboarding", "@regression"]
     });
   });
 
-  it("termine l'onboarding par la machine, sans parcourir le dialogue", () => {
+  it("fait avancer la machine jusqu'à son état final sans parcourir le dialogue", () => {
     const nouveau = userBuilder().withoutBankAccount().build();
 
-    cy.createUser(nouveau).then(() => {
-      cy.login(nouveau.username);
-      cy.visit("/");
-      cy.getBySel("user-onboarding-dialog").should("be.visible");
+    cy.createUser(nouveau);
+    cy.login(nouveau.username);
+    cy.visit("/");
+    cy.getBySel("user-onboarding-dialog").should("be.visible");
 
-      // App action : envoie NEXT jusqu'à l'état final au lieu de cliquer.
-      completeOnboarding();
+    completeOnboarding();
 
-      cy.appState("userOnboarding").should("eq", "done");
-    });
+    // PORTÉE DE CE TEST : il prouve que l'app action pilote la machine, rien
+    // de plus. La machine d'onboarding est linéaire et SANS effet de bord
+    // (`userOnboardingMachine.ts`) — le compte bancaire est créé par le
+    // FORMULAIRE du dialogue, pas par la transition. L'utilisateur n'a donc
+    // toujours pas de compte après ce test, et un rechargement rouvrirait le
+    // dialogue. C'est asserté ci-dessous plutôt que laissé croire.
+    cy.appState("userOnboarding").should("eq", "done");
+    cy.getBySel("user-onboarding-dialog").should("not.exist");
+  });
+
+  it("rouvre le dialogue au rechargement, la machine n'ayant pas créé de compte", () => {
+    const nouveau = userBuilder().withoutBankAccount().build();
+
+    cy.createUser(nouveau);
+    cy.login(nouveau.username);
+    cy.visit("/");
+    completeOnboarding();
+    cy.getBySel("user-onboarding-dialog").should("not.exist");
+
+    // La contrepartie du test précédent : terminer la machine ne remplace pas
+    // le parcours. Sans cette assertion, un lecteur croirait que
+    // `completeOnboarding` onboarde réellement l'utilisateur.
+    cy.reload();
+    cy.getBySel("user-onboarding-dialog").should("be.visible");
   });
 });

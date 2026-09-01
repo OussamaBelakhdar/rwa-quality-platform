@@ -11,14 +11,19 @@ import type { SeedScenario } from "../support/types";
  * sont le seul écrivain.
  */
 
-export interface NouvelUtilisateur {
-  firstName: string;
-  lastName: string;
-  username: string;
+/**
+ * Entrée de `db:createUser`. Dérivée de `User` plutôt que redéclarée
+ * (.claude/rules/typescript.md), plus le mot de passe en clair et le drapeau
+ * de compte bancaire, qui n'existent pas sur le modèle.
+ */
+export type NouvelUtilisateur = Pick<
+  User,
+  "firstName" | "lastName" | "username" | "email" | "phoneNumber" | "avatar" | "defaultPrivacyLevel"
+> & {
   password: string;
   /** `false` pour obtenir un utilisateur qui déclenche l'onboarding. */
   withBankAccount?: boolean;
-}
+};
 
 export interface NouvelleTransaction {
   senderId: User["id"];
@@ -39,19 +44,53 @@ export interface TaskMap {
   "db:createTransaction": { entree: NouvelleTransaction; sortie: Transaction };
 }
 
-export const enregistrerTachesDb = (apiUrl: string): Cypress.Tasks => ({
-  async "db:reset"(scenario: SeedScenario) {
-    await axios.post(`${apiUrl}/testData/seed/${scenario}`);
+/**
+ * Handlers dérivés de `TaskMap`. Sans ce type, `on("task", …)` accepte
+ * n'importe quelle signature et `TaskMap` reste décorative — ce qu'elle était
+ * jusqu'à la revue de la semaine 4.
+ */
+type Handlers = {
+  [K in keyof TaskMap]: (arg: TaskMap[K]["entree"]) => Promise<TaskMap[K]["sortie"]>;
+};
+
+/**
+ * Fait remonter le message d'erreur écrit par la route plutôt que le
+ * « Request failed with status code 409 » d'axios. Sans cela, le soin mis
+ * côté serveur à expliquer le refus est annulé côté client.
+ */
+const appel = async <T>(action: () => Promise<T>): Promise<T> => {
+  try {
+    return await action();
+  } catch (erreur) {
+    const detail =
+      typeof erreur === "object" && erreur !== null && "response" in erreur
+        ? (erreur as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined;
+    // `cause` préservée : sans elle, le message de la route remplace la
+    // trace d'origine et le diagnostic s'arrête là. ESLint l'exige, à raison.
+    throw new Error(detail ?? (erreur instanceof Error ? erreur.message : String(erreur)), {
+      cause: erreur,
+    });
+  }
+};
+
+export const enregistrerTachesDb = (apiUrl: string): Handlers => ({
+  async "db:reset"(scenario) {
+    await appel(() => axios.post(`${apiUrl}/testData/seed/${scenario}`));
     return null;
   },
 
-  async "db:createUser"(details: NouvelUtilisateur) {
-    const { data } = await axios.post(`${apiUrl}/testData/user`, details);
-    return data.user as User;
+  async "db:createUser"(details) {
+    const { data } = await appel(() =>
+      axios.post<{ user: User }>(`${apiUrl}/testData/user`, details)
+    );
+    return data.user;
   },
 
-  async "db:createTransaction"(details: NouvelleTransaction) {
-    const { data } = await axios.post(`${apiUrl}/testData/transaction`, details);
-    return data.transaction as Transaction;
+  async "db:createTransaction"(details) {
+    const { data } = await appel(() =>
+      axios.post<{ transaction: Transaction }>(`${apiUrl}/testData/transaction`, details)
+    );
+    return data.transaction;
   },
 });

@@ -5,6 +5,11 @@
  * Un test qui passe seul mais échoue en suite dépend d'un état laissé par un
  * autre. Fixer l'ordre masque le problème ; le randomiser le fait remonter.
  *
+ * Cypress honore l'ordre passé à `--spec` : vérifié en semaine 4 en lançant
+ * deux specs dans un sens puis dans l'autre, et en comparant les lignes
+ * « Running: » de sa sortie. L'ordre imprimé ci-dessous est donc bien celui
+ * qui s'exécute.
+ *
  * La graine est imprimée et réinjectable :
  *     yarn cy:random                  # graine aléatoire, imprimée
  *     CY_RANDOM_SEED=123 yarn cy:random   # rejoue exactement le même ordre
@@ -54,8 +59,13 @@ if (specs.length === 0) {
 // `cypress/manual/` (démonstrations, hors specPattern par conception) est
 // signalée. Sans elle, ajouter un domaine ferait silencieusement rétrécir la
 // preuve d'isolation.
+// Exclusion ANCRÉE sur le dossier `cypress/manual` et non sur la sous-chaîne
+// « manual » : sans l'ancrage, `cypress/e2e/transactions/manual/x.cy.ts` serait
+// silencieusement retiré de la preuve d'isolation — exactement la dérive que
+// cette garde existe pour empêcher.
+const DOSSIER_MANUEL = path.join(RACINE_CYPRESS, "manual") + path.sep;
 const oubliees = collectSpecs(RACINE_CYPRESS).filter(
-  (f) => !specs.includes(f) && !f.includes(`${path.sep}manual${path.sep}`)
+  (f) => !specs.includes(f) && !f.startsWith(DOSSIER_MANUEL)
 );
 if (oubliees.length) {
   console.error("\nSpecs non couvertes par l'ordre aléatoire :");
@@ -64,9 +74,22 @@ if (oubliees.length) {
   process.exit(1);
 }
 
-const seed = process.env.CY_RANDOM_SEED
-  ? Number(process.env.CY_RANDOM_SEED)
-  : Math.floor(Math.random() * 2 ** 31);
+// Graine validée : `CY_RANDOM_SEED=abc` donnait NaN, et `NaN >>> 0 === 0`
+// rejouait silencieusement la graine 0 en affichant « graine NaN ». La
+// reproductibilité est la raison d'être de ce script ; elle ne doit pas casser
+// en silence.
+let seed;
+if (process.env.CY_RANDOM_SEED !== undefined) {
+  seed = Number(process.env.CY_RANDOM_SEED);
+  if (!Number.isInteger(seed) || seed < 0) {
+    console.error(
+      `CY_RANDOM_SEED doit être un entier positif, reçu : ${process.env.CY_RANDOM_SEED}`
+    );
+    process.exit(1);
+  }
+} else {
+  seed = Math.floor(Math.random() * 2 ** 31);
+}
 const random = mulberry32(seed);
 
 // Fisher-Yates

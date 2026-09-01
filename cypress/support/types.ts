@@ -31,6 +31,12 @@ export type DataTestPrefix =
  * internes de la machine.
  */
 export interface ServiceXState {
-  getSnapshot(): { value: unknown };
+  /**
+   * `value` est typée `string` : les machines de cette application ont toutes
+   * des états plats. XState sait rendre un objet pour un état imbriqué ; le
+   * jour où une machine en aura, ce type devra changer, et le compilateur le
+   * signalera au lieu de laisser `cy.appState` rendre un objet en silence.
+   */
+  getSnapshot(): { value: string };
   send(evenement: string, charge?: Record<string, unknown>): void;
 }

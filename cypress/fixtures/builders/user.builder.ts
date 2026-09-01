@@ -1,3 +1,4 @@
+import { DefaultPrivacyLevel } from "../../../src/models";
 import type { NouvelUtilisateur } from "@plugins/db.task";
 
 /**
@@ -23,13 +24,27 @@ class UserBuilder {
   private etat: UtilisateurSansMotDePasse;
 
   constructor() {
-    // Suffixe incrémental : deux appels dans une même spec ne collisionnent
-    // pas sur le username, qui est unique côté backend.
+    // Unicité du username. Le compteur seul ne suffit pas : sa portée est le
+    // FICHIER de spec, pas la suite — Cypress recharge le module pour chaque
+    // spec, donc deux specs repartent toutes deux à 1. `Date.now()` seul ne
+    // suffit pas non plus : deux specs démarrant dans la même milliseconde
+    // collisionneraient, cas qui devient plausible avec le sharding de la
+    // semaine 6. On combine les trois, dont un aléatoire.
     compteur += 1;
+    const empreinte = `${compteur}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    // Defaults RÉELLEMENT valides (§4). Sans `defaultPrivacyLevel`, toute
+    // transaction créée par cet utilisateur reçoit `privacyLevel: null`
+    // (backend/database.ts) et devient invisible du flux public, qui filtre
+    // sur `privacyLevel === "public"`. Vérifié : un builder incomplet
+    // produisait des données inexploitables par la moitié de l'application.
     this.etat = {
       firstName: "Test",
       lastName: `Utilisateur${compteur}`,
-      username: `test_user_${compteur}_${Date.now()}`,
+      username: `test_user_${empreinte}`,
+      email: `${empreinte}@example.test`,
+      phoneNumber: "555-0100",
+      avatar: `https://avatars.dicebear.com/api/human/${empreinte}.svg`,
+      defaultPrivacyLevel: DefaultPrivacyLevel.public,
       withBankAccount: true,
     };
   }

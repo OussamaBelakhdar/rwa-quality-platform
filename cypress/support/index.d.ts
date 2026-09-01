@@ -43,6 +43,12 @@ declare global {
         prefix: DataTestPrefix,
         options?: Partial<Loggable & Timeoutable>
       ): Chainable<JQuery>;
+      /** Sélectionne une clé `data-test` dynamique : préfixe typé, identifiant libre. */
+      getBySelWithId(
+        prefix: DataTestPrefix,
+        id: string,
+        options?: Partial<Loggable & Timeoutable>
+      ): Chainable<JQuery>;
       /** Remet la base dans son état seedé via la tâche `db:seed` (L1). */
       seed(scenario?: SeedScenario): Chainable<null>;
       /** Crée un utilisateur ; `withBankAccount: false` déclenche l'onboarding. */
@@ -52,7 +58,7 @@ declare global {
       /** Connecte un utilisateur par l'API, sans passer par le formulaire. */
       login(username: string): Chainable<void>;
       /** Lit l'état courant d'une machine XState (ADR-006). */
-      appState(nom: ServiceName): Chainable<unknown>;
+      appState(nom: ServiceName): Chainable<string>;
     }
   }
 }

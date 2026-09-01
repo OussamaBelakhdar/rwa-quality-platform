@@ -260,6 +260,7 @@ Publiées dans `docs/metrics.md`, mises à jour à chaque semaine du plan.
 
 - Secrets : `.env.local` et `cypress.env.json` gitignorés ; en CI, GitHub Secrets → `CYPRESS_*`.
 - `window.__services__` peuplé uniquement si `process.env.VITE_TEST_HOOKS === 'true'`, valeur figée au build. La CI produit donc **deux artefacts** : celui qu'on teste et celui qu'on livre. `loadEnv` reprenant aussi les variables `VITE_*` du shell, l'absence du flag dans `.env` n'est pas une garantie : seul le gate de build (semaine 6, inspecte `build/**/*.js` **et** les sourcemaps) l'est. Voir ADR-006.
+- **Les routes `/testData` n'existent pas hors mode test.** `backend/app.ts:72` ne monte le routeur que si `NODE_ENV` vaut `test` ou `development`. Vérifié : sous `NODE_ENV=production`, `POST /testData/seed`, `POST /testData/user` et `GET /testData/users` répondent **404**, tandis que `/checkAuth` répond 401 — le serveur tourne, les routes de test n'existent simplement pas. C'est le pendant serveur de `VITE_TEST_HOOKS` (ADR-006) : deux mécanismes différents, une même garantie, aux deux extrémités.
 - `.env` est **commité** (hérité de l'upstream) et ne contient aucun secret : tailles de seed, ports, `SEED_DEFAULT_USER_PASSWORD=s3cret` documenté publiquement. Les secrets réels vont dans `.env.local` (chargé en premier par `cypress.config.ts`) et `cypress.env.json`, tous deux gitignorés. Pas de `.env.example` : le `.env` commité en tient lieu.
 - Auth0 (semaine 9) : tenant dédié, utilisateur de test, credentials en secrets, aucun token dans les vidéos (masquage `cy.origin` + `log: false`).
 - Aucune donnée réelle : lowdb seedé par builders, réinitialisé par test.
@@ -301,3 +302,4 @@ Le coût d'une migration Cypress → Playwright est ainsi borné à L2 + L3 — 
 | 004 | Grille de décision composant / API / E2E                                  | 8       |
 | 005 | Coexistence et critères de migration Playwright                           | 10      |
 | 006 | Exposition des services XState aux tests (`VITE_TEST_HOOKS`)              | 3       |
+| 007 | Endpoints d'écriture dans le backend pour le seeding des tests            | 4       |

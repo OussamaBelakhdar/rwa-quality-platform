@@ -65,13 +65,6 @@ export const sendToService = (
   serviceEnregistre(nom).then((service) => service.send(evenement, charge));
 };
 
-/**
- * Lit l'état courant d'une machine, sans passer par l'UI.
- * Interface annoncée par ARCHITECTURE.md §4 (couche L2).
- */
-export const appState = (nom: ServiceName): Cypress.Chainable<unknown> =>
-  serviceEnregistre(nom).then((service) => service.getSnapshot().value);
-
 /** Connecte un utilisateur en pilotant la machine d'authentification. */
 export const loginByXstate = (username: string, password: string): void => {
   const login = interceptLogin();
@@ -104,7 +97,7 @@ export const fetchPublicTransactions = (filtre: Record<string, number> = {}): vo
 export const completeOnboarding = (): void => {
   const avancer = (restant: number): void => {
     if (restant === 0) return;
-    appState("userOnboarding").then((etat) => {
+    cy.appState("userOnboarding").then((etat) => {
       if (etat === "done") return;
       sendToService("userOnboarding", "NEXT");
       avancer(restant - 1);
