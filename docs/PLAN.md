@@ -89,11 +89,19 @@
 
 **Livrable** : `cypress/tests/e2e/network/` — cas que le backend réel ne produit pas.
 
+**Livrable réel** : `cypress/e2e/network/` — 5 specs, 10 tests. Le dossier annoncé `cypress/tests/e2e/network/` était le chemin de l'amont, abandonné en semaine 0.
+
 - Spy vs stub documentés sur `/transactions`.
+  - _Acté en semaine 5_ : ADR-008. La forme paramétrée `interceptTransactions({ status })` promise par `ARCHITECTURE.md` §3 est écartée — elle rend `{ status: 500 }` (le backend est coupé) et `{ delay: 500 }` (le backend répond) indiscernables à la lecture. Les factories sont nommées par intention.
 - Latence injectée (`delay`) → vérifier les spinners.
+  - _Constaté_ : `cy.intercept(url, { delay })` ne retarde pas la vraie réponse, il sert un `StaticResponse` **vide** en retard. Retarder ce que le backend a réellement renvoyé demande `req.continue((res) => res.setDelay(ms))`.
 - 500 / timeout / réponse vide → vérifier les messages d'erreur (ces cas n'existent pas dans la suite officielle).
-- Séquençage d'alias : pagination des notifications, `cy.wait(['@page1','@page2'])`.
+  - _Constaté_ : **il n'y a pas de message d'erreur à vérifier**. `dataMachine` a bien un état `failure` qui capture un `message` (`dataMachine.ts:104`), mais aucun composant ne le lit. Le rendu retombe sur `showEmptyList` (`TransactionList.tsx:44`) : un 500 et une coupure réseau s'affichent exactement comme un compte sans transaction. Les specs constatent le défaut au lieu d'affirmer un comportement que l'application n'a pas.
+- Séquençage d'alias : ~~pagination des notifications~~, `cy.wait(['@page1','@page2'])`.
+  - _Constaté_ : **les notifications ne paginent pas**. `notificationsMachine` appelle `GET /notifications` sans aucun paramètre de page. La seule pagination de l'application est le défilement infini des listes de transactions. Le séquençage est donc démontré là.
+  - _Constaté_ : l'état `loading` de `dataMachine` ne déclare **aucune transition sur `FETCH`**. Un `FETCH` envoyé pendant le chargement de la page 1 est perdu en silence et la requête de la page 2 ne part jamais. Le séquençage commence dans la machine, pas dans le réseau.
 - Modification de réponse à la volée (solde négatif, montant XXL).
+  - _Constaté_ : un montant négatif injecté dans une réponse réelle se rend **`--$5.00`**. `TransactionAmount.tsx:45` préfixe `-` pour tout paiement et `formatAmount` en produit un second. Le backend ne renvoyant jamais de négatif, le cas n'existait pour personne — c'est exactement ce qu'un stub réseau va chercher.
 
 **Référentiel** : Réseau (Expert), HTTP/REST.
 

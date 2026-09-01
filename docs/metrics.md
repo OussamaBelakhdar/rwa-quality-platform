@@ -125,6 +125,41 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
 | `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
 
+## Semaine 5 — réseau (2026-09-01)
+
+| Métrique                      | Valeur                               | Note                                                                                                           |
+| ----------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Specs E2E                     | 18 fichiers (13 → 18)                | `cypress/e2e/network/` : 5 fichiers                                                                            |
+| Tests                         | **50** (40 → 50)                     | 10 tests réseau                                                                                                |
+| Suite complète                | vert, **48 s**                       | 50/50, y compris la spec de contrat `api/`                                                                     |
+| `cypress/e2e/network/` seul   | **13 s**, 10/10                      | 3 exécutions consécutives vertes                                                                               |
+| `yarn cy:random`              | vert, 50/50                          | preuve d'isolation (P1) maintenue avec le nouveau domaine                                                      |
+| `yarn cy:burn` sur `network/` | **10 × 10 = 100 exécutions, 0,00 %** | retries forcés à zéro ; seuil §6 : 2 %                                                                         |
+| Factories d'intercept         | 8 exports, **4 corps** de fonction   | ADR-008 : les exports par endpoint sont des noms, la logique de chaque famille n'existe qu'en un exemplaire    |
+| Alias TypeScript              | +1 (`@fixtures/*`)                   | supprime les derniers imports relatifs vers `cypress/fixtures/` (6 sites, dont 2 en dette depuis la semaine 4) |
+
+### Ce que le stub réseau a trouvé, que le backend ne pouvait pas produire
+
+C'est le rendement de la semaine : quatre comportements que la suite ne pouvait
+pas atteindre avant, dont trois sont des défauts de l'application amont.
+
+| Constat                                                           | Preuve                                                                                                              | Statut                                                                          |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Un **500 se rend comme une liste vide** — pas de message d'erreur | `dataMachine` entre bien en `failure` avec un `message` (`dataMachine.ts:104`) qu'aucun composant ne lit            | défaut amont, **constaté par 2 tests**, non corrigé ici                         |
+| Une **coupure réseau** produit exactement le même rendu qu'un 500 | même état `failure`, même `empty-list-header`                                                                       | défaut amont, constaté                                                          |
+| Un **montant négatif** se rend `--$5.00`                          | `TransactionAmount.tsx:45` préfixe `-`, `formatAmount` en produit un second                                         | défaut amont, constaté. Le backend n'en renvoie jamais : personne ne l'avait vu |
+| Un **`FETCH` envoyé pendant `loading` est perdu en silence**      | l'état `loading` de `dataMachine` ne déclare aucune transition sur `FETCH` ; la requête de page 2 ne partait jamais | contrainte de conception, documentée dans la spec et dans `PLAN.md`             |
+
+Aucun des quatre n'est atteignable sans intercept : le backend réel ne renvoie
+ni 500, ni montant négatif, et ne se coupe pas.
+
+### Deux pièges d'API relevés en écrivant
+
+| Piège                                                       | Ce qui se passe réellement                                                                                                                          |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cy.intercept(url, { delay })` pour « retarder la réponse » | construit un `StaticResponse` : c'est un **stub vide** servi en retard. Retarder la vraie réponse demande `req.continue((res) => res.setDelay(ms))` |
+| Deux alias sur le même endpoint pour séquencer deux pages   | Cypress résout du **dernier** intercept déclaré au premier. L'ordre inverse fait résoudre les deux requêtes sur le même alias                       |
+
 ## Semaine 4 — isolation intra-spec : deux approches mesurées, une retenue
 
 P1 parle de « chaque test », or `cy:random` ne mélangeait que les **fichiers**.
