@@ -16,6 +16,14 @@ case "$file" in
 esac
 [[ $is_spec -eq 0 && $is_layer -eq 0 ]] && exit 0
 
+# Périmètre : les règles L3 ne s'appliquent qu'aux specs de la SUITE.
+# cypress/manual/ (démonstrations) et cypress/build-gate/ (gate de production)
+# sont hors specPattern par conception.
+case "$file" in
+  cypress/e2e/*|cypress/api/*|*/cypress/e2e/*|*/cypress/api/*) est_suite=1 ;;
+  *) est_suite=0 ;;
+esac
+
 fail=0
 
 # ---- Règles communes specs + couches (L1/L2) ----
@@ -50,7 +58,7 @@ if [[ $is_spec -eq 1 ]]; then
   if grep -nE 'it\.skip|describe\.skip|it\.only|describe\.only' "$file"; then
     echo "skip/only interdits — utiliser le tag @quarantine avec ticket (voir rules/testing.md)." >&2; fail=1
   fi
-  if grep -nE "cy\.window\(" "$file"; then
+  if [[ $est_suite -eq 1 ]] && grep -nE "cy\.window\(" "$file"; then
     echo "Accès window inline — passer par une app action de support/app-actions/ (rules/testing.md #12)." >&2; fail=1
   fi
   if grep -nE "cy\.visit\(['\"]/signin" "$file" && [[ "$file" != *auth/* ]]; then
@@ -63,13 +71,6 @@ if [[ $is_spec -eq 1 ]]; then
   if grep -nE "cy\.task\(" "$file"; then
     echo "cy.task brut dans une spec — utiliser cy.seed / cy.createUser / cy.createTransaction, qui sont typées (cy.task ne l'est pas, voir support/typage.contract.ts)." >&2; fail=1
   fi
-
-  # Règles #1 et #6 : bornées aux specs de la suite. cypress/manual/ est hors
-  # du specPattern par conception (démonstrations lancées à la main).
-  case "$file" in
-    cypress/e2e/*|cypress/api/*|*/cypress/e2e/*|*/cypress/api/*) est_suite=1 ;;
-    *) est_suite=0 ;;
-  esac
 
   # Règle #1 : la base est remise dans un état connu AVANT CHAQUE TEST.
   # Dans le beforeEach et non n'importe où : c'est ce qui empêche le couplage

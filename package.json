@@ -143,6 +143,7 @@
     "build:test": "vite build --mode test",
     "check:autocompletion": "node scripts/check-autocompletion.js",
     "check:selectors": "node scripts/check-selectors.js",
+    "check:surface": "node scripts/check-test-surface.js",
     "codesandbox:start": "NODE_ENV=development TSC_COMPILE_ON_ERROR=true concurrently \"vite\" yarn:start:api:codesandbox",
     "codesandbox:start:api": "yarn tsnode:not-instrumented --files backend/app.ts",
     "copy:mock:awsexports": "ncp scripts/mock-aws-exports.js src/aws-exports.js",

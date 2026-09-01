@@ -81,9 +81,9 @@ if (specs.length === 0) {
 // « manual » : sans l'ancrage, `cypress/e2e/transactions/manual/x.cy.ts` serait
 // silencieusement retiré de la preuve d'isolation — exactement la dérive que
 // cette garde existe pour empêcher.
-const DOSSIER_MANUEL = path.join(RACINE_CYPRESS, "manual") + path.sep;
+const HORS_SUITE = ["manual", "build-gate"].map((d) => path.join(RACINE_CYPRESS, d) + path.sep);
 const oubliees = collectSpecs(RACINE_CYPRESS).filter(
-  (f) => !specs.includes(f) && !f.startsWith(DOSSIER_MANUEL)
+  (f) => !specs.includes(f) && !HORS_SUITE.some((d) => f.startsWith(d))
 );
 if (oubliees.length) {
   console.error("\nSpecs non couvertes par l'ordre aléatoire :");

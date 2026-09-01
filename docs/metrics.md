@@ -165,3 +165,20 @@ plus `grepFilterSpecs` activé pour le pré-filtrage des fichiers.
 | `--env grepTags=@smoke`                     | **1 spec** (login)                    |
 | `--env grep=CORRIG` sur une spec de 4 tests | **1 exécuté, 3 en attente**           |
 | `--env grepTags=@nexistepas`                | aucune spec retenue                   |
+
+## Dettes soldées avant la semaine 5
+
+| Dette                                                        | État                                                                                                 |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Gate de surface de test (ADR-006 + ADR-007, dû en semaine 6) | **livré** — `yarn check:surface`, 17 s                                                               |
+| Cypress 15.17.0 → 15.21.1 (Dependabot #8)                    | **mergé** après évaluation : 40/40, `cy:random` 40/40, burn 400 exécutions à 0,00 %, filtrage intact |
+| PR amont #1735                                               | **bloquée par le CLA Cypress non signé** — pas par l'équipe. Les 2 commentaires sont automatiques    |
+
+### Le gate, vérifié dans les deux sens
+
+| Contrôle                                         | Nominal              | Sous mutation                                                                   |
+| ------------------------------------------------ | -------------------- | ------------------------------------------------------------------------------- |
+| `window.__services__` absent du build par défaut | ✔                   | build fait avec `build:test` → **détecté**                                      |
+| `/testData` injoignable en `NODE_ENV=production` | ✔ (4 routes en 404) | backend en `NODE_ENV=development` → **4 routes détectées** (200, 400, 400, 200) |
+
+Un `grep` du bundle aurait produit un faux positif permanent : `__services__` **est** présent dans le bundle par défaut, seule la garde est fausse à l'exécution. Le gate vérifie le comportement, pas le texte.
