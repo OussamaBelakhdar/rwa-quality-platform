@@ -54,9 +54,9 @@ Les deux gardes ne sont pas de même nature, et il faut le dire :
 | ---------------------- | ------------------------------------ | ---------------------------------------------------------- |
 | Mécanisme              | drapeau de **build** (`--mode test`) | variable d'environnement au **démarrage**                  |
 | Rejouable après coup ? | non — il faut reconstruire           | **oui** — `NODE_ENV=development` sur un déploiement suffit |
-| Gate automatisé        | semaine 6                            | **semaine 6 également, à écrire**                          |
+| Gate automatisé        | **livré** (`yarn check:surface`)     | **livré** (même commande)                                  |
 
-Le back est donc structurellement plus faible que le front : une mauvaise configuration d'environnement rouvre la surface, là où le front demanderait un rebuild. C'est acceptable pour une application de démonstration qui n'est pas déployée, et ça ne le serait pas pour un produit. **Le gate de la semaine 6 doit couvrir les deux** : un contrôle à l'exécution que `window.__services__` est absent, et un contrôle que `/testData` répond 404.
+Le back reste structurellement plus faible que le front : une mauvaise configuration d'environnement rouvre la surface, là où le front demanderait un rebuild. **Le gate couvre désormais les deux** — `yarn check:surface` construit sans le drapeau, sert le bundle, vérifie que `window.__services__` est absent, puis démarre l'API en `NODE_ENV=production` et vérifie que les quatre routes `/testData` répondent 404. Vérifié par mutation dans les deux sens. Il constate néanmoins l'état d'un artefact : il rend l'écart visible, il ne le referme pas.
 
 ### Ce que les routes garantissent
 
@@ -68,7 +68,7 @@ Le back est donc structurellement plus faible que le front : une mauvaise config
 - Positives : le domaine `onboarding` devient testable ; les données de test sont composables et lisibles ; le backend reste le seul écrivain lowdb, ce qui préserve le contrat de migration du §10 (passer à Postgres ne touche que lui).
 - Négative assumée : trois routes d'écriture arbitraire existent dans le code applicatif. Elles sont inertes hors mode test, mais leur inertie dépend d'une variable d'environnement.
 - Négative de dette : `POST /testData/user` et `/transaction` n'ont pas de validation d'entrée, là où `GET /:entity` en a une. Un corps mal formé produit un 500 au lieu d'un 400 explicite. À corriger quand une tâche L1 s'y cassera les dents — signalé plutôt que découvert.
-- Surveillé via : les 6 tests de contrat de `cypress/api/testdata.cy.ts`, et le gate de la semaine 6.
+- Surveillé via : les 9 tests de contrat de `cypress/api/testdata.cy.ts`, et `yarn check:surface`.
 
 ## Réversibilité
 

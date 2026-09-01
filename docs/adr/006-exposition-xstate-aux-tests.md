@@ -1,6 +1,6 @@
 # ADR-006 — Exposer les services XState aux tests via un registre gardé par `VITE_TEST_HOOKS`
 
-**Statut** : accepté (implémenté en semaine 3 ; gate CI en semaine 6)
+**Statut** : accepté (implémenté en semaine 3 ; **gate livré** — `yarn check:surface`)
 **Date** : 2026-08-31
 **Semaine du plan** : 3
 **Révision** : v3 — après implémentation. La v2 affirmait que Vite éliminerait le bloc mort au build et qu'un `grep` du bundle ferait office de gate. **Les deux sont faux, vérifiés.** Voir « Ce que l'implémentation a démenti ».
@@ -129,7 +129,7 @@ Le type de `window.__services__` vit dans `src/utils/testHooks.ts` (donc dans le
 
 `define` remplace l'objet `process.env` par un littéral, mais le minifieur ne replie pas la comparaison, et le module `testHooks.ts` reste dans le bundle puisqu'il est importé et appelé. La garde est donc **correcte à l'exécution** et **invisible pour un `grep`**.
 
-**Conséquence sur le gate de la semaine 6** : un `grep` du bundle produirait un faux positif permanent. Le gate doit être **un contrôle à l'exécution** — construire sans le drapeau, servir le bundle, et vérifier que `window.__services__` est `undefined`. C'est plus coûteux qu'un `grep` et c'est la seule formulation qui teste ce qui compte.
+**Conséquence sur le gate** (livré depuis, `yarn check:surface`) : un `grep` du bundle produirait un faux positif permanent. Le gate doit être **un contrôle à l'exécution** — construire sans le drapeau, servir le bundle, et vérifier que `window.__services__` est `undefined`. C'est plus coûteux qu'un `grep` et c'est la seule formulation qui teste ce qui compte.
 
 Le raisonnement « le bloc mort est éliminé donc le secret ne peut pas fuiter » était de surcroît le mauvais argument : ce qui protège n'est pas l'absence du code, c'est que la garde soit fausse. Un ADR qui s'appuie sur un mécanisme qu'il n'a pas vérifié se trompe même quand sa conclusion tient.
 
@@ -139,7 +139,7 @@ Le raisonnement « le bloc mort est éliminé donc le secret ne peut pas fuiter 
 - **Négative structurante — deux artefacts.** `VITE_TEST_HOOKS` est figé **au build**, pas au démarrage du serveur. Dès que la CI teste un bundle (`vite build` puis `preview`, ce que fait le workflow amont et ce que fera Playwright), il faut un build de test et un build de livraison. **L'artefact testé n'est plus l'artefact livré.** C'est le prix de l'option 4 et il est assumé ici, pas découvert en semaine 6.
 - Négative : deux mécanismes d'exposition coexistent. Ils ne sont pas équivalents — `window.Cypress` est celui de l'amont, `__services__` est celui du projet, et L2 ne lit que le second.
 - Négative de sécurité : `loadEnv` reprend aussi les variables `VITE_*` **du shell**. L'absence de `VITE_TEST_HOOKS` dans `.env` n'est donc pas une garantie ; seul le gate CI l'est.
-- **Surveillé via : rien aujourd'hui.** Le gate — un job qui construit sans `--mode test` et vérifie l'absence de `__services__` dans `build/**/*.js` **et dans `build/**/\*.js.map`** (`vite.config.ts:18` active les sourcemaps) — est un livrable de la **semaine 6**. Tant qu'il n'existe pas, cette ligne décrit une intention, et l'ADR le dit plutôt que de cocher une case.
+- **Surveillé via : `yarn check:surface`.** Le gate est livré, pas reporté : il construit sans `--mode test`, sert le bundle par `vite preview`, et vérifie **à l'exécution** que `window.__services__` est absent. C'est la seule formulation qui teste ce qui compte — un `grep` produirait un faux positif permanent, comme démontré plus haut. Vérifié par mutation : un build fait avec `build:test` le fait échouer.
 
 ## Réversibilité
 
