@@ -127,34 +127,37 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 
 ## Semaine 5 — réseau (2026-09-01)
 
-| Métrique                      | Valeur                               | Note                                                                                                           |
-| ----------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| Specs E2E                     | 18 fichiers (13 → 18)                | `cypress/e2e/network/` : 5 fichiers                                                                            |
-| Tests                         | **52** (40 → 52)                     | 12 tests réseau                                                                                                |
-| Suite complète                | vert, **48 s**                       | 52/52                                                                                                          |
-| `cypress/e2e/network/` seul   | **22 s**, 12/12                      | 3 exécutions consécutives vertes                                                                               |
-| `yarn cy:random`              | vert, **6 ordres sur 6**, 48 s       | preuve d'isolation (P1) maintenue. Deux mesures écartées : voir ci-dessous                                     |
-| `yarn cy:burn` sur `network/` | **10 × 12 = 120 exécutions, 0,00 %** | retries forcés à zéro ; seuil §6 : 2 %                                                                         |
-| Factories d'intercept         | 8 exports, **4 corps** de fonction   | ADR-008 : les exports par endpoint sont des noms, la logique de chaque famille n'existe qu'en un exemplaire    |
-| Alias TypeScript              | +1 (`@fixtures/*`)                   | supprime les derniers imports relatifs vers `cypress/fixtures/` (6 sites, dont 2 en dette depuis la semaine 4) |
+| Métrique                      | Valeur                               | Note                                                                                                                                |
+| ----------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Specs E2E                     | 18 fichiers (13 → 18)                | `cypress/e2e/network/` : 5 fichiers                                                                                                 |
+| Tests                         | **53** (40 → 53)                     | 13 tests réseau                                                                                                                     |
+| Suite complète                | vert, **49 s**                       | 53/53                                                                                                                               |
+| `cypress/e2e/network/` seul   | **17 s**, 13/13                      | 3 exécutions consécutives vertes                                                                                                    |
+| `yarn cy:random`              | vert, **7 ordres sur 7**, 48-50 s    | preuve d'isolation (P1) maintenue. Deux mesures écartées : voir ci-dessous                                                          |
+| `yarn cy:burn` sur `network/` | **10 × 13 = 130 exécutions, 0,00 %** | retries forcés à zéro ; seuil §6 : 2 %                                                                                              |
+| Factories d'intercept         | 8 exports, **4 corps** de fonction   | ADR-008 : les exports par endpoint sont des noms, la logique de chaque famille n'existe qu'en un exemplaire                         |
+| Alias TypeScript              | +1 (`@fixtures/*`)                   | supprime les derniers imports relatifs vers `cypress/fixtures/` (6 sites, dont 2 en dette depuis la semaine 4)                      |
+| Correctifs dans `src/`        | **2**, une ligne                     | double signe `--$5.00` et `-0` sur montant nul, dans `TransactionAmount.tsx`. Verrouillés par 2 tests de régression mutation-testés |
 
 ### Ce que le stub réseau a trouvé, que le backend ne pouvait pas produire
 
-C'est le rendement de la semaine : sept comportements que la suite ne pouvait pas
-atteindre avant — quatre défauts ou risques de l'application amont, une
-contrainte de conception, et **deux défauts de l'outillage de test lui-même**.
+C'est le rendement de la semaine : huit comportements que la suite ne pouvait
+pas atteindre avant — cinq défauts ou risques de l'application amont, **dont
+deux corrigés ici** ; une contrainte de conception XState ; et deux défauts de
+l'outillage de test lui-même.
 
 | Constat                                                           | Preuve                                                                                                                                                                                                                        | Statut                                                                                                                                          |
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Un **500 se rend comme une liste vide** — pas de message d'erreur | `dataMachine` entre bien en `failure` avec un `message` (`dataMachine.ts:104`) qu'aucun composant ne lit                                                                                                                      | défaut amont, **constaté par 2 tests**, non corrigé ici                                                                                         |
 | Une **coupure réseau** produit exactement le même rendu qu'un 500 | même état `failure`, même `empty-list-header`                                                                                                                                                                                 | défaut amont, constaté                                                                                                                          |
-| Un **montant négatif** se rend `--$5.00`                          | `TransactionAmount.tsx:45` préfixe `-`, `formatAmount` en produit un second                                                                                                                                                   | défaut amont, constaté. Le backend n'en renvoie jamais : personne ne l'avait vu                                                                 |
+| Un **montant négatif** se rendait `--$5.00`                       | `TransactionAmount.tsx` préfixait `-` pour tout paiement et `formatAmount` en produisait un second. `backend/validators.ts:87` ne valide `amount` qu'avec `isNumeric()` : rien n'interdit un négatif côté API                 | **corrigé dans l'application** — signe = SENS, montant en valeur absolue. Verrouillé par test de régression, mutation-testé                     |
+| Un **montant nul** se rendait `-0`                                | `{transaction.amount && formatAmount(...)}` rendait le nombre `0`, que React affiche tel quel. La garde ne protégeait rien : `amount` est requis par le modèle                                                                | **corrigé dans l'application** — même correctif d'une ligne, test de régression dédié                                                           |
 | Un **`FETCH` envoyé pendant `loading` est perdu en silence**      | l'état `loading` de `dataMachine` ne déclare aucune transition sur `FETCH` ; la requête de page 2 ne partait jamais                                                                                                           | contrainte de conception, documentée dans la spec et dans `PLAN.md`                                                                             |
 | L'application **n'a aucun timeout applicatif**                    | `asyncUtils.ts:3` crée axios sans `timeout` ; axios 1.20.0 vaut `timeout: 0` par défaut (« a timeout is not created »). L'E2E qui le prouvait par le succès a été **retiré** : 9 s pour une propriété statique, refusé par P3 | risque amont, constaté. Un backend lent laisse la liste en `loading` sans fin                                                                   |
 | `cy.appState` rendait un **objet sous un type `string`**          | `dataMachine.success` a trois sous-états (`dataMachine.ts:85-99`) ; le type L2 affirmait que « toutes les machines ont des états plats »                                                                                      | **défaut du code de test, corrigé et verrouillé** — type `EtatDonnees` dérivé de `DataSchema`, contrat mutation-testé dans `typage.contract.ts` |
 | `check-spec.sh` bloquait sa **propre documentation**              | la règle « pas de `any` » grepait le fichier entier : un commentaire citant `task(event: string, arg?: any)` la déclenchait. Préexistant sur `main`                                                                           | **défaut du garde-fou, corrigé** — règle rendue sensible aux commentaires, 8 cas mutation-testés                                                |
 
-Les cinq premiers ne sont atteignables que par intercept : le backend réel ne
+Les six premiers ne sont atteignables que par intercept : le backend réel ne
 renvoie ni 500 ni montant négatif, ne se coupe pas, et répond trop vite pour
 qu'un timeout se pose.
 
