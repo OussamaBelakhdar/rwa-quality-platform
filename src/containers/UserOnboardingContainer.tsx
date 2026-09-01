@@ -27,6 +27,7 @@ import { DataContext, DataEvents, DataSchema } from "../machines/dataMachine";
 import { AuthMachineContext, AuthMachineEvents, AuthMachineSchema } from "../machines/authMachine";
 import NavigatorIllustration from "../components/SvgUndrawNavigatorA479";
 import PersonalFinance from "../components/SvgUndrawPersonalFinanceTqcd";
+import { registerScopedService } from "../utils/testHooks";
 
 export interface Props {
   authService: Interpreter<AuthMachineContext, AuthMachineSchema, AuthMachineEvents, any, any>;
@@ -44,7 +45,14 @@ const UserOnboardingContainer: React.FC<Props> = ({ authService, bankAccountsSer
   const fullScreen = useMediaQuery(theme.breakpoints.down("md"));
   const [bankAccountsState, sendBankAccounts] = useActor(bankAccountsService);
   const [authState, sendAuth] = useActor(authService);
-  const [userOnboardingState, sendUserOnboarding] = useMachine(userOnboardingMachine);
+  const [userOnboardingState, sendUserOnboarding, userOnboardingService] =
+    useMachine(userOnboardingMachine);
+
+  // Registre du projet (ADR-006) : enregistré au montage, retiré au démontage.
+  React.useEffect(
+    () => registerScopedService("userOnboarding", userOnboardingService),
+    [userOnboardingService]
+  );
 
   const currentUser = authState?.context?.user;
 

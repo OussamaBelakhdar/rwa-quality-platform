@@ -61,6 +61,7 @@
 
 - L'upstream fournit déjà `getBySel`, `getBySelLike`, `login` (UI), `loginByApi`, `loginByXstate`, `logoutByXstate`, `reactComponent` — **non typés, dans un `commands.ts` unique**. La valeur ajoutée n'est pas de les inventer, c'est de les typer strictement, de les découper par responsabilité et d'y brancher `cy.session`.
 - App Actions : forcer un état de machine XState sans passer par l'UI. `loginByXstate` **est** déjà ce pattern côté upstream.
+  - _Constaté en semaine 3_ : le pilotage par événements est livré et exercé (`sendToService`, qui amène la machine d'auth à `authorized` sans le formulaire). L'exemple « onboarding terminé » est livré (`completeOnboarding`) mais **non exercé** : les cinq utilisateurs seedés ont tous un compte bancaire, donc le dialogue ne s'ouvre jamais. Il faudra un utilisateur sans compte — endpoints `/testData` granulaires de la semaine 4.
 - ADR-002 : "Typer et durcir les App Actions héritées de l'upstream" — l'upstream n'a jamais eu de Page Objects ; l'ADR dit ce que j'ajoute (types, session, découpage) et ce que je refuse d'ajouter (une couche POM par-dessus).
 - ADR-006 : exposition des services XState (`VITE_TEST_HOOKS` / `window.__services__`). Conditionne la parité d'app actions avec Playwright en semaine 10.
 - Autocomplétion IDE vérifiée (capture d'écran dans le README).

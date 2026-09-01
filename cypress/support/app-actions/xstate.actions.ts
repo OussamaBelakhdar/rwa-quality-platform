@@ -1,54 +1,114 @@
 import { interceptLogin } from "@support/intercepts/auth.intercepts";
+import type { ServiceXState } from "@support/types";
 
 /**
- * Accès aux services XState de l'application (couche L2).
+ * Accès aux services XState de l'application — couche L2 (ADR-006).
  *
  * Seul endroit du dépôt autorisé à toucher `cy.window()` : les specs passent
  * par ces app actions (.claude/rules/testing.md #12).
  *
- * DETTE (2026-09-01, échéance semaine 3) — bascule sur `window.__services__`
- * sous garde `VITE_TEST_HOOKS`
- * (ADR-006, semaine 3). Cette implémentation lit `window.authService`, exposé
- * par l'amont sous garde `window.Cypress`, ce que la règle #12 et
- * ARCHITECTURE.md §4 désignent comme n'étant PAS la voie d'accès du projet.
- * Livré avant l'ADR qui la remplace ; seule cette fonction changera, aucune
- * spec ne bouge.
+ * Lit `window.__services__`, peuplé uniquement si `VITE_TEST_HOOKS === "true"`
+ * au build. La suite doit donc tourner contre `yarn dev:test`, pas `yarn dev`.
+ *
+ * Chaque accès ATTEND que le service apparaisse au lieu de le supposer
+ * présent : `auth` existe dès l'évaluation du bundle, mais les services portés
+ * par un composant n'existent que pendant qu'il est monté.
  */
+
+/** Noms enregistrés dans le registre. Fermer l'union évite d'attendre indéfiniment un service qui n'existe pas. */
+export type ServiceName =
+  | "auth"
+  | "notifications"
+  | "snackbar"
+  | "bankAccounts"
+  | "publicTransactions"
+  | "contactsTransactions"
+  | "personalTransactions"
+  | "createTransaction"
+  | "userOnboarding";
+
+/**
+ * Attend qu'un service soit enregistré, puis le rend.
+ *
+ * `should(callback)` rejoue jusqu'à l'apparition du service : c'est ce qui
+ * empêche le TypeError non retriable qu'un déréférencement direct produirait
+ * sur un composant pas encore monté.
+ *
+ * On n'utilise PAS `cy.its("__services__.x.state.value")` : sur un Interpreter
+ * XState v4, `state` est un getter de PROTOTYPE et le parcours de chemin de
+ * `cy.its` ne le traverse pas. `getSnapshot()` est une méthode, et le snapshot
+ * rendu porte `value` en propriété propre.
+ */
+const serviceEnregistre = (nom: ServiceName): Cypress.Chainable<ServiceXState> =>
+  cy
+    .window({ log: false })
+    .should((win) => {
+      expect(win.__services__?.[nom], `service « ${nom} » enregistré`).to.not.be.undefined;
+    })
+    .then((win) => {
+      const service = win.__services__?.[nom];
+      if (!service) {
+        // Inatteignable après le should ci-dessus, sauf si le service est
+        // retiré entre les deux — une garde vaut mieux qu'un cast qui
+        // affirmerait au compilateur ce que rien ne garantit.
+        throw new Error(`Service « ${nom} » absent du registre après attente.`);
+      }
+      return service;
+    });
+
+/** Envoie un événement à un service, en attendant qu'il soit enregistré. */
+export const sendToService = (
+  nom: ServiceName,
+  evenement: string,
+  charge: Record<string, unknown> = {}
+): void => {
+  serviceEnregistre(nom).then((service) => service.send(evenement, charge));
+};
+
+/**
+ * Lit l'état courant d'une machine, sans passer par l'UI.
+ * Interface annoncée par ARCHITECTURE.md §4 (couche L2).
+ */
+export const appState = (nom: ServiceName): Cypress.Chainable<unknown> =>
+  serviceEnregistre(nom).then((service) => service.getSnapshot().value);
+
+/** Connecte un utilisateur en pilotant la machine d'authentification. */
 export const loginByXstate = (username: string, password: string): void => {
   const login = interceptLogin();
 
   cy.visit("/signin", { log: false });
-
-  // `cy.window()` se résout dès que l'objet window existe — ce qui peut
-  // précéder l'évaluation du bundle. Déréférencer `authService` directement
-  // lèverait un TypeError non retriable. `.should("have.property", …)` rejoue
-  // jusqu'à ce que le service soit là : c'est le contrat « une app action
-  // attend qu'un service apparaisse » (règle #12, ADR-006).
-  cy.window({ log: false })
-    .should("have.property", "authService")
-    .invoke("send", "LOGIN", { username, password });
+  sendToService("auth", "LOGIN", { username, password });
 
   cy.wait(login).its("response.statusCode").should("eq", 200);
 };
 
+/** Force un rafraîchissement de la liste publique par la machine, sans changer de route. */
+export const fetchPublicTransactions = (filtre: Record<string, number> = {}): void => {
+  sendToService("publicTransactions", "FETCH", filtre);
+};
+
 /**
- * Envoie `FETCH` au service XState de la liste publique, avec un filtre
- * optionnel. C'est le même événement que le composant émet lui-même
- * (`TransactionPublicList.tsx:33`), sur le service qu'il enregistre sur
- * `window` (`ligne 27`).
+ * Termine l'onboarding sans parcourir le dialogue.
  *
- * Distinct d'un `cy.getBySel("nav-personal-tab").click()`, qui démonte le
- * composant par React Router : ici le composant reste monté et c'est la
- * machine qui reconstruit ses lignes.
+ * Envoie `NEXT` jusqu'à l'état final `done` (`userOnboardingMachine.ts:26-48`)
+ * plutôt que d'écrire l'état directement : la machine garde ses invariants, et
+ * l'app action reste vraie si le nombre d'étapes change.
  *
- * Nuance vérifiée empiriquement : un `FETCH` sans filtre ne détache **pas**
- * les lignes. Les données revenant identiques, React réconcilie et réutilise
- * les mêmes noeuds — la liste est virtualisée (`react-virtualized`), mais
- * c'est la réconciliation, pas la virtualisation, qui les préserve. Il faut
- * que le jeu de résultats change pour observer un détachement.
+ * NON EXERCÉE PAR LA SUITE aujourd'hui : les cinq utilisateurs seedés ont tous
+ * un compte bancaire, donc le dialogue ne s'ouvre jamais avec `cy.seed
+ * ("default")`. Il faudra un utilisateur sans compte — livrable des endpoints
+ * `/testData` granulaires de la semaine 4. Livrée maintenant parce que le
+ * registre l'exige, signalée comme non couverte plutôt que présentée comme
+ * acquise.
  */
-export const fetchPublicTransactions = (filtre?: Record<string, number>): void => {
-  cy.window({ log: false })
-    .should("have.property", "publicTransactionService")
-    .invoke("send", "FETCH", filtre ?? {});
+export const completeOnboarding = (): void => {
+  const avancer = (restant: number): void => {
+    if (restant === 0) return;
+    appState("userOnboarding").then((etat) => {
+      if (etat === "done") return;
+      sendToService("userOnboarding", "NEXT");
+      avancer(restant - 1);
+    });
+  };
+  avancer(6);
 };

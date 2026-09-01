@@ -17,6 +17,7 @@ import {
 import { AuthMachineContext, AuthMachineEvents, AuthMachineSchema } from "../machines/authMachine";
 import { SnackbarSchema, SnackbarContext, SnackbarEvents } from "../machines/snackbarMachine";
 import { Stepper, Step, StepLabel } from "@mui/material";
+import { registerScopedService } from "../utils/testHooks";
 
 export interface Props {
   authService: Interpreter<AuthMachineContext, AuthMachineSchema, AuthMachineEvents, any, any>;
@@ -38,7 +39,16 @@ const TransactionCreateContainer: React.FC<Props> = ({ authService, snackbarServ
 
   // Expose createTransactionService on window for Cypress
   // @ts-ignore
-  window.createTransactionService = createTransactionService;
+  if (window.Cypress) {
+    // @ts-ignore
+    window.createTransactionService = createTransactionService;
+  }
+
+  // Registre du projet (ADR-006) : enregistré au montage, retiré au démontage.
+  React.useEffect(
+    () => registerScopedService("createTransaction", createTransactionService),
+    [createTransactionService]
+  );
 
   const [usersState, sendUsers] = useMachine(usersMachine);
 

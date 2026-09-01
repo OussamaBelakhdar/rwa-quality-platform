@@ -23,6 +23,8 @@ yarn && yarn dev   # front :3000, API :3001
 
 ## État
 
+**Semaine 3 — App Actions typées.** Un registre unique `window.__services__` remplace six expositions dispersées, sous un drapeau de build absent par défaut — vérifié à l'exécution, pas supposé. Une faute de frappe de sélecteur est désormais une erreur de compilation, et ce contrat est lui-même testé : `cypress/support/typage.contract.ts` casse `yarn types` si le typage se relâche. Pas de Page Objects ([ADR-002](docs/adr/002-typer-et-durcir-les-app-actions.md)) — l'amont n'en a jamais eu, et l'App Action n'est pas ici une commodité mais le seul chemin qui produise un état cohérent.
+
 **Semaine 2 — session.** `cy.session` avec `validate()` sur `/checkAuth`. Sur les 8 specs de la semaine 1, à périmètre égal : **12–13 s → 8 s, soit −35 %**, en passant de deux chargements de page par test à un seul. Un seul test parcourt encore le formulaire de connexion.
 
 Le gain ne vient pas du cache de cookie mais du cache de `localStorage` : l'état d'authentification de cette application est persisté par sa machine XState, pas porté par la session serveur. Un `cy.request('/login')` seul laisse l'interface déconnectée — c'est ce que les quatre premiers tests de la semaine 1 ont démontré en échouant.

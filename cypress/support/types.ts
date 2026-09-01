@@ -18,3 +18,14 @@ export type DataTestPrefix =
   | "transaction-item"
   | "bankaccount-list-item"
   | "notification-list-item";
+
+/**
+ * Forme minimale d'un service XState v4 telle que la couche L2 l'utilise.
+ * Volontairement structurelle et non importée de `xstate` : L2 n'a besoin que
+ * de ces deux membres, et ADR-006 refuse de coupler le code de test aux
+ * internes de la machine.
+ */
+export interface ServiceXState {
+  getSnapshot(): { value: unknown };
+  send(evenement: string, charge?: Record<string, unknown>): void;
+}

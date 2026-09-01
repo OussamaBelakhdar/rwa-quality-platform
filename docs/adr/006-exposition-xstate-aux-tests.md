@@ -1,8 +1,10 @@
 # ADR-006 — Exposer les services XState aux tests via un registre gardé par `VITE_TEST_HOOKS`
 
-**Statut** : proposé (implémentation semaine 3 ; gate CI en semaine 6)
+**Statut** : accepté (implémenté en semaine 3 ; gate CI en semaine 6)
 **Date** : 2026-08-31
 **Semaine du plan** : 3
+**Révision** : v3 — après implémentation. La v2 affirmait que Vite éliminerait le bloc mort au build et qu'un `grep` du bundle ferait office de gate. **Les deux sont faux, vérifiés.** Voir « Ce que l'implémentation a démenti ».
+
 **Révision** : v2 — après revue `adr-challenger`. La v1 plaçait le registre à un scope où trois des quatre services n'existent pas, et affirmait une parité Playwright qu'elle ne définissait pas.
 
 ## Contexte
@@ -111,6 +113,25 @@ Définition opérationnelle, parce que « parité » sans définition est une op
 ### 5. Typage
 
 Le type de `window.__services__` vit dans `src/utils/testHooks.ts` (donc dans le programme TS qui compile `src/`, ce que `cypress/tsconfig.json` ne fait pas) et est réexporté vers `cypress/support/index.d.ts`. Sans cela, le site d'écriture resterait sur `@ts-ignore`, que `rules/typescript.md` interdit.
+
+## Ce que l'implémentation a démenti (2026-09-01)
+
+**La v2 affirmait** : « `vite.config.ts` fait `define: { "process.env": env }`, donc l'expression est remplacée par un littéral au build et le bloc mort est éliminé », et proposait comme gate « un job qui construit sans `--mode test` et vérifie l'absence de `__services__` dans `build/**/*.js` ».
+
+**Mesuré sur un build par défaut** :
+
+| Vérification                          | Résultat                                                               |
+| ------------------------------------- | ---------------------------------------------------------------------- |
+| `grep __services__ build/assets/*.js` | **présent** — le bloc n'est PAS éliminé                                |
+| Comparaison résiduelle dans le bundle | `VITE_TEST_HOOKS==="true"` survit, non repliée                         |
+| `window.__services__` à l'exécution   | **`undefined`**                                                        |
+| Idem après `yarn build:test`          | registre présent : `auth`, `notifications`, `snackbar`, `bankAccounts` |
+
+`define` remplace l'objet `process.env` par un littéral, mais le minifieur ne replie pas la comparaison, et le module `testHooks.ts` reste dans le bundle puisqu'il est importé et appelé. La garde est donc **correcte à l'exécution** et **invisible pour un `grep`**.
+
+**Conséquence sur le gate de la semaine 6** : un `grep` du bundle produirait un faux positif permanent. Le gate doit être **un contrôle à l'exécution** — construire sans le drapeau, servir le bundle, et vérifier que `window.__services__` est `undefined`. C'est plus coûteux qu'un `grep` et c'est la seule formulation qui teste ce qui compte.
+
+Le raisonnement « le bloc mort est éliminé donc le secret ne peut pas fuiter » était de surcroît le mauvais argument : ce qui protège n'est pas l'absence du code, c'est que la garde soit fausse. Un ADR qui s'appuie sur un mécanisme qu'il n'a pas vérifié se trompe même quand sa conclusion tient.
 
 ## Conséquences
 
