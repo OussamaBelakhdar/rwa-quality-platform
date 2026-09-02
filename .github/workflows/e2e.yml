@@ -133,8 +133,13 @@ jobs:
           tail -n 150 /tmp/app.log || echo "(journal vide)"
           exit 1
 
+      # `-@quarantine` EXCLUT les tests mis en quarantaine du signal bloquant.
+      # C'est tout l'intérêt de la quarantaine : un test qu'on sait instable ne
+      # doit plus faire rougir la CI, mais il doit continuer de tourner
+      # quelque part — d'où le job `quarantine` ci-dessous. Un test quarantiné
+      # qu'on cesse d'exécuter est un test supprimé sans le dire.
       - name: Cypress — shard ${{ matrix.shard }}
-        run: yarn cy:run --browser chrome
+        run: yarn cy:run --browser chrome --env grepTags=-@quarantine
         env:
           SPLIT: ${{ env.SHARDS }}
           SPLIT_INDEX: ${{ matrix.shard }}
@@ -314,6 +319,58 @@ jobs:
         if: steps.verifier.outputs.actif == 'true'
         continue-on-error: true
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # Quarantaine — gate §6 : « ≤ 5 tests, chacun avec ticket daté < 14 j »,
+  # job séparé et NON BLOQUANT.
+  #
+  # Il tourne à chaque push, contrairement à Firefox : un test en quarantaine
+  # est un test qu'on a promis de réparer, pas un test qu'on oublie. Le voir
+  # passer au vert est le signal qu'on peut le sortir de quarantaine.
+  #
+  # Avec zéro test quarantiné — l'état normal — le run est vert et marque les
+  # 60 tests « pending ». Vérifié.
+  quarantine:
+    name: Quarantaine (non bloquant)
+    needs: qualite
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Construire l'application de test
+        run: yarn build:test
+
+      - name: Démarrer l'application
+        run: |
+          yarn start:ci > /tmp/app.log 2>&1 &
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              for (let i = 1; i <= 120; i++) {
+                if ((await sonde("http://localhost:3001/testData/seed/scenarios")) === 200) process.exit(0);
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              process.exit(1);
+            })();
+          ' && exit 0
+          tail -n 150 /tmp/app.log || true
+          exit 1
+
+      - name: Cypress — tests en quarantaine uniquement
+        run: yarn cy:run --browser chrome --env grepTags=@quarantine
 
   # Firefox est NON BLOQUANT et hors du chemin des PR — gate §6 de
   # docs/ARCHITECTURE.md : « 100 % vert · non bloquant · job hebdo, issue auto
