@@ -2,7 +2,14 @@
 # Bloque (exit 2) les anti-patterns dans les fichiers de test et les couches L1/L2.
 # Reçoit le JSON de l'outil sur stdin ; on extrait le chemin.
 set -euo pipefail
-file=$(jq -r '.tool_input.file_path // empty' 2>/dev/null || true)
+# Extraction du chemin par node et non par `jq`.
+#
+# `jq` n'est PAS une dépendance déclarée du projet : absent, la substitution
+# rendait une chaîne vide et le hook sortait en 0 — il se désactivait en
+# silence, ce qui est pire qu'absent. Constaté sur le premier run CI : l'image
+# `cypress/browsers` n'a pas `jq`, et `yarn check:hook` a vu les quatre cas de
+# code passer au lieu d'être bloqués. Node, lui, est le runtime du projet.
+file=$(node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(String(JSON.parse(s)?.tool_input?.file_path||""))}catch(e){}})' 2>/dev/null || true)
 [[ -z "$file" ]] && exit 0
 [[ -f "$file" ]] || exit 0
 
