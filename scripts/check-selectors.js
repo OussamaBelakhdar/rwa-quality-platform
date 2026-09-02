@@ -47,9 +47,19 @@ const prefixes = blocPrefix ? [...blocPrefix[1].matchAll(/"([^"]+)"/g)].map((m) 
 const sourceBrute = fichiersSource(SRC)
   .map((f) => fs.readFileSync(f, "utf8"))
   .join("\n");
-const prefixesOrphelins = prefixes.filter(
-  (p) => !new RegExp(`data-test=[{"]\`?${p}`).test(sourceBrute)
-);
+// Le motif accepte les TROIS écritures d'un `data-test` dans ce dépôt :
+//   data-test="cle-statique"
+//   data-test={`prefixe-${id}`}
+//   inputProps={{ "data-test": `prefixe-${id}` }}
+// La troisième est la façon MUI de poser l'attribut sur l'<input> interne.
+// Elle était absente du motif, et un préfixe pourtant PRÉSENT dans src/ était
+// signalé orphelin — un garde-fou qui refuse du code correct apprend à être
+// contourné, exactement comme celui qui laisse passer du code fautif.
+const motifPrefixe = (p) =>
+  new RegExp(
+    `data-test["']?\\s*[:=]\\s*[{]?\\s*[\`"']?${p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`
+  );
+const prefixesOrphelins = prefixes.filter((p) => !motifPrefixe(p).test(sourceBrute));
 
 if (manquantes.length === 0 && fantomes.length === 0 && prefixesOrphelins.length === 0) {
   console.log(

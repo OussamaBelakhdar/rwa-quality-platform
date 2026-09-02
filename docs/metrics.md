@@ -125,6 +125,46 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
 | `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
 
+## Semaine 7 — flakiness (2026-09-02)
+
+| Métrique                      | Valeur                      | Note                                                                   |
+| ----------------------------- | --------------------------- | ---------------------------------------------------------------------- |
+| Tests                         | **60** (58 → 60)            | commentaires et likes, domaines jusque-là non couverts                 |
+| Suite complète                | vert, **37 s**              | 60/60, hors flake injecté                                              |
+| Flake mesuré sur `flake-demo` | **37,93 %**, 22 tests       | `cy:burn`, 580 exécutions, retries forcés à zéro                       |
+| Cause réelle                  | **1**                       | retirer un seul `throw` ramène le taux à **0,00 %** sur 290 exécutions |
+| Ce que les retries cachent    | **18 tests sur 22**         | `cy:run` n'en montre que 4. Durée 36 s → **2 min 17**                  |
+| Specs correctes vs naïves     | **0,00 %** contre **100 %** | même application, même flake : seule l'écriture de l'assertion change  |
+| Gates outillées               | 4 → **6**                   | `check:quarantine` et l'extension de `check:hook` (8 → 17 cas)         |
+| Blocs en quarantaine          | **0**                       | plafond §6 : 5, ticket daté de moins de 14 jours exigé                 |
+
+### Ce que la semaine a trouvé, et où
+
+Le rendement n'est pas le nombre de tests ajoutés — deux — mais ce que le flake
+réel a mis au jour. Détail complet dans [`flakiness-report.md`](flakiness-report.md),
+avec les commandes pour reproduire chaque chiffre.
+
+| Constat                                                                | Statut                                                                         |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 22 tests flaky ne faisaient qu'**une seule cause**                     | prouvé par isolation, pas déduit                                               |
+| Les retries transforment 22 tests instables en **4 échecs visibles**   | une équipe qui ne lit que `cy:run` conclurait « quatre tests flaky »           |
+| Deux des trois flakes amont étaient **invisibles faute de couverture** | comblé : specs commentaires et likes                                           |
+| `check-selectors.js` refusait un préfixe **présent** dans `src/`       | corrigé — son motif ignorait la forme MUI `inputProps={{ "data-test": … }}`    |
+| `check-spec.sh` bloquait un commentaire citant `cy.wait(5500)`         | corrigé **par classe** : j'avais réparé l'instance en semaine 5, pas la classe |
+| La gate §6 sur la quarantaine n'était **pas exécutable**               | `yarn check:quarantine`, mutation-testé sur 5 cas                              |
+
+### La grille de diagnostic avait un trou
+
+Les six classes du skill `flake-diagnosis` — race réseau, détachement DOM, sujet
+capturé, animation, isolation, timing CI — supposent **toutes** que le flake est
+dans le test. Le cas le plus instructif de la semaine est celui où il n'y est
+pas : une requête qui échoue une fois sur deux est un défaut applicatif, et un
+test qui l'absorbe transforme un bug déterministe en bruit de fond.
+
+Une septième classe a été ajoutée, dont la correction est, pour la première
+fois, **ne pas toucher au test** — et pour laquelle la quarantaine est refusée :
+elle isole un test instable, elle ne fait pas taire une application cassée.
+
 ## Semaine 6 — CI/CD (2026-09-02)
 
 | Métrique                     | Valeur                               | Note                                                                                                                                                  |

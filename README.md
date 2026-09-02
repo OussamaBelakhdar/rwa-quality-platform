@@ -23,6 +23,14 @@ yarn && yarn dev   # front :3000, API :3001
 
 ## État
 
+**Semaine 7 — flakiness.** Le flake vient de `upstream/flake-demo`, maintenue par l'équipe Cypress, et il est injecté **dans l'application** : un flake que j'aurais écrit ne prouverait que ma capacité à écrire un bug. Résultat brut : **22 tests flaky à 37,93 %**. Mais 22 symptômes ne font pas 22 causes — retirer un seul `throw` ramène le taux à **0,00 %** sur 290 exécutions. Prouvé par isolation, pas déduit.
+
+Le chiffre qui compte est ailleurs. `cy:burn` (retries à zéro) voit 22 tests instables ; `cy:run` (`runMode: 2`) n'en montre que **4**. **Dix-huit masqués**, et la durée qui passe de 36 s à 2 min 17. Une équipe qui ne lit que `cy:run` conclurait « quatre tests flaky, quarantaine » — et manquerait que l'application échoue une fois sur deux sur sa requête principale. C'est la démonstration que `runMode: 2` est une mesure, pas une solution.
+
+Le diagnostic refuse la quarantaine : elle isole un test instable, elle ne fait pas taire une application cassée. Et la grille du skill `flake-diagnosis` s'est révélée trouée — ses six classes supposent toutes que le flake est dans le _test_. Une septième a été ajoutée, dont la correction est **ne pas toucher au test**.
+
+Les deux autres sources amont — ordre non garanti, latence variable — décrivent des comportements **légitimes** et appellent l'inverse : là, c'est au test de s'adapter. Elles ne cassaient rien faute de couverture ; deux specs comblent le trou. Preuve par mutation, même application et même flake : version correcte **0,00 %**, version naïve **70 % et 30 %**. Détail et commandes de reproduction dans [`flakiness-report.md`](docs/flakiness-report.md).
+
 **Semaine 6 — CI/CD.** Le dépôt hérité totalisait **78 runs rouges et zéro vert** avant qu'une ligne de CI n'y soit écrite : `main.yml` exige une clé Cypress Cloud absente, deux workflows de triage appellent des workflows réutilisables de `cypress-io` inaccessibles depuis un fork. Ne rien faire n'était donc pas neutre. Le pipeline livré tourne en 4 shards `cypress-split` **sans compte ni clé** ([ADR-003](docs/adr/003-parallelisation-sans-cypress-cloud.md)), 13 actions épinglées par SHA de commit complet, et `pages: write` isolé dans 1 job sur 5.
 
 Le chiffre demandé contredit en partie l'ADR qui l'avait prédit : coût fixe **128 s par runner** (dont 73 s de `yarn install`) pour 23 s de Cypress. Séquentiel ~218 s contre **163 s** en 4 shards — 55 s d'horloge pour ~390 s de temps machine. L'ADR annonçait 11 s : direction juste, magnitude fausse, parce qu'il transposait la durée _locale_ de la suite alors que la CI la met 2,7× plus lent. C'est écrit tel quel dans [`metrics.md`](docs/metrics.md), avec la ligne « 1 runner » marquée calculée et non observée.
