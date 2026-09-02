@@ -37,6 +37,29 @@ export default defineConfig({
   retries: {
     runMode: 2,
   },
+  /**
+   * Trois reporters : `spec` reste la sortie lisible par un humain,
+   * `mocha-junit-reporter` produit le XML que les outils de CI lisent, et
+   * `mochawesome` le JSON dont est tiré le rapport HTML publié sur Pages.
+   * Sans le premier, un run local ne dirait plus rien ; sans les autres,
+   * quatre shards n'auraient aucun résultat commun.
+   *
+   * Allure était le choix du plan. Il est ÉCARTÉ, et la raison mérite d'être
+   * lue : `allure-cypress` stocke son état de run dans `Cypress.env("allure")`,
+   * en lecture ET en écriture. Or ADR-001 a fermé `Cypress.env` côté navigateur
+   * (`allowCypressEnv: false`) parce que n'importe quel code de la page peut y
+   * lire les secrets — dont `defaultPassword`. Rouvrir une frontière de
+   * sécurité pour obtenir un rapport est un mauvais échange. Le plan est donc
+   * tenu sur le fond — un rapport publié — pas sur l'outil.
+   *
+   * `[hash]` dans le nom de fichier : chaque spec écrit le sien, sinon le
+   * dernier écrase les précédents — et avec des shards parallèles le hasard
+   * déciderait de ce qui reste.
+   */
+  reporter: "cypress-multi-reporters",
+  reporterOptions: {
+    configFile: "reporter-config.json",
+  },
   // allowCypressEnv: false ferme Cypress.env() côté navigateur. Cypress 15.4+
   // le déprécie et signale que, laissé ouvert, n'importe quel code de la page
   // peut lire ces valeurs — donc les secrets. Voir ADR-001.

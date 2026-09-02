@@ -130,6 +130,17 @@ jobs:
           SPLIT: ${{ env.SHARDS }}
           SPLIT_INDEX: ${{ matrix.shard }}
 
+      # TOUJOURS : c'est la matière du rapport agrégé, y compris quand un
+      # shard échoue — surtout quand il échoue.
+      - name: Résultats du shard
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: resultats-shard-${{ matrix.shard }}
+          path: results
+          retention-days: 7
+          if-no-files-found: ignore
+
       # Uniquement sur échec : une vidéo verte ne sert à personne et pèse.
       - name: Artefacts de diagnostic
         if: failure()
@@ -141,6 +152,79 @@ jobs:
             cypress/videos
           retention-days: 7
           if-no-files-found: ignore
+
+  report:
+    name: Rapport agrégé
+    needs: e2e
+    # `always()` : un shard rouge est précisément le cas où le rapport sert.
+    if: always()
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    # Les droits d'écriture Pages sont demandés ICI et NULLE PART ailleurs.
+    # Les quatre shards tournent en `contents: read` : du code de test ne
+    # publie rien.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Récupérer les résultats des 4 shards
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: resultats-shard-*
+          merge-multiple: true
+          path: results
+
+      # Un rapport vide vaut mieux qu'un job rouge sans rapport : si aucun
+      # shard n'a produit de résultat, on le dit et on s'arrête proprement.
+      - name: Agréger et générer le rapport HTML
+        run: |
+          if ! ls results/mochawesome/*.json >/dev/null 2>&1; then
+            echo "Aucun résultat de shard : rien à agréger." >&2
+            exit 1
+          fi
+          echo "fichiers JSON récupérés : $(ls -1 results/mochawesome/*.json | wc -l)"
+          echo "fichiers XML JUnit    : $(ls -1 results/junit/*.xml 2>/dev/null | wc -l)"
+          yarn report
+
+      # Le XML JUnit est publié comme artefact et non sur Pages : il est fait
+      # pour être lu par un outil, pas par un humain.
+      - name: JUnit agrégé
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: junit
+          path: results/junit
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Configurer Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Téléverser le rapport
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: results/rapport
+
+      # `continue-on-error` : la publication exige que Pages soit activé sur le
+      # dépôt avec « GitHub Actions » comme source — un réglage manuel qui ne
+      # peut pas vivre dans ce fichier. Tant qu'il n'est pas fait, le rapport
+      # reste téléchargeable en artefact et la CI ne ment pas sur son état.
+      - name: Publier sur GitHub Pages
+        id: deploiement
+        continue-on-error: true
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   # Firefox est NON BLOQUANT et hors du chemin des PR — gate §6 de
   # docs/ARCHITECTURE.md. Il tourne à la demande ; le déclencheur hebdomadaire

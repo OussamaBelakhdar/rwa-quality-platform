@@ -61,6 +61,7 @@ cypress.env.json
 *.pem
 
 # Reporting
+results/
 allure-results/
 allure-report/
 
