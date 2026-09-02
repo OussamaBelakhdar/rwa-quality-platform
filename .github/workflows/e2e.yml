@@ -79,20 +79,28 @@ jobs:
       # est absent et toute app action échoue (ADR-006). La sonde de
       # disponibilité vise `/testData`, qui n'existe QUE hors production
       # (ADR-007) — elle vérifie donc la bonne API, pas juste un port ouvert.
+      # `build:test` puis `start:ci`, et NON `dev:test`.
+      #
+      # Mesuré en local : le build de test coûte 5,6 s et l'application est
+      # prête en 7 s. `dev:test` paie deux coûts que la CI n'a aucune raison
+      # d'assumer — le pré-bundling à froid de Vite et un backend sous
+      # `nodemon` + `nyc` + `ts-node` — et il ne testait pas l'artefact livré.
+      # Les shards attendaient plus de 120 s sans jamais voir l'application.
+      #
+      # `build:test` embarque VITE_TEST_HOOKS (ADR-006) : `window.__services__`
+      # existe, donc les app actions fonctionnent. `start:ci` met NODE_ENV=test,
+      # donc `/testData` est monté (ADR-007) — c'est ce que la sonde vérifie,
+      # plutôt qu'un simple port ouvert.
+      - name: Construire l'application de test
+        run: yarn build:test
+
       - name: Démarrer l'application
         run: |
-          echo "node $(node -v) · yarn $(yarn -v)"
+          yarn start:ci > /tmp/app.log 2>&1 &
 
-          yarn dev:test > /tmp/app.log 2>&1 &
-          echo "pid=$!"
-
-          # Sonde écrite en node et non en curl. `curl` n'est PAS garanti dans
-          # l'image — c'est la deuxième dépendance système non déclarée de ce
-          # workflow, après `jq`. Dans un conteneur qu'on n'a pas construit, on
-          # ne suppose que le runtime du projet.
-          #
-          # La sonde vise `/testData`, qui n'existe QUE hors production
-          # (ADR-007) : elle vérifie donc la bonne API, pas juste un port ouvert.
+          # Sonde en node et non en curl : `curl` n'est pas dans l'image. Dans
+          # un conteneur qu'on n'a pas construit, on ne suppose que le runtime
+          # du projet.
           node -e '
             const http = require("http");
             const sonde = (url) =>
@@ -117,10 +125,11 @@ jobs:
             })();
           ' && exit 0
 
-          # Une étape de démarrage qui échoue sans montrer le journal du
-          # serveur ne dit rien : on repart deviner.
-          echo "=== L'application n'a pas démarré ==="
-          echo "=== journal de yarn dev:test ==="
+          # Le journal du serveur est remonté en ANNOTATION et pas seulement
+          # dans la sortie : une annotation reste lisible sans authentification,
+          # la sortie de step non.
+          echo "::error title=L'application n'a pas démarré::$(tail -n 20 /tmp/app.log | tr '\n' ' ' | cut -c1-800)"
+          echo "=== journal de yarn start:ci ==="
           tail -n 150 /tmp/app.log || echo "(journal vide)"
           exit 1
 
@@ -244,9 +253,12 @@ jobs:
       - name: Installer les dépendances
         run: yarn install --frozen-lockfile
 
+      - name: Construire l'application de test
+        run: yarn build:test
+
       - name: Démarrer l'application
         run: |
-          yarn dev:test > /tmp/app.log 2>&1 &
+          yarn start:ci > /tmp/app.log 2>&1 &
           node -e '
             const http = require("http");
             const sonde = (url) =>
