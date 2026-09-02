@@ -46,6 +46,13 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "uuid"
         update-types: ["version-update:semver-major"]
+      # Les typages de Node doivent suivre le runtime, pas le registre. La
+      # version exécutée est figée par `.node-version` (22.20.0) et par l'image
+      # de la CI ; `@types/node` en 26 décrirait des API absentes à l'exécution
+      # et laisserait compiler du code qui plante. La PR #17 proposait ^26.4.0 —
+      # elle passait le typecheck, ce qui est précisément le problème.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"

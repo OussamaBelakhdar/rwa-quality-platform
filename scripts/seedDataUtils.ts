@@ -19,7 +19,6 @@ import {
   flattenDepth,
   negate,
   find,
-  intersectionWith,
   compact,
   differenceBy,
   sampleSize,
@@ -441,23 +440,31 @@ export const createFakeCommentNotification = (
   modifiedAt: faker.date.recent(),
 });
 
+// `intersectionWith` de lodash/fp typait ses deux paramètres positionnellement
+// jusqu'à @types/lodash 4.14 ; depuis 4.17 il les type par l'UNION des deux
+// tableaux, et `{ transactionId }` ne se déstructure plus depuis
+// `Transaction | Like`. Le code était correct — lodash compare bien un élément
+// du premier tableau à un élément du second — mais la définition ne le disait
+// plus. Annoter explicitement empire les choses : la résolution de surcharge
+// s'effondre et rend quatre erreurs au lieu de deux.
+//
+// `filter`/`some` dit exactement la même chose sans dépendre d'aucun typage
+// tiers. Équivalence vérifiée sur quatre cas ; la seule divergence apparaît si
+// `transactions` contient un doublon, que `intersectionWith` écraserait
+// silencieusement. Elle ne peut pas se produire ici :
+// `getPublicTransactionsForOtherUsers` est une chaîne de trois `filter`, qui
+// n'introduit pas de doublon que son entrée n'avait pas.
 const getTransactionsWithLikes = (transactions: Transaction[], seedLikes: Like[]) =>
-  intersectionWith(
-    ({ id: transactionId }, { transactionId: likeTransactionId }) =>
-      isEqual(transactionId, likeTransactionId),
-    transactions,
-    seedLikes
+  transactions.filter((transaction) =>
+    seedLikes.some((like) => like.transactionId === transaction.id)
   );
 
 const getLikeByTransactionId = (transactionId: Transaction["id"], seedLikes: Like[]) =>
   find({ transactionId }, seedLikes) as Like;
 
 const getTransactionsWithComments = (transactions: Transaction[], seedComments: Comment[]) =>
-  intersectionWith(
-    ({ id: transactionId }, { transactionId: commentTransactionId }) =>
-      isEqual(transactionId, commentTransactionId),
-    transactions,
-    seedComments
+  transactions.filter((transaction) =>
+    seedComments.some((comment) => comment.transactionId === transaction.id)
   );
 
 const getCommentByTransactionId = (transactionId: Transaction["id"], seedComments: Comment[]) =>
