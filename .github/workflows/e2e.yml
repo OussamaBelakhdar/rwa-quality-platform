@@ -15,6 +15,10 @@ on:
       - "dependabot/**"
   pull_request:
   workflow_dispatch:
+  # Hebdomadaire, pour le seul job Firefox — gate §6 d'ARCHITECTURE.md.
+  # Lundi 6 h UTC : le résultat est là avant la semaine de travail.
+  schedule:
+    - cron: "0 6 * * 1"
 
 # Minimum strict : rien n'écrit dans le dépôt ici.
 permissions:
@@ -312,13 +316,20 @@ jobs:
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   # Firefox est NON BLOQUANT et hors du chemin des PR — gate §6 de
-  # docs/ARCHITECTURE.md. Il tourne à la demande ; le déclencheur hebdomadaire
-  # sera ajouté quand la suite aura une raison de dériver entre navigateurs.
+  # docs/ARCHITECTURE.md : « 100 % vert · non bloquant · job hebdo, issue auto
+  # si rouge ». Les trois parties sont maintenant implémentées. Jusqu'ici le
+  # job n'avait JAMAIS tourné et « Chrome + Firefox » était une affirmation
+  # sans preuve — premier run réel : Firefox 144, 58 tests, 1 min 02, vert.
   firefox:
     name: Firefox (non bloquant)
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     continue-on-error: true
+    # `issues: write` uniquement ici, et uniquement pour l'ouverture d'issue
+    # ci-dessous. Aucun autre job du pipeline n'écrit quoi que ce soit.
+    permissions:
+      contents: read
+      issues: write
     container:
       image: cypress/browsers:22.20.0
       options: --user 1001
@@ -356,3 +367,23 @@ jobs:
 
       - name: Cypress — Firefox, suite entière
         run: yarn cy:run --browser firefox
+
+      # « issue auto si rouge » — sans cette étape, la gate §6 n'était qu'une
+      # ligne de tableau. Un job non bloquant dont personne ne regarde le
+      # résultat ne mesure rien.
+      - name: Ouvrir une issue si Firefox est rouge
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Firefox rouge — $(date -u +%Y-%m-%d)" \
+            --label ci \
+            --body "Le job Firefox hebdomadaire a échoué.
+
+          Run : ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          Commit : ${GITHUB_SHA}
+
+          Firefox est non bloquant (gate §6) : la suite Chrome reste la
+          référence. Cette issue existe pour que l'écart entre navigateurs soit
+          traité, et non découvert six semaines plus tard."

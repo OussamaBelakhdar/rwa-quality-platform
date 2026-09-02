@@ -127,16 +127,17 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 
 ## Semaine 6 — CI/CD (2026-09-02)
 
-| Métrique                    | Valeur                         | Note                                                                                                 |
-| --------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Pipeline                    | `.github/workflows/e2e.yml`    | 5 jobs : `qualite`, `e2e` (4 shards), `report`, `pages`, `firefox`                                   |
-| Dépendance à Cypress Cloud  | **aucune**                     | pas de `record`, pas de clé, pas de service tiers (P6, ADR-003)                                      |
-| Actions épinglées           | **13 sur 13, par SHA complet** | SHA résolus par `git ls-remote`, donc par un autre protocole que l'API REST                          |
-| Droits `pages: write`       | **1 job sur 5**                | le job `pages` seul ; les 4 shards tournent en `contents: read`                                      |
-| Shards en CI                | **157 à 215 s**                | écart 1,04× à 1,23× sur trois runs — contre 2,06× en local : le coût fixe écrase le déséquilibre     |
-| Workflows hérités supprimés | 3                              | 78 échecs et 0 succès sur 100 runs. `merge-develop-into-flake-demo` et `.circleci/` gardés : inertes |
-| Artefacts produits par run  | **6**                          | `rapport-html` (374 Ko), `junit` (10 Ko), et les résultats bruts des 4 shards                        |
-| Conclusion du run           | **success**, tous jobs verts   | `qualite`, 4 shards, `report` et `pages` — plus aucun rouge permanent                                |
+| Métrique                    | Valeur                             | Note                                                                                                 |
+| --------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Pipeline                    | `.github/workflows/e2e.yml`        | 5 jobs : `qualite`, `e2e` (4 shards), `report`, `pages`, `firefox`                                   |
+| Dépendance à Cypress Cloud  | **aucune**                         | pas de `record`, pas de clé, pas de service tiers (P6, ADR-003)                                      |
+| Actions épinglées           | **13 sur 13, par SHA complet**     | SHA résolus par `git ls-remote`, donc par un autre protocole que l'API REST                          |
+| Droits `pages: write`       | **1 job sur 5**                    | le job `pages` seul ; les 4 shards tournent en `contents: read`                                      |
+| Shards en CI                | **157 à 215 s**                    | écart 1,04× à 1,23× sur trois runs — contre 2,06× en local : le coût fixe écrase le déséquilibre     |
+| Workflows hérités supprimés | 3                                  | 78 échecs et 0 succès sur 100 runs. `merge-develop-into-flake-demo` et `.circleci/` gardés : inertes |
+| Artefacts produits par run  | **6**                              | `rapport-html` (374 Ko), `junit` (10 Ko), et les résultats bruts des 4 shards                        |
+| Conclusion du run           | **success**, tous jobs verts       | `qualite`, 4 shards, `report` et `pages` — plus aucun rouge permanent                                |
+| **Firefox**                 | **58/58 en 1 min 02**, Firefox 144 | job non bloquant, hebdomadaire (lundi 6 h UTC), avec ouverture d'issue automatique si rouge          |
 
 ### Où passe le temps en CI — décomposition mesurée d'un shard
 
@@ -179,6 +180,30 @@ Deux honnêtetés à poser sur ce tableau :
    la suite (33 s) alors que la CI la met à ~90 s, soit **2,7× plus lent**. La
    leçon n'est pas que l'ADR se trompait sur le fond ; c'est qu'un chiffre local
    ne se transpose pas en CI, et que je l'avais transposé.
+
+### Firefox : une case cochée sans preuve, jusqu'au premier run
+
+« Matrice Chrome + Firefox » était coché dans le plan alors que **le job
+Firefox n'avait jamais tourné** : sa condition le réservait à
+`workflow_dispatch`, et rien n'avait jamais été dispatché. Une capacité qu'on
+n'a pas exercée n'est pas une capacité, c'est une intention.
+
+Déclenché pour de bon : **Firefox 144, 58 tests, 1 min 02, vert**, job total
+213 s. La suite passe donc bien sur les deux navigateurs — maintenant c'est
+mesuré.
+
+La gate §6 disait « 100 % vert · non bloquant · **job hebdo, issue auto si
+rouge** ». Les deux dernières parties n'existaient pas :
+
+| Partie de la gate   | Avant                  | Après                                                               |
+| ------------------- | ---------------------- | ------------------------------------------------------------------- |
+| 100 % vert          | jamais exécuté         | **vérifié**, 58/58                                                  |
+| Non bloquant        | ✔ `continue-on-error` | inchangé                                                            |
+| Job hebdo           | absent                 | `cron: "0 6 * * 1"`                                                 |
+| Issue auto si rouge | absente                | `gh issue create` sur `failure()`, `issues: write` isolé sur ce job |
+
+Un job non bloquant dont personne ne regarde le résultat ne mesure rien : sans
+l'ouverture d'issue, cette ligne du tableau des gates était décorative.
 
 ### Le job de publication : vérifier plutôt qu'échouer
 
