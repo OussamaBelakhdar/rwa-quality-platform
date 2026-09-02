@@ -75,10 +75,6 @@ jobs:
       - name: Installer les dépendances
         run: yarn install --frozen-lockfile
 
-      # `dev:test` et non `dev` : sans VITE_TEST_HOOKS, `window.__services__`
-      # est absent et toute app action échoue (ADR-006). La sonde de
-      # disponibilité vise `/testData`, qui n'existe QUE hors production
-      # (ADR-007) — elle vérifie donc la bonne API, pas juste un port ouvert.
       # `build:test` puis `start:ci`, et NON `dev:test`.
       #
       # Mesuré en local : le build de test coûte 5,6 s et l'application est
@@ -171,16 +167,10 @@ jobs:
     container:
       image: cypress/browsers:22.20.0
       options: --user 1001
-    # Les droits d'écriture Pages sont demandés ICI et NULLE PART ailleurs.
-    # Les quatre shards tournent en `contents: read` : du code de test ne
-    # publie rien.
+    # Aucun droit d'écriture : ce job agrège et téléverse des artefacts, il ne
+    # publie pas. Les droits Pages vivent dans le job `pages`, et là seulement.
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploiement.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -218,21 +208,52 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
+      - name: Rapport HTML
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rapport-html
+          path: results/rapport
+          retention-days: 30
+
+  # La PUBLICATION est un job à part, non bloquant, et le seul à porter des
+  # droits d'écriture.
+  #
+  # Séparé de `report` pour une raison précise : « le rapport existe » et « le
+  # rapport est publié » sont deux faits différents, et les confondre rend le
+  # job rouge alors que le rapport est bien là, téléchargeable en artefact.
+  # Constaté : `actions/configure-pages` échoue tant que Pages n'est pas activé
+  # sur le dépôt avec « GitHub Actions » comme source — un réglage manuel qui
+  # ne peut pas vivre dans ce fichier.
+  pages:
+    name: Publier le rapport (non bloquant)
+    needs: report
+    if: always()
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - name: Récupérer le rapport
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: rapport-html
+          path: rapport
+
       - name: Configurer Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Téléverser le rapport
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: results/rapport
+          path: rapport
 
-      # `continue-on-error` : la publication exige que Pages soit activé sur le
-      # dépôt avec « GitHub Actions » comme source — un réglage manuel qui ne
-      # peut pas vivre dans ce fichier. Tant qu'il n'est pas fait, le rapport
-      # reste téléchargeable en artefact et la CI ne ment pas sur son état.
       - name: Publier sur GitHub Pages
         id: deploiement
-        continue-on-error: true
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   # Firefox est NON BLOQUANT et hors du chemin des PR — gate §6 de
