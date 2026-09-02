@@ -22,6 +22,28 @@ dans les tests**. Les tests qui échouent le font donc pour une bonne raison.
 
 ---
 
+## Reproduire ces chiffres
+
+Tous les chiffres de ce rapport ont été mesurés sur la branche `flake-demo`,
+qui n'est **pas** sur `main` — un lecteur de `main` ne la voit pas. Sans les
+commandes ci-dessous, ce document serait une suite de nombres invérifiables,
+exactement ce que ce dépôt refuse ailleurs.
+
+```bash
+git fetch origin flake-demo && git checkout flake-demo
+yarn dev:test                        # dans un second terminal
+
+yarn cy:burn                         # ampleur      → 22 tests, 37,93 %
+yarn cy:run                          # ce que les retries cachent → 4 échecs
+
+# isolation de la cause : retirer le seul bloc `throw new Error("FLAKE")`
+# de src/machines/publicTransactionsMachine.ts, puis
+CY_BURN_RUNS=5 yarn cy:burn          # → 0,00 %
+```
+
+Les deux specs de commentaires et de likes vivent sur `main`, elles : les
+lancer sur `flake-demo` reproduit le tableau de la mutation.
+
 ## Mesure 1 — l'ampleur
 
 `yarn cy:burn` (10 exécutions, retries **forcés à zéro**) :
