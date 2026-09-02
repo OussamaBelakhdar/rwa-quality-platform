@@ -133,10 +133,10 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Dépendance à Cypress Cloud  | **aucune**                     | pas de `record`, pas de clé, pas de service tiers (P6, ADR-003)                                      |
 | Actions épinglées           | **13 sur 13, par SHA complet** | SHA résolus par `git ls-remote`, donc par un autre protocole que l'API REST                          |
 | Droits `pages: write`       | **1 job sur 5**                | le job `pages` seul ; les 4 shards tournent en `contents: read`                                      |
-| Shards en CI                | **157 à 179 s**                | écart **1,04× à 1,14×** sur deux runs — contre 2,06× en local : le coût fixe écrase le déséquilibre  |
+| Shards en CI                | **157 à 215 s**                | écart 1,04× à 1,23× sur trois runs — contre 2,06× en local : le coût fixe écrase le déséquilibre     |
 | Workflows hérités supprimés | 3                              | 78 échecs et 0 succès sur 100 runs. `merge-develop-into-flake-demo` et `.circleci/` gardés : inertes |
 | Artefacts produits par run  | **6**                          | `rapport-html` (374 Ko), `junit` (10 Ko), et les résultats bruts des 4 shards                        |
-| Conclusion du run           | **success**                    | `qualite`, 4 shards et `report` verts ; `pages` échoue et n'est pas bloquant                         |
+| Conclusion du run           | **success**, tous jobs verts   | `qualite`, 4 shards, `report` et `pages` — plus aucun rouge permanent                                |
 
 ### Où passe le temps en CI — décomposition mesurée d'un shard
 
@@ -180,18 +180,38 @@ Deux honnêtetés à poser sur ce tableau :
    leçon n'est pas que l'ADR se trompait sur le fond ; c'est qu'un chiffre local
    ne se transpose pas en CI, et que je l'avais transposé.
 
-### Ce qui reste à faire à la main, une seule fois
+### Le job de publication : vérifier plutôt qu'échouer
 
-`pages` est le seul job rouge, par conception : `actions/configure-pages` échoue
-tant que **Pages n'est pas activé** sur le dépôt avec « GitHub Actions » comme
-source (Settings → Pages → Build and deployment → Source). Ce réglage ne peut
-pas vivre dans un fichier de workflow.
+`pages` a échoué à chaque run pendant trois itérations, et c'était un défaut de
+conception, pas un accident. **Un job qui ne peut pas réussir tant qu'un réglage
+manuel n'est pas fait ne doit pas échouer : il doit se déclarer ignoré et dire
+quoi faire.** Un rouge permanent, on apprend à l'ignorer — et le jour où il
+signale autre chose, personne ne le voit.
 
-Tant qu'il n'est pas fait, le rapport HTML **existe quand même** — 374 Ko
-d'artefact `rapport-html` téléchargeable à chaque run — et le job est
-`continue-on-error`, donc la conclusion du run reste `success`. C'est
-exactement la raison pour laquelle « le rapport existe » et « le rapport est
-publié » ont été scindés en deux jobs.
+Deux pistes ont été vérifiées avant de coder, dont une fausse :
+
+| Piste                                                                    | Verdict                                                                                                                              |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `actions/configure-pages` sait activer Pages via son option `enablement` | Vrai, mais elle « requires a token other than `GITHUB_TOKEN` » — un PAT `repo`. **Écartée** : ajouter un secret contredirait ADR-003 |
+| L'environnement `github-pages` restreint les déploiements à `main`       | **Faux.** Il existe avec `protection_rules: []` — rien ne bloquait la publication depuis une branche de travail                      |
+
+Le job interroge donc `GET /repos/:owner/:repo/pages` avec le `GITHUB_TOKEN` et
+conditionne ses quatre étapes au résultat. Pages désactivé : annotation
+`::notice::`, job vert en **4 s**, rapport toujours téléchargeable en artefact.
+L'annotation est lisible sans authentification :
+
+> **Publication ignoree** — GitHub Pages est desactive sur le depot (HTTP 404).
+> Reglage unique, une fois pour toutes : Settings > Pages > Build and
+> deployment > Source : GitHub Actions. Le rapport HTML reste telechargeable en
+> artefact a chaque run.
+
+`continue-on-error` est descendu du job à la seule étape de déploiement : un
+échec réel reste visible dans la liste des étapes sans faire rougir un run dont
+les 58 tests sont verts. Publier un rapport ne gouverne pas le signal de test.
+
+Le rapport porte enfin la branche, le commit court et le numéro de run dans son
+titre : **une URL unique doit dire ce qu'elle montre**, sinon elle change de sens
+en silence à chaque publication depuis une branche différente.
 
 ### Ce que la CI a trouvé, et que rien d'autre ne pouvait trouver
 
