@@ -82,25 +82,44 @@ jobs:
       - name: Démarrer l'application
         run: |
           echo "node $(node -v) · yarn $(yarn -v)"
-          command -v curl >/dev/null || { echo "curl absent de l'image" >&2; exit 1; }
 
           yarn dev:test > /tmp/app.log 2>&1 &
           echo "pid=$!"
 
-          for i in $(seq 1 120); do
-            front=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 || true)
-            api=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/testData/seed/scenarios || true)
-            if [ "$front" = "200" ] && [ "$api" = "200" ]; then
-              echo "front $front / api $api — prêt en ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
+          # Sonde écrite en node et non en curl. `curl` n'est PAS garanti dans
+          # l'image — c'est la deuxième dépendance système non déclarée de ce
+          # workflow, après `jq`. Dans un conteneur qu'on n'a pas construit, on
+          # ne suppose que le runtime du projet.
+          #
+          # La sonde vise `/testData`, qui n'existe QUE hors production
+          # (ADR-007) : elle vérifie donc la bonne API, pas juste un port ouvert.
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              let front = 0, api = 0;
+              for (let i = 1; i <= 120; i++) {
+                front = await sonde("http://localhost:3000/");
+                api = await sonde("http://localhost:3001/testData/seed/scenarios");
+                if (front === 200 && api === 200) {
+                  console.log(`front ${front} / api ${api} — prêt en ${i}s`);
+                  process.exit(0);
+                }
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              console.error(`front=${front} api=${api}`);
+              process.exit(1);
+            })();
+          ' && exit 0
 
           # Une étape de démarrage qui échoue sans montrer le journal du
-          # serveur ne dit rien : on repart deviner. Le journal est donc
-          # imprimé ici, et lui seul explique l'échec.
-          echo "=== L'application n'a pas démarré : front=$front api=$api ==="
+          # serveur ne dit rien : on repart deviner.
+          echo "=== L'application n'a pas démarré ==="
           echo "=== journal de yarn dev:test ==="
           tail -n 150 /tmp/app.log || echo "(journal vide)"
           exit 1
@@ -144,11 +163,22 @@ jobs:
       - name: Démarrer l'application
         run: |
           yarn dev:test > /tmp/app.log 2>&1 &
-          for i in $(seq 1 120); do
-            api=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/testData/seed/scenarios || true)
-            [ "$api" = "200" ] && exit 0
-            sleep 1
-          done
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              for (let i = 1; i <= 120; i++) {
+                if ((await sonde("http://localhost:3001/testData/seed/scenarios")) === 200) process.exit(0);
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              process.exit(1);
+            })();
+          ' && exit 0
           tail -n 150 /tmp/app.log || true
           exit 1
 
