@@ -75,7 +75,7 @@
     "@types/json-server": "0.14.4",
     "@types/jsonwebtoken": "8.5.8",
     "@types/jwt-decode": "2.2.1",
-    "@types/lodash": "4.14.181",
+    "@types/lodash": "4.17.25",
     "@types/lowdb": "1.0.11",
     "@types/morgan": "1.9.3",
     "@types/node": "^22.10.0",
