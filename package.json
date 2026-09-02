@@ -214,7 +214,8 @@
     "report:html": "marge results/rapport.json --reportDir results/rapport --reportFilename index --reportTitle \"RWA Quality Platform — suite E2E\" --charts",
     "report": "yarn report:merge && yarn report:html",
     "check:quarantine": "node scripts/check-quarantine.js",
-    "check:levels": "node scripts/check-levels.js"
+    "check:levels": "node scripts/check-levels.js",
+    "dev:coverage:test": "cross-env NODE_ENV=development CYPRESS_COVERAGE=true concurrently yarn:start:react:test yarn:start:api:watch"
   },
   "engines": {
     "node": "^22.0.0 || ^24.0.0"

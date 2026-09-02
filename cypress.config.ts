@@ -94,7 +94,16 @@ export default defineConfig({
   expose: {
     apiUrl,
     mobileViewportWidthBreakpoint: 414,
-    coverage: false,
+    /**
+     * Piloté par la MÊME variable que l'instrumentation Vite
+     * (`vite-plugin-istanbul`, option `requireEnv`). Deux interrupteurs pour
+     * une seule intention, c'est un interrupteur qu'on oubliera : sans
+     * instrumentation, la collecte ne trouve rien ; sans collecte,
+     * l'instrumentation ralentit pour rien.
+     *
+     * `yarn dev:coverage:test` + `CYPRESS_COVERAGE=true yarn cy:run`.
+     */
+    coverage: process.env.CYPRESS_COVERAGE === "true",
     codeCoverage: {
       url: `${apiUrl}/__coverage__`,
       exclude: "cypress/**/*.*",
