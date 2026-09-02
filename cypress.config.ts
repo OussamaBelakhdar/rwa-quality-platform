@@ -34,8 +34,32 @@ try {
 const apiUrl = `http://localhost:${process.env.VITE_BACKEND_PORT}`;
 
 export default defineConfig({
+  /**
+   * Retries — `runMode: 2`, `openMode: 0`. Les deux sont écrits, y compris
+   * celui qui vaut déjà zéro par défaut : une valeur implicite n'est pas une
+   * décision, et le lecteur ne doit pas avoir à consulter la doc de Cypress
+   * pour savoir ce que fait le dépôt.
+   *
+   * POURQUOI EN CI : une suite E2E partage sa machine avec quatre autres
+   * shards, un serveur applicatif et un backend. Mesuré en semaine 5 : sous
+   * charge concurrente, la même graine d'ordre aléatoire est passée de 33 s à
+   * 37 minutes, et deux tests ont cédé sur un budget de 4 s. Sans retry, ce
+   * bruit d'infrastructure deviendrait un rouge que personne ne saurait
+   * distinguer d'une régression.
+   *
+   * POURQUOI PAS EN LOCAL : `openMode: 0`. Un test qu'on est en train
+   * d'écrire doit échouer tout de suite et une seule fois. Un retry pendant le
+   * développement transforme un bug déterministe en énigme intermittente.
+   *
+   * CE QUE ÇA NE FAIT PAS : un retry n'est pas un correctif. La règle #10 de
+   * `.claude/rules/testing.md` traite tout test ayant nécessité un retry en CI
+   * comme flaky, et le renvoie au skill `flake-diagnosis`. `yarn cy:burn`
+   * mesure le taux réel en FORÇANT les retries à zéro : il mesure le test, pas
+   * le filet. Passer à `runMode: 5` masquerait précisément ce qu'on mesure.
+   */
   retries: {
     runMode: 2,
+    openMode: 0,
   },
   /**
    * Trois reporters : `spec` reste la sortie lisible par un humain,
