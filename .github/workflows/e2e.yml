@@ -1,0 +1,144 @@
+# Pipeline E2E — ADR-003.
+#
+# Aucune dépendance à Cypress Cloud : pas de `record`, pas de
+# `CYPRESS_RECORD_KEY`, pas de service tiers. La découpe entre runners est
+# faite par `cypress-split`, pilotée par SPLIT / SPLIT_INDEX (P6).
+#
+# Toutes les actions sont épinglées par SHA de commit COMPLET et non par tag :
+# un tag est mutable, donc `@v4` est une promesse que le mainteneur peut
+# réécrire après coup. Le commentaire garde le tag lisible pour l'humain.
+name: E2E
+
+on:
+  push:
+    branches-ignore:
+      - "dependabot/**"
+  pull_request:
+  workflow_dispatch:
+
+# Minimum strict : rien n'écrit dans le dépôt ici.
+permissions:
+  contents: read
+
+# Un push qui en remplace un autre annule le run précédent : la CI mesure la
+# dernière version, pas une file d'attente.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Le shard `cypress-split` lit ces deux variables. `SHARDS` est la source
+  # unique : la matrice ci-dessous en dépend, elles ne peuvent pas diverger.
+  SHARDS: 4
+
+jobs:
+  qualite:
+    name: Types, lint et gates
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      # `yarn lint` chaîne les quatre gates outillées du dépôt :
+      # check:selectors, check:hook, check:references, check:autocompletion.
+      - name: Types et lint
+        run: |
+          yarn types
+          yarn lint
+
+      - name: Tests unitaires hérités
+        run: yarn test:unit --run
+
+  e2e:
+    name: E2E shard ${{ matrix.shard }}/4
+    needs: qualite
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    strategy:
+      # Un shard rouge ne doit pas masquer l'état des trois autres : sans cela
+      # on ne sait pas si l'échec est local à un shard ou général.
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      # `dev:test` et non `dev` : sans VITE_TEST_HOOKS, `window.__services__`
+      # est absent et toute app action échoue (ADR-006). La sonde de
+      # disponibilité vise `/testData`, qui n'existe QUE hors production
+      # (ADR-007) — elle vérifie donc la bonne API, pas juste un port ouvert.
+      - name: Démarrer l'application
+        run: |
+          yarn dev:test &
+          for i in $(seq 1 90); do
+            front=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 || true)
+            api=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/testData/seed/scenarios || true)
+            if [ "$front" = "200" ] && [ "$api" = "200" ]; then
+              echo "front $front / api $api — prêt en ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "L'application n'a pas démarré : front=$front api=$api" >&2
+          exit 1
+
+      - name: Cypress — shard ${{ matrix.shard }}
+        run: yarn cy:run --browser chrome
+        env:
+          SPLIT: ${{ env.SHARDS }}
+          SPLIT_INDEX: ${{ matrix.shard }}
+
+      # Uniquement sur échec : une vidéo verte ne sert à personne et pèse.
+      - name: Artefacts de diagnostic
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: diagnostic-shard-${{ matrix.shard }}
+          path: |
+            cypress/screenshots
+            cypress/videos
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Firefox est NON BLOQUANT et hors du chemin des PR — gate §6 de
+  # docs/ARCHITECTURE.md. Il tourne à la demande ; le déclencheur hebdomadaire
+  # sera ajouté quand la suite aura une raison de dériver entre navigateurs.
+  firefox:
+    name: Firefox (non bloquant)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Démarrer l'application
+        run: |
+          yarn dev:test &
+          for i in $(seq 1 90); do
+            api=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/testData/seed/scenarios || true)
+            [ "$api" = "200" ] && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Cypress — Firefox, suite entière
+        run: yarn cy:run --browser firefox

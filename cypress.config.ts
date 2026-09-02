@@ -7,6 +7,7 @@ import codeCoverageTask from "@cypress/code-coverage/task";
 import { defineConfig } from "cypress";
 import viteConfig from "./vite.cypress.config.ts";
 import { plugin as registerGrepPlugin } from "@cypress/grep/plugin";
+import cypressSplit from "cypress-split";
 import { enregistrerTachesDb, validerEnvironnement } from "./cypress/plugins";
 
 dotenv.config({ path: ".env.local" });
@@ -175,6 +176,21 @@ export default defineConfig({
       config.expose.grepFilterSpecs = true;
 
       registerGrepPlugin(config);
+
+      /**
+       * Découpe de la suite entre plusieurs runners — ADR-003.
+       *
+       * Piloté par `SPLIT` et `SPLIT_INDEX` dans l'environnement, donc INERTE
+       * en local : sans ces variables, `cypress-split` ne touche à rien et
+       * `yarn cy:run` exécute la suite entière. Aucun compte, aucune clé,
+       * aucun service tiers (P6).
+       *
+       * Enregistré APRÈS `@cypress/grep` : le filtrage par tag réduit d'abord
+       * l'ensemble des specs, la découpe répartit ensuite ce qui reste. Dans
+       * l'ordre inverse, un shard recevrait des specs que le filtre écarte et
+       * finirait vide.
+       */
+      cypressSplit(on, config);
 
       // Derive the auth-provider guard flags from the fully-resolved
       // config.env so every credential source is honored (CYPRESS_* vars,
