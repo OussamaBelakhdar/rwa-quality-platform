@@ -1,4 +1,5 @@
 import "@cypress/code-coverage/support";
+import "cypress-axe";
 import "./commands";
 import { register as registerCypressGrep } from "@cypress/grep";
 

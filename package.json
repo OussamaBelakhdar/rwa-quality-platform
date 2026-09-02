@@ -91,6 +91,7 @@
     "@types/webpack-env": "1.16.4",
     "@types/yup": "0.29.13",
     "@vitejs/plugin-react": "^5.0.1",
+    "axe-core": "^4.13.0",
     "babel-loader": "^10.0.0",
     "bcryptjs": "2.4.3",
     "concurrently": "9.1.2",
@@ -98,6 +99,7 @@
     "cors": "2.8.5",
     "cross-env": "7.0.3",
     "cypress": "15.21.1",
+    "cypress-axe": "^1.7.0",
     "cypress-multi-reporters": "^2.0.5",
     "cypress-split": "^1.25.0",
     "dotenv": "16.0.0",
@@ -174,7 +176,7 @@
     "dev:google": "cross-env VITE_GOOGLE=true NODE_ENV=development concurrently yarn:start:react yarn:start:api:watch",
     "dev:okta": "cross-env VITE_OKTA=true NODE_ENV=development concurrently yarn:start:react yarn:start:api:watch",
     "dev:test": "cross-env NODE_ENV=development concurrently yarn:start:react:test yarn:start:api:watch",
-    "lint": "eslint && prettier --check \"**/**.{ts,js,tsx}\" \"*.{json,md,yml}\" && node scripts/check-selectors.js && node scripts/check-hook.js && node scripts/check-references.js && node scripts/check-quarantine.js && node scripts/check-autocompletion.js",
+    "lint": "eslint && prettier --check \"**/**.{ts,js,tsx}\" \"*.{json,md,yml}\" && node scripts/check-selectors.js && node scripts/check-hook.js && node scripts/check-references.js && node scripts/check-quarantine.js && node scripts/check-levels.js && node scripts/check-autocompletion.js",
     "list:dev:users": "cat data/database.json | json -a users | json -a id username",
     "postdb:seed": "yarn db:seed:dev",
     "postinstall": "husky install && patch-package",
@@ -211,7 +213,8 @@
     "report:merge": "mochawesome-merge \"results/mochawesome/*.json\" > results/rapport.json",
     "report:html": "marge results/rapport.json --reportDir results/rapport --reportFilename index --reportTitle \"RWA Quality Platform — suite E2E\" --charts",
     "report": "yarn report:merge && yarn report:html",
-    "check:quarantine": "node scripts/check-quarantine.js"
+    "check:quarantine": "node scripts/check-quarantine.js",
+    "check:levels": "node scripts/check-levels.js"
   },
   "engines": {
     "node": "^22.0.0 || ^24.0.0"

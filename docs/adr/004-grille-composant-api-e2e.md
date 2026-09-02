@@ -17,16 +17,39 @@ déséquilibre n'a jamais été arbitré, seulement subi.
 
 ## La mesure qui décide
 
-Le même comportement — le rendu d'un montant négatif par `TransactionAmount` —
-écrit aux deux niveaux :
+Le même comportement — `TransactionAmount` sur un montant négatif — écrit aux
+deux niveaux, mesuré sur les artefacts `mochawesome` de plusieurs exécutions :
 
-| Niveau        | Durée du test | Ce qu'il exige pour tourner                                               |
-| ------------- | ------------- | ------------------------------------------------------------------------- |
-| **Composant** | **36 ms**     | rien : le composant, des props                                            |
-| **E2E**       | **~480 ms**   | base seedée, session, front + API démarrés, intercept qui mute la réponse |
+| Niveau        | n   | Durées observées | Médiane    | Ce qu'il exige pour tourner                                               |
+| ------------- | --- | ---------------- | ---------- | ------------------------------------------------------------------------- |
+| **Composant** | 13  | 5 à 26 ms        | **18 ms**  | rien : le composant, des props                                            |
+| **E2E**       | 8   | 250 à 334 ms     | **283 ms** | base seedée, session, front + API démarrés, intercept qui mute la réponse |
 
-**Treize fois plus lent, et une chaîne de prérequis dont aucun n'est le sujet
-du test.** C'est P3 en une ligne.
+**Rapport médian : 16×**, et une chaîne de prérequis dont aucun n'est le sujet
+du test.
+
+Trois précisions, parce que ce chiffre a d'abord été publié faux :
+
+- **La première rédaction annonçait « 36 ms contre 480 ms », soit 13×.** Les
+  deux termes étaient inexacts. 36 ms était la durée du prototype à test unique
+  — donc le coût de montage inclus — et 480 ms venait d'une ligne de log lue de
+  mémoire, qu'aucune mesure ne confirme. La conclusion tient, et elle est même
+  plus forte ; j'y étais arrivé par chance et non par mesure. Corrigé après
+  revue `adr-challenger`.
+- **La bimodalité du chiffre composant est réelle et n'est pas lissée** : 23 à
+  26 ms quand le test est le PREMIER de sa spec (coût du premier montage), 5 à
+  6 ms ensuite. La médiane de 18 ms recouvre les deux.
+- **Trois exécutions ont été écartées** — 119, 97 et 86 ms, toutes en échec.
+  Elles précèdent l'ajout des alias `@support/*` au serveur Vite : elles
+  mesurent un harnais cassé, pas un test lent. Les écarter est légitime ; ne
+  pas le dire ne l'était pas.
+
+Commande pour rejouer :
+
+```
+yarn cy:component --spec src/components/TransactionAmount.cy.tsx
+yarn cy:run --spec cypress/e2e/network/reponse-modifiee.cy.ts
+```
 
 ## Ce que la grille reproche à la semaine 5
 
@@ -44,6 +67,16 @@ Mais le choix de l'observable n'était pas neutre : il a fait découvrir en E2E,
 **Correction retenue** : la semaine 8 recouvre ces cas au niveau composant. Les
 E2E de la semaine 5 restent, avec leur objet réel — démontrer `mutate…`, pas
 valider un formatage.
+
+**Et l'assertion dupliquée, alors ?** Les E2E continuent d'asserter la chaîne
+rendue (`have.text "--$5.00"`), la même que le test de composant. La
+duplication est réelle : trois assertions. Elle est **assumée**, pour une
+raison précise — remplacer l'assertion de rendu par une assertion sur le corps
+de la réponse prouverait que l'intercept a muté quelque chose, pas que la
+mutation a **atteint l'interface**, ce qui est justement l'objet du test. La
+règle si cela devait croître : un E2E de mutation asserte l'identité de la
+ligne et UN champ rendu, jamais le format complet — c'est le composant qui
+détient le format.
 
 ## La grille, appliquée à dix comportements de cette application
 
@@ -77,6 +110,12 @@ Deux enseignements de ce tableau, plus utiles que le tableau lui-même :
 | **C. Grille écrite, ratio PUBLIÉ et non ciblé** _(retenue)_ | La grille décide, le ratio constate. L'écart devient une question, pas une faute | Aucun seuil ne peut être « raté », donc aucune alerte automatique                                                                                                                  | 1 ADR, 1 ligne de metrics       |
 | **D. Grille + script qui refuse un E2E « rétrogradable »**  | Contrainte exécutable, dans l'esprit des cinq autres gates                       | **Indécidable** : rien dans un fichier ne dit si un test avait besoin du réseau. Un tel script produirait des faux positifs sur des E2E légitimes                                  | élevé, pour une garantie fausse |
 
+L'option **E** mérite d'être retenue comme dette explicite plutôt qu'écartée :
+le jour où une transition de machine devra être prouvée sans son rendu, la
+grille aura une ligne de trop peu. Elle n'est pas ouverte en semaine 8 parce
+qu'aucune des dix lignes ne l'exige aujourd'hui — les lignes 7 et 9 veulent
+toutes deux la conséquence visible.
+
 L'option qu'un lecteur propose spontanément est **B** — c'est celle qu'annonçait
 `ARCHITECTURE.md` §7, et elle a l'apparence de la rigueur. Elle perd ici parce
 qu'un ratio cible transforme un principe en quota : le jour où la grille dit
@@ -109,10 +148,25 @@ semaine 5 sont recouverts au niveau où ils auraient dû l'être.
   - La grille vieillira. Elle porte une date, et l'ADR sera rouvert plutôt que
     corrigé en silence.
 - Surveillé via :
-  - Ratio composant / API / E2E publié à chaque clôture dans `metrics.md`.
-  - Toute nouvelle spec passe par le skill `new-spec`, dont l'étape 1 impose de
-    justifier le niveau **en une ligne de commentaire de tête** — cette
-    justification existe déjà dans les 21 fichiers de la suite.
+
+  - **`yarn check:levels`** — toute spec doit déclarer son niveau en tête, en
+    une ligne `// Niveau <COMPOSANT|API|E2E> : <justification>`. C'est
+    décidable, contrairement au niveau lui-même, et cela transforme une
+    convention en gate.
+
+    Ce point vient de la revue, et il corrigeait une incohérence de doctrine :
+    la première rédaction confiait la surveillance à « une relecture humaine à
+    chaque clôture », alors que ce dépôt a documenté **trois garde-fous non
+    outillés qui se sont désactivés en silence** — `jq` absent, un hook
+    bloquant sa propre documentation, un job Firefox jamais déclenché. Choisir
+    la relecture humaine ici aurait répété exactement ce que le projet a appris
+    à ne pas faire.
+
+    Ce que la gate NE fait pas : décider du niveau à votre place. Elle exige
+    que le choix soit écrit, pas qu'il soit juste.
+
+  - Ratio composant / API / E2E publié à chaque clôture dans `metrics.md`,
+    **sans cible** — voir la décision ci-dessus.
 
 ## Réversibilité
 

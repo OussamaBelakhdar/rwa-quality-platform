@@ -156,6 +156,16 @@ export default defineConfig({
       // coexistaient (`db:seed` non typée et `db:reset` typée par TaskMap), et
       // le prochain contributeur en aurait choisi un au hasard.
       on("task", enregistrerTachesDb(config.expose.apiUrl));
+      // `log` : la seule façon de faire sortir un relevé sur le terminal depuis
+      // le navigateur. Utilisée par `support/a11y.ts` pour publier les
+      // violations non bloquantes, qui seraient invisibles autrement.
+      on("task", {
+        log: (message: string) => {
+          console.log(message);
+          return null;
+        },
+      });
+
       on("task", {
         "env:validate": () =>
           validerEnvironnement(config.expose.apiUrl, config.env.defaultPassword),
