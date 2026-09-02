@@ -24,6 +24,12 @@ export type SeedScenario = "empty" | "default";
 export type DataTestPrefix =
   | "transaction-item"
   | "transaction-amount"
+  // Trois clés du DÉTAIL d'une transaction. À ne pas confondre avec les clés
+  // statiques `transaction-like-count` et `transaction-comment-count` de la
+  // LISTE : celles-ci portent l'identifiant de la transaction.
+  | "transaction-comment-input"
+  | "transaction-like-button"
+  | "transaction-like-count"
   | "bankaccount-list-item"
   | "notification-list-item";
 
