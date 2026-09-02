@@ -31,7 +31,19 @@ function fichiersSource(dir) {
 const dansSrc = new Set();
 for (const f of fichiersSource(SRC)) {
   const contenu = fs.readFileSync(f, "utf8");
-  for (const m of contenu.matchAll(/data-test="([^"${}]+)"/g)) dansSrc.add(m[1]);
+  // Deux écritures produisent une clé STATIQUE, et le motif doit accepter les deux :
+  //   data-test="cle"                       — JSX ordinaire
+  //   inputProps={{ "data-test": "cle" }}   — la façon MUI de viser l'<input> interne
+  // Le motif ne couvrait que la première. Les cinq clés posées via `inputProps`
+  // étaient donc invisibles du contrôle : absentes de `dansSrc` ET de l'union,
+  // elles ne déclenchaient ni « manquante » ni « fantôme ». Un garde-fou muet sur
+  // une écriture pourtant présente dans le dépôt ne garantit rien — le commentaire
+  // du motif de préfixes revendiquait déjà les trois écritures, mais seule cette
+  // extraction-ci était restée en arrière.
+  // Les formes dynamiques (backtick) restent exclues ici : elles relèvent du
+  // contrôle de préfixes plus bas.
+  for (const m of contenu.matchAll(/data-test["']?\s*[:=]\s*["']([^"'${}`]+)["']/g))
+    dansSrc.add(m[1]);
 }
 
 const union = fs.readFileSync(UNION, "utf8");
