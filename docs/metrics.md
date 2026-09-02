@@ -133,8 +133,10 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Dépendance à Cypress Cloud  | **aucune**                     | pas de `record`, pas de clé, pas de service tiers (P6, ADR-003)                                      |
 | Actions épinglées           | **13 sur 13, par SHA complet** | SHA résolus par `git ls-remote`, donc par un autre protocole que l'API REST                          |
 | Droits `pages: write`       | **1 job sur 5**                | le job `pages` seul ; les 4 shards tournent en `contents: read`                                      |
-| Shards en CI                | **156 / 159 / 161 / 163 s**    | écart **1,04×** — contre 2,06× en local, le coût fixe écrase le déséquilibre                         |
+| Shards en CI                | **157 à 179 s**                | écart **1,04× à 1,14×** sur deux runs — contre 2,06× en local : le coût fixe écrase le déséquilibre  |
 | Workflows hérités supprimés | 3                              | 78 échecs et 0 succès sur 100 runs. `merge-develop-into-flake-demo` et `.circleci/` gardés : inertes |
+| Artefacts produits par run  | **6**                          | `rapport-html` (374 Ko), `junit` (10 Ko), et les résultats bruts des 4 shards                        |
+| Conclusion du run           | **success**                    | `qualite`, 4 shards et `report` verts ; `pages` échoue et n'est pas bloquant                         |
 
 ### Où passe le temps en CI — décomposition mesurée d'un shard
 
@@ -177,6 +179,19 @@ Deux honnêtetés à poser sur ce tableau :
    la suite (33 s) alors que la CI la met à ~90 s, soit **2,7× plus lent**. La
    leçon n'est pas que l'ADR se trompait sur le fond ; c'est qu'un chiffre local
    ne se transpose pas en CI, et que je l'avais transposé.
+
+### Ce qui reste à faire à la main, une seule fois
+
+`pages` est le seul job rouge, par conception : `actions/configure-pages` échoue
+tant que **Pages n'est pas activé** sur le dépôt avec « GitHub Actions » comme
+source (Settings → Pages → Build and deployment → Source). Ce réglage ne peut
+pas vivre dans un fichier de workflow.
+
+Tant qu'il n'est pas fait, le rapport HTML **existe quand même** — 374 Ko
+d'artefact `rapport-html` téléchargeable à chaque run — et le job est
+`continue-on-error`, donc la conclusion du run reste `success`. C'est
+exactement la raison pour laquelle « le rapport existe » et « le rapport est
+publié » ont été scindés en deux jobs.
 
 ### Ce que la CI a trouvé, et que rien d'autre ne pouvait trouver
 
