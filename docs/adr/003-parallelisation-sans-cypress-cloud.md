@@ -161,6 +161,7 @@ lues comme des omissions sinon :
     se réécrit à la main en une trentaine de lignes : c'est la raison pour
     laquelle cette dépendance est acceptable et pas une autre.
 - Surveillé via :
+
   - **Écart entre le shard le plus long et le plus court.** Lu sur les durées
     de job affichées par GitHub Actions, ou en local par
     `for i in 0 1 2 3; do time SPLIT=4 SPLIT_INDEX=$i yarn cy:run; done`.
@@ -169,8 +170,19 @@ lues comme des omissions sinon :
     croire à une garantie qui n'existe pas (même position qu'ADR-008).
     **Ce seuil s'est déclenché à la première mesure** : 21,6 s contre 10,5 s,
     soit **2,06×**. La suite de la décision en tient compte ci-dessous.
-  - Toute réapparition de `record:` ou de `CYPRESS_RECORD_KEY` dans
-    `.github/` : interdite par P6, `grep -rn "record\|RECORD_KEY" .github/`.
+  - Toute réapparition de `record:` ou de `CYPRESS_RECORD_KEY` dans `.github/` :
+    interdite par P6. La commande de contrôle vise les **clés YAML** et non le
+    mot :
+
+    ```
+    grep -rnE '^\s*(record:\s*true|CYPRESS_RECORD_KEY:)' .github/
+    ```
+
+    La version initiale — `grep -rn "record\|RECORD_KEY"` — remontait ses
+    propres commentaires, ceux du workflow qui expliquent justement l'absence
+    de Cloud. C'est la troisième fois dans ce dépôt qu'un contrôle confond le
+    code et la prose qui le documente, après la règle « pas de `any` » et la
+    règle `cy.wait(ms)` du hook.
 
 ## Effet de bord : la resynchronisation avec l'amont
 

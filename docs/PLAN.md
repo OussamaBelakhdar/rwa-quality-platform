@@ -135,7 +135,10 @@
 - Étudier `fileParallelism: false` dans `vite.config.ts` (mitigation de flake déjà en place côté upstream, commentée « to prevent flakiness ») : ce qu'elle traite, ce qu'elle masque.
 - Tag `@quarantine` + job CI séparé non bloquant.
 - Script qui lance la suite 10× et sort un taux d'échec par test (`yarn cy:burn`).
-- Activer **Test Replay** sur le free tier Cypress Cloud pour un run de démonstration (500 résultats/mois suffisent) — capture dans le README.
+- ~~Activer **Test Replay** sur le free tier Cypress Cloud pour un run de démonstration (500 résultats/mois suffisent) — capture dans le README.~~
+  - _Non livré, et c'est une décision, pas un oubli._ Cette ligne a été écrite en semaine 0. **ADR-003 a été accepté en semaine 6**, après mesure, et son argument central est que ce dépôt tourne sans compte ni clé (P6) — au point d'écarter Cypress Cloud, Currents et sorry-cypress pour cette seule raison. Ouvrir un compte six jours plus tard pour une capture d'écran affaiblirait l'ADR sans rien prouver de plus : un plan écrit avant une décision ne l'emporte pas sur elle.
+  - _Ce que Test Replay apporte, et par quoi il a été remplacé._ Sa valeur est le post-mortem d'un échec CI. Le dépôt y répond autrement, et sans compte : artefacts vidéo et captures **sur échec seulement**, rapport HTML agrégé des 4 shards publié à chaque run, annotations `::error::` lisibles sans authentification, et `yarn cy:burn` qui mesure le flake en **forçant les retries à zéro** — ce que Test Replay ne fait pas. La couverture n'est pas identique ; elle est honnête sur ce qu'elle couvre.
+  - _Si la démonstration est voulue quand même_ : elle reste possible **hors CI**, sur une branche jetable, avec une clé locale jamais commitée et jamais introduite dans `.github/`. Le contrôle existe déjà — `grep -rn "record\|RECORD_KEY" .github/` doit rester vide (ADR-003, section « Surveillé via »).
 
 **Référentiel** : Diagnostic (Expert), Debugging & profiling.
 
