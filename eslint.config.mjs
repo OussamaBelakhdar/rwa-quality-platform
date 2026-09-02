@@ -1,16 +1,26 @@
+import { fileURLToPath } from "node:url";
+import { includeIgnoreFile } from "@eslint/compat";
 import globals from "globals";
-import { defineConfig, globalIgnores } from "eslint/config";
+import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import pluginCypress from "eslint-plugin-cypress";
 
 export default defineConfig([
-  // `coverage/` et `results/` sont GÉNÉRÉS. Ils sont apparus dans le champ
-  // d'eslint en semaine 8, quand la couverture est devenue mesurable : trois
-  // avertissements sur des fichiers que personne n'écrit. Un outil de qualité
-  // qui juge ses propres artefacts produit du bruit, et le bruit finit par
-  // masquer un vrai avertissement.
-  globalIgnores(["build/", "coverage/", "results/"]),
+  // Les fichiers ignorés viennent de `.gitignore`, et de nulle part ailleurs.
+  //
+  // La première version les listait à la main — `build/`, `coverage/`,
+  // `results/` — EN PLUS de `.gitignore` : deux listes de « ce qui est
+  // généré », qui auraient dérivé au premier dossier suivant. C'est le même
+  // défaut que `dev:coverage` et `expose.coverage`, corrigé le même jour :
+  // deux interrupteurs pour une seule intention.
+  //
+  // Le symptôme qui l'a révélé : trois avertissements sur
+  // `coverage/block-navigation.js`, un fichier que personne n'écrit, apparu
+  // dans le champ d'eslint le jour où la couverture est devenue mesurable. Un
+  // outil de qualité qui juge ses propres artefacts produit du bruit, et le
+  // bruit finit par masquer un vrai avertissement.
+  includeIgnoreFile(fileURLToPath(new URL(".gitignore", import.meta.url))),
   {
     files: ["**/*.ts"],
     extends: [

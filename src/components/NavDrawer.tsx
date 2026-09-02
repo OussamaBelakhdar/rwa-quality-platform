@@ -11,6 +11,7 @@ import {
   List,
   Divider,
   ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
   Grid,
@@ -120,68 +121,70 @@ export const mainListItems = (
   // directement qu'un <li>. Le <div> était la violation `list` relevée par axe
   // sur les CINQ pages clés — le tiroir est partagé par tout le layout.
   <>
-    <ListItem
-      button
-      // @ts-ignore
-      onClick={() => showTemporaryDrawer && toggleDrawer()}
-      component={RouterLink}
-      to="/"
-      data-test="sidenav-home"
-    >
-      <ListItemIcon>
-        <HomeIcon />
-      </ListItemIcon>
-      <ListItemText primary="Home" />
+    <ListItem disablePadding>
+      <ListItemButton
+        onClick={() => showTemporaryDrawer && toggleDrawer()}
+        component={RouterLink}
+        to="/"
+        data-test="sidenav-home"
+      >
+        <ListItemIcon>
+          <HomeIcon />
+        </ListItemIcon>
+        <ListItemText primary="Home" />
+      </ListItemButton>
     </ListItem>
-    <ListItem
-      button
-      // @ts-ignore
-      onClick={() => showTemporaryDrawer && toggleDrawer()}
-      component={RouterLink}
-      to="/user/settings"
-      data-test="sidenav-user-settings"
-    >
-      <ListItemIcon>
-        <PersonIcon />
-      </ListItemIcon>
-      <ListItemText primary="My Account" />
+    <ListItem disablePadding>
+      <ListItemButton
+        onClick={() => showTemporaryDrawer && toggleDrawer()}
+        component={RouterLink}
+        to="/user/settings"
+        data-test="sidenav-user-settings"
+      >
+        <ListItemIcon>
+          <PersonIcon />
+        </ListItemIcon>
+        <ListItemText primary="My Account" />
+      </ListItemButton>
     </ListItem>
-    <ListItem
-      button
-      // @ts-ignore
-      onClick={() => showTemporaryDrawer && toggleDrawer()}
-      component={RouterLink}
-      to="/bankaccounts"
-      data-test="sidenav-bankaccounts"
-    >
-      <ListItemIcon>
-        <AccountBalanceIcon />
-      </ListItemIcon>
-      <ListItemText primary="Bank Accounts" />
+    <ListItem disablePadding>
+      <ListItemButton
+        onClick={() => showTemporaryDrawer && toggleDrawer()}
+        component={RouterLink}
+        to="/bankaccounts"
+        data-test="sidenav-bankaccounts"
+      >
+        <ListItemIcon>
+          <AccountBalanceIcon />
+        </ListItemIcon>
+        <ListItemText primary="Bank Accounts" />
+      </ListItemButton>
     </ListItem>
-    <ListItem
-      button
-      // @ts-ignore
-      onClick={() => showTemporaryDrawer && toggleDrawer()}
-      component={RouterLink}
-      to="/notifications"
-      data-test="sidenav-notifications"
-    >
-      <ListItemIcon>
-        <NotificationsIcon />
-      </ListItemIcon>
-      <ListItemText primary="Notifications" />
+    <ListItem disablePadding>
+      <ListItemButton
+        onClick={() => showTemporaryDrawer && toggleDrawer()}
+        component={RouterLink}
+        to="/notifications"
+        data-test="sidenav-notifications"
+      >
+        <ListItemIcon>
+          <NotificationsIcon />
+        </ListItemIcon>
+        <ListItemText primary="Notifications" />
+      </ListItemButton>
     </ListItem>
   </>
 );
 
 export const secondaryListItems = (signOutPending: Function) => (
   <>
-    <ListItem button onClick={() => signOutPending()} data-test="sidenav-signout">
-      <ListItemIcon>
-        <LogoutIcon />
-      </ListItemIcon>
-      <ListItemText primary="Logout" />
+    <ListItem disablePadding>
+      <ListItemButton onClick={() => signOutPending()} data-test="sidenav-signout">
+        <ListItemIcon>
+          <LogoutIcon />
+        </ListItemIcon>
+        <ListItemText primary="Logout" />
+      </ListItemButton>
     </ListItem>
   </>
 );

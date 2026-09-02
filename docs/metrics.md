@@ -127,18 +127,41 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 
 ## Semaine 8 — component testing et accessibilité (2026-09-02)
 
-| Métrique                      | Valeur                         | Note                                                                                                |
-| ----------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------- |
-| Tests de composant            | 0 → **16**                     | 6 composants, **1 s** pour l'ensemble                                                               |
-| Tests E2E                     | 60 → **65**                    | dont 5 pages auditées par axe                                                                       |
-| Ratio des niveaux             | **21 % / 4 % / 75 %**          | composant / API / E2E — **publié, non ciblé** (ADR-004)                                             |
-| Coût par test, mesuré         | **18 ms** contre **283 ms**    | composant contre E2E, médianes sur n=13 et n=8                                                      |
-| Violations a11y **corrigées** | **2 règles, 34 nœuds**         | `link-name` (10 nœuds) et `image-alt` (24) éliminées                                                |
-| Violations restantes          | 4 règles, en base de référence | antérieures au projet ; la base ne peut que rétrécir                                                |
-| Couverture (statements)       | **80,25 %**                    | `src/` 78,1 % · `backend/` 84,4 % — mesurée par la suite E2E instrumentée                           |
-| Couverture (branches)         | **57,33 %**                    | l'écart avec les statements est le chiffre intéressant : les chemins d'erreur restent sous-couverts |
-| Gates outillées               | 6 → **7**                      | `check:levels` — chaque spec déclare son niveau, l'emplacement le confirme                          |
-| Jobs CI                       | 6 → **7**                      | `component`, bloquant (gate §6)                                                                     |
+| Métrique                        | Valeur                      | Note                                                                                                                            |
+| ------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Tests de composant              | 0 → **16**                  | 6 composants, **1 s** pour l'ensemble                                                                                           |
+| Tests E2E                       | 60 → **65**                 | dont 5 pages auditées par axe                                                                                                   |
+| Ratio des niveaux               | **21 % / 4 % / 75 %**       | composant / API / E2E — **publié, non ciblé** (ADR-004)                                                                         |
+| Coût par test, mesuré           | **18 ms** contre **283 ms** | composant contre E2E, médianes sur n=13 et n=8                                                                                  |
+| Violations a11y **corrigées**   | **3 règles**                | `link-name` (10 nœuds), `image-alt` (24) et `list` (10) éliminées                                                               |
+| Violations bloquantes restantes | **3 règles, sur 1 page**    | 4 pages sur 5 n'en ont plus aucune. Les 2 par page qui subsistent sont `moderate` (`region`, `heading-order`), sous le seuil §6 |
+| Couverture (statements)         | **80,25 %**                 | `src/` 78,1 % · `backend/` 84,4 % — mesurée par la suite E2E instrumentée                                                       |
+| Couverture (branches)           | **57,33 %**                 | l'écart avec les statements est le chiffre intéressant : les chemins d'erreur restent sous-couverts                             |
+| Gates outillées                 | 6 → **7**                   | `check:levels` — chaque spec déclare son niveau, l'emplacement le confirme                                                      |
+| Jobs CI                         | 6 → **7**                   | `component`, bloquant (gate §6)                                                                                                 |
+
+### La base de référence a exigé sa propre réduction
+
+La première correction de `list` était **incomplète** : j'avais remplacé le
+`<div>` qui enveloppait les items du tiroir par un fragment, sans voir que les
+`ListItem` rendaient des `<a>` via `component={RouterLink}` — un `<ul>`
+contenant des `<a>` viole la même règle. Je l'avais écrit dans le commit plutôt
+que de laisser croire à une correction.
+
+Complétée : `ListItem disablePadding` + `ListItemButton`, cinq items, ce qui
+rend enfin `<li><a>…</a></li>`. Effet de bord bienvenu — les quatre
+`// @ts-ignore` que le typage de `component={RouterLink}` imposait ont disparu.
+
+**C'est le test qui a exigé la suite.** `list` étant corrigée sur les cinq
+pages, la base a refusé de la garder :
+
+```
+AssertionError: règles corrigées sur flux public — les retirer de la base : list
+```
+
+Une base de dérogations qui ne peut que rétrécir n'est pas une commodité : ici,
+elle a transformé une correction partielle en correction complète, sans que
+personne ait à s'en souvenir.
 
 ### Deux scripts hérités qui ne pouvaient pas fonctionner ensemble
 

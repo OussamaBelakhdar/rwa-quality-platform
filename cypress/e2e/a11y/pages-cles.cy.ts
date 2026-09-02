@@ -11,14 +11,19 @@ import { verifierAccessibilite } from "@support/a11y";
  * elles ne bloquent pas — mais aucune NOUVELLE violation n'est tolérée, et
  * toute règle corrigée doit être retirée d'ici, sinon le test échoue.
  *
- * Deux règles ont été corrigées en semaine 8 et ne figurent donc pas :
- * `link-name` (logo du NavBar et lien du pied de page sans nom accessible) et
- * `image-alt` (avatars sans texte alternatif, 24 nœuds).
+ * TROIS règles ont été corrigées en semaine 8 et ne figurent donc pas :
+ * `link-name` (logo du NavBar et lien du pied de page sans nom accessible),
+ * `image-alt` (avatars sans texte alternatif, 24 nœuds) et `list` (le tiroir
+ * de navigation rendait des `<a>` directement dans un `<ul>`).
+ *
+ * `list` est sortie de la base parce que la base l'A EXIGÉ : la première
+ * correction était incomplète, et c'est le test qui a refusé de garder une
+ * règle devenue verte. Deux pages n'ont plus aucune violation connue.
  */
 const BASE = {
-  navigation: ["list"],
-  fluxPublic: ["list", "listitem", "color-contrast", "aria-required-children"],
-  creation: ["list"],
+  navigation: [],
+  fluxPublic: ["listitem", "color-contrast", "aria-required-children"],
+  creation: [],
 };
 
 describe("Accessibilité — pages clés", { tags: ["@a11y", "@regression"] }, () => {
