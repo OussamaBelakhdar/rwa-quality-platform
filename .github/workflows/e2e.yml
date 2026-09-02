@@ -196,7 +196,10 @@ jobs:
           fi
           echo "fichiers JSON récupérés : $(ls -1 results/mochawesome/*.json | wc -l)"
           echo "fichiers XML JUnit    : $(ls -1 results/junit/*.xml 2>/dev/null | wc -l)"
-          yarn report
+          yarn report:merge
+          npx marge results/rapport.json \
+            --reportDir results/rapport --reportFilename index --charts \
+            --reportTitle "RWA Quality Platform — ${GITHUB_REF_NAME} @ $(echo "$GITHUB_SHA" | cut -c1-7) (run #${GITHUB_RUN_NUMBER})"
 
       # Le XML JUnit est publié comme artefact et non sur Pages : il est fait
       # pour être lu par un outil, pas par un humain.
@@ -215,21 +218,27 @@ jobs:
           path: results/rapport
           retention-days: 30
 
-  # La PUBLICATION est un job à part, non bloquant, et le seul à porter des
-  # droits d'écriture.
+  # La PUBLICATION est un job à part, et le seul à porter des droits d'écriture.
   #
   # Séparé de `report` pour une raison précise : « le rapport existe » et « le
-  # rapport est publié » sont deux faits différents, et les confondre rend le
-  # job rouge alors que le rapport est bien là, téléchargeable en artefact.
-  # Constaté : `actions/configure-pages` échoue tant que Pages n'est pas activé
-  # sur le dépôt avec « GitHub Actions » comme source — un réglage manuel qui
-  # ne peut pas vivre dans ce fichier.
+  # rapport est publié » sont deux faits différents, et les confondre rendait le
+  # job rouge alors que le rapport était bien là, téléchargeable en artefact.
+  #
+  # Il ne PEUT pas réussir tant que Pages n'est pas activé sur le dépôt, et ce
+  # réglage ne peut pas vivre ici : `actions/configure-pages` sait activer
+  # Pages, mais son option `enablement` « requires a token other than
+  # GITHUB_TOKEN » — un PAT avec le scope `repo`. Ajouter un secret pour
+  # publier un rapport contredirait ADR-003, dont l'argument central est que ce
+  # dépôt tourne sans compte ni clé.
+  #
+  # Donc le job ne tente pas puis n'échoue pas : il VÉRIFIE d'abord, et se
+  # déclare ignoré avec la marche à suivre. Un rouge permanent qu'on apprend à
+  # ignorer est pire qu'un job qui dit ce qu'il attend.
   pages:
-    name: Publier le rapport (non bloquant)
+    name: Publier le rapport
     needs: report
     if: always()
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
       pages: write
@@ -237,23 +246,69 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deploiement.outputs.page_url }}
+    # Groupe distinct de celui du workflow : deux branches peuvent publier, et
+    # une publication en cours ne doit pas être annulée en plein vol.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
+      - name: Pages est-il activé sur le dépôt ?
+        id: verifier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node -e '
+            const https = require("https");
+            const fs = require("fs");
+            const fin = (actif) => fs.appendFileSync(process.env.GITHUB_OUTPUT, `actif=${actif}\n`);
+            https
+              .get(
+                {
+                  hostname: "api.github.com",
+                  path: `/repos/${process.env.GITHUB_REPOSITORY}/pages`,
+                  headers: {
+                    "user-agent": "ci",
+                    accept: "application/vnd.github+json",
+                    authorization: `Bearer ${process.env.GH_TOKEN}`,
+                  },
+                },
+                (r) => {
+                  r.resume();
+                  const actif = r.statusCode === 200;
+                  fin(actif);
+                  console.log(actif
+                    ? "Pages actif : publication en cours."
+                    : `::notice title=Publication ignoree::GitHub Pages est desactive sur le depot (HTTP ${r.statusCode}). Reglage unique, une fois pour toutes : Settings > Pages > Build and deployment > Source : GitHub Actions. Le rapport HTML reste telechargeable en artefact a chaque run.`);
+                }
+              )
+              .on("error", (e) => { fin(false); console.log(`::notice::sonde Pages indisponible : ${e.message}`); });
+          '
+
       - name: Récupérer le rapport
+        if: steps.verifier.outputs.actif == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: rapport-html
           path: rapport
 
       - name: Configurer Pages
+        if: steps.verifier.outputs.actif == 'true'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Téléverser le rapport
+        if: steps.verifier.outputs.actif == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: rapport
 
+      # `continue-on-error` sur cette étape SEULE, et pas sur le job : un échec
+      # réel de déploiement reste visible dans la liste des étapes, mais ne fait
+      # pas rougir un run dont les 58 tests sont verts. Publier un rapport ne
+      # gouverne pas le signal de test.
       - name: Publier sur GitHub Pages
         id: deploiement
+        if: steps.verifier.outputs.actif == 'true'
+        continue-on-error: true
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   # Firefox est NON BLOQUANT et hors du chemin des PR — gate §6 de
