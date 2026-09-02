@@ -7,6 +7,7 @@ import codeCoverageTask from "@cypress/code-coverage/task";
 import { defineConfig } from "cypress";
 import viteConfig from "./vite.cypress.config.ts";
 import { plugin as registerGrepPlugin } from "@cypress/grep/plugin";
+import cypressSplit from "cypress-split";
 import { enregistrerTachesDb, validerEnvironnement } from "./cypress/plugins";
 
 dotenv.config({ path: ".env.local" });
@@ -35,6 +36,29 @@ const apiUrl = `http://localhost:${process.env.VITE_BACKEND_PORT}`;
 export default defineConfig({
   retries: {
     runMode: 2,
+  },
+  /**
+   * Trois reporters : `spec` reste la sortie lisible par un humain,
+   * `mocha-junit-reporter` produit le XML que les outils de CI lisent, et
+   * `mochawesome` le JSON dont est tiré le rapport HTML publié sur Pages.
+   * Sans le premier, un run local ne dirait plus rien ; sans les autres,
+   * quatre shards n'auraient aucun résultat commun.
+   *
+   * Allure était le choix du plan. Il est ÉCARTÉ, et la raison mérite d'être
+   * lue : `allure-cypress` stocke son état de run dans `Cypress.env("allure")`,
+   * en lecture ET en écriture. Or ADR-001 a fermé `Cypress.env` côté navigateur
+   * (`allowCypressEnv: false`) parce que n'importe quel code de la page peut y
+   * lire les secrets — dont `defaultPassword`. Rouvrir une frontière de
+   * sécurité pour obtenir un rapport est un mauvais échange. Le plan est donc
+   * tenu sur le fond — un rapport publié — pas sur l'outil.
+   *
+   * `[hash]` dans le nom de fichier : chaque spec écrit le sien, sinon le
+   * dernier écrase les précédents — et avec des shards parallèles le hasard
+   * déciderait de ce qui reste.
+   */
+  reporter: "cypress-multi-reporters",
+  reporterOptions: {
+    configFile: "reporter-config.json",
   },
   // allowCypressEnv: false ferme Cypress.env() côté navigateur. Cypress 15.4+
   // le déprécie et signale que, laissé ouvert, n'importe quel code de la page
@@ -175,6 +199,21 @@ export default defineConfig({
       config.expose.grepFilterSpecs = true;
 
       registerGrepPlugin(config);
+
+      /**
+       * Découpe de la suite entre plusieurs runners — ADR-003.
+       *
+       * Piloté par `SPLIT` et `SPLIT_INDEX` dans l'environnement, donc INERTE
+       * en local : sans ces variables, `cypress-split` ne touche à rien et
+       * `yarn cy:run` exécute la suite entière. Aucun compte, aucune clé,
+       * aucun service tiers (P6).
+       *
+       * Enregistré APRÈS `@cypress/grep` : le filtrage par tag réduit d'abord
+       * l'ensemble des specs, la découpe répartit ensuite ce qui reste. Dans
+       * l'ordre inverse, un shard recevrait des specs que le filtre écarte et
+       * finirait vide.
+       */
+      cypressSplit(on, config);
 
       // Derive the auth-provider guard flags from the fully-resolved
       // config.env so every credential source is honored (CYPRESS_* vars,

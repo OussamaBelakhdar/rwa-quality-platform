@@ -1,0 +1,17 @@
+{
+  "reporterEnabled": "spec, mocha-junit-reporter, mochawesome",
+  "mochaJunitReporterReporterOptions": {
+    "mochaFile": "results/junit/[hash].xml",
+    "toConsole": false,
+    "jenkinsMode": true,
+    "rootSuiteTitle": "rwa-quality-platform",
+    "testsuitesTitle": "Cypress E2E"
+  },
+  "mochawesomeReporterOptions": {
+    "reportDir": "results/mochawesome",
+    "reportFilename": "[name]",
+    "overwrite": false,
+    "html": false,
+    "json": true
+  }
+}

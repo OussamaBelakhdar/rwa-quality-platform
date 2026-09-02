@@ -125,6 +125,139 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
 | `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
 
+## Semaine 6 — CI/CD (2026-09-02)
+
+| Métrique                    | Valeur                             | Note                                                                                                 |
+| --------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Pipeline                    | `.github/workflows/e2e.yml`        | 5 jobs : `qualite`, `e2e` (4 shards), `report`, `pages`, `firefox`                                   |
+| Dépendance à Cypress Cloud  | **aucune**                         | pas de `record`, pas de clé, pas de service tiers (P6, ADR-003)                                      |
+| Actions épinglées           | **13 sur 13, par SHA complet**     | SHA résolus par `git ls-remote`, donc par un autre protocole que l'API REST                          |
+| Droits `pages: write`       | **1 job sur 5**                    | le job `pages` seul ; les 4 shards tournent en `contents: read`                                      |
+| Shards en CI                | **157 à 215 s**                    | écart 1,04× à 1,23× sur trois runs — contre 2,06× en local : le coût fixe écrase le déséquilibre     |
+| Workflows hérités supprimés | 3                                  | 78 échecs et 0 succès sur 100 runs. `merge-develop-into-flake-demo` et `.circleci/` gardés : inertes |
+| Artefacts produits par run  | **6**                              | `rapport-html` (374 Ko), `junit` (10 Ko), et les résultats bruts des 4 shards                        |
+| Conclusion du run           | **success**, tous jobs verts       | `qualite`, 4 shards, `report` et `pages` — plus aucun rouge permanent                                |
+| **Firefox**                 | **58/58 en 1 min 02**, Firefox 144 | job non bloquant, hebdomadaire (lundi 6 h UTC), avec ouverture d'issue automatique si rouge          |
+
+### Où passe le temps en CI — décomposition mesurée d'un shard
+
+C'est le chiffre que le plan demandait, et il ne dit pas ce que j'espérais.
+
+| Étape                           | Durée     |
+| ------------------------------- | --------- |
+| Initialisation du conteneur     | 24 s      |
+| Checkout                        | 1 s       |
+| **`yarn install`**              | **73 s**  |
+| `yarn build:test`               | 16 s      |
+| Démarrage de l'application      | 11 s      |
+| **Cypress (un quart de suite)** | **23 s**  |
+| Artefacts                       | 1 s       |
+| **Total**                       | **151 s** |
+
+**Coût fixe par runner : 128 s** — soit tout sauf les 23 s de Cypress. La
+valeur estimée dans ADR-003 avant écriture du workflow était de 127 s, tirée
+des runs échoués de l'amont : elle est confirmée à 1 s près, par une mesure
+indépendante.
+
+### Séquentiel contre 4 shards
+
+| Configuration                       | Temps d'horloge | Temps machine |
+| ----------------------------------- | --------------- | ------------- |
+| 1 runner, suite entière _(calculé)_ | ~218 s          | ~218 s        |
+| 4 runners shardés _(observé)_       | **163 s**       | **~604 s**    |
+
+**Gain : ~55 s d'horloge, pour ~390 s de temps machine supplémentaire.**
+
+Deux honnêtetés à poser sur ce tableau :
+
+1. La ligne « 1 runner » est **calculée** à partir de parties mesurées
+   (128 s de coût fixe + 4 × 23 s de Cypress), pas observée en un seul run. Pour
+   l'observer il faudrait un run non shardé, que `workflow_dispatch` permet mais
+   qui demande une authentification dont je ne dispose pas ici.
+2. **ADR-003 avait annoncé ~11 s de gain, la mesure en donne ~55.** La direction
+   était juste — le gain est marginal au regard du temps machine — mais la
+   magnitude était fausse, parce que la prédiction utilisait la durée LOCALE de
+   la suite (33 s) alors que la CI la met à ~90 s, soit **2,7× plus lent**. La
+   leçon n'est pas que l'ADR se trompait sur le fond ; c'est qu'un chiffre local
+   ne se transpose pas en CI, et que je l'avais transposé.
+
+### Firefox : une case cochée sans preuve, jusqu'au premier run
+
+« Matrice Chrome + Firefox » était coché dans le plan alors que **le job
+Firefox n'avait jamais tourné** : sa condition le réservait à
+`workflow_dispatch`, et rien n'avait jamais été dispatché. Une capacité qu'on
+n'a pas exercée n'est pas une capacité, c'est une intention.
+
+Déclenché pour de bon : **Firefox 144, 58 tests, 1 min 02, vert**, job total
+213 s. La suite passe donc bien sur les deux navigateurs — maintenant c'est
+mesuré.
+
+La gate §6 disait « 100 % vert · non bloquant · **job hebdo, issue auto si
+rouge** ». Les deux dernières parties n'existaient pas :
+
+| Partie de la gate   | Avant                  | Après                                                               |
+| ------------------- | ---------------------- | ------------------------------------------------------------------- |
+| 100 % vert          | jamais exécuté         | **vérifié**, 58/58                                                  |
+| Non bloquant        | ✔ `continue-on-error` | inchangé                                                            |
+| Job hebdo           | absent                 | `cron: "0 6 * * 1"`                                                 |
+| Issue auto si rouge | absente                | `gh issue create` sur `failure()`, `issues: write` isolé sur ce job |
+
+Un job non bloquant dont personne ne regarde le résultat ne mesure rien : sans
+l'ouverture d'issue, cette ligne du tableau des gates était décorative.
+
+### Le job de publication : vérifier plutôt qu'échouer
+
+`pages` a échoué à chaque run pendant trois itérations, et c'était un défaut de
+conception, pas un accident. **Un job qui ne peut pas réussir tant qu'un réglage
+manuel n'est pas fait ne doit pas échouer : il doit se déclarer ignoré et dire
+quoi faire.** Un rouge permanent, on apprend à l'ignorer — et le jour où il
+signale autre chose, personne ne le voit.
+
+Deux pistes ont été vérifiées avant de coder, dont une fausse :
+
+| Piste                                                                    | Verdict                                                                                                                              |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `actions/configure-pages` sait activer Pages via son option `enablement` | Vrai, mais elle « requires a token other than `GITHUB_TOKEN` » — un PAT `repo`. **Écartée** : ajouter un secret contredirait ADR-003 |
+| L'environnement `github-pages` restreint les déploiements à `main`       | **Faux.** Il existe avec `protection_rules: []` — rien ne bloquait la publication depuis une branche de travail                      |
+
+Le job interroge donc `GET /repos/:owner/:repo/pages` avec le `GITHUB_TOKEN` et
+conditionne ses quatre étapes au résultat. Pages désactivé : annotation
+`::notice::`, job vert en **4 s**, rapport toujours téléchargeable en artefact.
+L'annotation est lisible sans authentification :
+
+> **Publication ignoree** — GitHub Pages est desactive sur le depot (HTTP 404).
+> Reglage unique, une fois pour toutes : Settings > Pages > Build and
+> deployment > Source : GitHub Actions. Le rapport HTML reste telechargeable en
+> artefact a chaque run.
+
+`continue-on-error` est descendu du job à la seule étape de déploiement : un
+échec réel reste visible dans la liste des étapes sans faire rougir un run dont
+les 58 tests sont verts. Publier un rapport ne gouverne pas le signal de test.
+
+Le rapport porte enfin la branche, le commit court et le numéro de run dans son
+titre : **une URL unique doit dire ce qu'elle montre**, sinon elle change de sens
+en silence à chaque publication depuis une branche différente.
+
+### Ce que la CI a trouvé, et que rien d'autre ne pouvait trouver
+
+Trois défauts, tous invisibles en local, tous du même genre : **supposer présent
+ce qui n'a jamais été déclaré.**
+
+| Défaut                                               | Effet                                                                                     |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `check-spec.sh` extrayait son argument avec **`jq`** | Absent de l'image : le hook sortait en 0, il **échouait ouvert**, en silence              |
+| Ma sonde de démarrage utilisait **`curl`**           | Absent aussi : la boucle tournait 90 fois sur des valeurs vides sans rien dire            |
+| La CI lançait **`yarn dev:test`**                    | Pré-bundling Vite à froid + backend sous `nodemon`+`nyc`+`ts-node` : jamais prêt en 120 s |
+
+Les deux premiers ont la même forme que les défauts de la semaine 5 : un
+garde-fou qui se désactive au lieu de bloquer. Le troisième est un choix : la CI
+teste désormais l'**artefact construit** (`build:test` 16 s + `start:ci` 11 s),
+pas un serveur de développement — ce qui est à la fois plus rapide et plus juste.
+
+Et c'est `yarn check:hook`, ajouté à la clôture de la semaine 5 « parce qu'une
+règle vérifiée une fois n'est pas une garantie », qui a attrapé le premier — à
+sa toute première exécution en CI.
+
 ## Semaine 5 — réseau (2026-09-01)
 
 | Métrique                      | Valeur                                      | Note                                                                                                                                                                                                                                                       |

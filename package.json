@@ -98,6 +98,8 @@
     "cors": "2.8.5",
     "cross-env": "7.0.3",
     "cypress": "15.21.1",
+    "cypress-multi-reporters": "^2.0.5",
+    "cypress-split": "^1.25.0",
     "dotenv": "16.0.0",
     "eslint": "^10.0.2",
     "eslint-plugin-cypress": "^6.1.0",
@@ -118,6 +120,10 @@
     "json": "11.0.0",
     "jwks-rsa": "2.0.5",
     "lowdb": "1.0.0",
+    "mocha-junit-reporter": "^2.2.1",
+    "mochawesome": "^8.0.1",
+    "mochawesome-merge": "^5.1.1",
+    "mochawesome-report-generator": "^6.3.2",
     "morgan": "^1.11.0",
     "ncp": "2.0.0",
     "nodemon": "2.0.22",
@@ -201,7 +207,10 @@
     "tsnode:not-instrumented": "ts-node -P tsconfig.tsnode.json",
     "types": "tsc --noEmit && tsc --noEmit -p cypress/tsconfig.json",
     "check:hook": "node scripts/check-hook.js",
-    "check:references": "node scripts/check-references.js"
+    "check:references": "node scripts/check-references.js",
+    "report:merge": "mochawesome-merge \"results/mochawesome/*.json\" > results/rapport.json",
+    "report:html": "marge results/rapport.json --reportDir results/rapport --reportFilename index --reportTitle \"RWA Quality Platform — suite E2E\" --charts",
+    "report": "yarn report:merge && yarn report:html"
   },
   "engines": {
     "node": "^22.0.0 || ^24.0.0"

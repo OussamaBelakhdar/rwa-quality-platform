@@ -1,0 +1,389 @@
+# Pipeline E2E — ADR-003.
+#
+# Aucune dépendance à Cypress Cloud : pas de `record`, pas de
+# `CYPRESS_RECORD_KEY`, pas de service tiers. La découpe entre runners est
+# faite par `cypress-split`, pilotée par SPLIT / SPLIT_INDEX (P6).
+#
+# Toutes les actions sont épinglées par SHA de commit COMPLET et non par tag :
+# un tag est mutable, donc `@v4` est une promesse que le mainteneur peut
+# réécrire après coup. Le commentaire garde le tag lisible pour l'humain.
+name: E2E
+
+on:
+  push:
+    branches-ignore:
+      - "dependabot/**"
+  pull_request:
+  workflow_dispatch:
+  # Hebdomadaire, pour le seul job Firefox — gate §6 d'ARCHITECTURE.md.
+  # Lundi 6 h UTC : le résultat est là avant la semaine de travail.
+  schedule:
+    - cron: "0 6 * * 1"
+
+# Minimum strict : rien n'écrit dans le dépôt ici.
+permissions:
+  contents: read
+
+# Un push qui en remplace un autre annule le run précédent : la CI mesure la
+# dernière version, pas une file d'attente.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Le shard `cypress-split` lit ces deux variables. `SHARDS` est la source
+  # unique : la matrice ci-dessous en dépend, elles ne peuvent pas diverger.
+  SHARDS: 4
+
+jobs:
+  qualite:
+    name: Types, lint et gates
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      # `yarn lint` chaîne les quatre gates outillées du dépôt :
+      # check:selectors, check:hook, check:references, check:autocompletion.
+      - name: Types et lint
+        run: |
+          yarn types
+          yarn lint
+
+      - name: Tests unitaires hérités
+        run: yarn test:unit --run
+
+  e2e:
+    name: E2E shard ${{ matrix.shard }}/4
+    needs: qualite
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    strategy:
+      # Un shard rouge ne doit pas masquer l'état des trois autres : sans cela
+      # on ne sait pas si l'échec est local à un shard ou général.
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      # `build:test` puis `start:ci`, et NON `dev:test`.
+      #
+      # Mesuré en local : le build de test coûte 5,6 s et l'application est
+      # prête en 7 s. `dev:test` paie deux coûts que la CI n'a aucune raison
+      # d'assumer — le pré-bundling à froid de Vite et un backend sous
+      # `nodemon` + `nyc` + `ts-node` — et il ne testait pas l'artefact livré.
+      # Les shards attendaient plus de 120 s sans jamais voir l'application.
+      #
+      # `build:test` embarque VITE_TEST_HOOKS (ADR-006) : `window.__services__`
+      # existe, donc les app actions fonctionnent. `start:ci` met NODE_ENV=test,
+      # donc `/testData` est monté (ADR-007) — c'est ce que la sonde vérifie,
+      # plutôt qu'un simple port ouvert.
+      - name: Construire l'application de test
+        run: yarn build:test
+
+      - name: Démarrer l'application
+        run: |
+          yarn start:ci > /tmp/app.log 2>&1 &
+
+          # Sonde en node et non en curl : `curl` n'est pas dans l'image. Dans
+          # un conteneur qu'on n'a pas construit, on ne suppose que le runtime
+          # du projet.
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              let front = 0, api = 0;
+              for (let i = 1; i <= 120; i++) {
+                front = await sonde("http://localhost:3000/");
+                api = await sonde("http://localhost:3001/testData/seed/scenarios");
+                if (front === 200 && api === 200) {
+                  console.log(`front ${front} / api ${api} — prêt en ${i}s`);
+                  process.exit(0);
+                }
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              console.error(`front=${front} api=${api}`);
+              process.exit(1);
+            })();
+          ' && exit 0
+
+          # Le journal du serveur est remonté en ANNOTATION et pas seulement
+          # dans la sortie : une annotation reste lisible sans authentification,
+          # la sortie de step non.
+          echo "::error title=L'application n'a pas démarré::$(tail -n 20 /tmp/app.log | tr '\n' ' ' | cut -c1-800)"
+          echo "=== journal de yarn start:ci ==="
+          tail -n 150 /tmp/app.log || echo "(journal vide)"
+          exit 1
+
+      - name: Cypress — shard ${{ matrix.shard }}
+        run: yarn cy:run --browser chrome
+        env:
+          SPLIT: ${{ env.SHARDS }}
+          SPLIT_INDEX: ${{ matrix.shard }}
+
+      # TOUJOURS : c'est la matière du rapport agrégé, y compris quand un
+      # shard échoue — surtout quand il échoue.
+      - name: Résultats du shard
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: resultats-shard-${{ matrix.shard }}
+          path: results
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # Uniquement sur échec : une vidéo verte ne sert à personne et pèse.
+      - name: Artefacts de diagnostic
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: diagnostic-shard-${{ matrix.shard }}
+          path: |
+            cypress/screenshots
+            cypress/videos
+          retention-days: 7
+          if-no-files-found: ignore
+
+  report:
+    name: Rapport agrégé
+    needs: e2e
+    # `always()` : un shard rouge est précisément le cas où le rapport sert.
+    if: always()
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    # Aucun droit d'écriture : ce job agrège et téléverse des artefacts, il ne
+    # publie pas. Les droits Pages vivent dans le job `pages`, et là seulement.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Récupérer les résultats des 4 shards
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: resultats-shard-*
+          merge-multiple: true
+          path: results
+
+      # Un rapport vide vaut mieux qu'un job rouge sans rapport : si aucun
+      # shard n'a produit de résultat, on le dit et on s'arrête proprement.
+      - name: Agréger et générer le rapport HTML
+        run: |
+          if ! ls results/mochawesome/*.json >/dev/null 2>&1; then
+            echo "Aucun résultat de shard : rien à agréger." >&2
+            exit 1
+          fi
+          echo "fichiers JSON récupérés : $(ls -1 results/mochawesome/*.json | wc -l)"
+          echo "fichiers XML JUnit    : $(ls -1 results/junit/*.xml 2>/dev/null | wc -l)"
+          yarn report:merge
+          npx marge results/rapport.json \
+            --reportDir results/rapport --reportFilename index --charts \
+            --reportTitle "RWA Quality Platform — ${GITHUB_REF_NAME} @ $(echo "$GITHUB_SHA" | cut -c1-7) (run #${GITHUB_RUN_NUMBER})"
+
+      # Le XML JUnit est publié comme artefact et non sur Pages : il est fait
+      # pour être lu par un outil, pas par un humain.
+      - name: JUnit agrégé
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: junit
+          path: results/junit
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Rapport HTML
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rapport-html
+          path: results/rapport
+          retention-days: 30
+
+  # La PUBLICATION est un job à part, et le seul à porter des droits d'écriture.
+  #
+  # Séparé de `report` pour une raison précise : « le rapport existe » et « le
+  # rapport est publié » sont deux faits différents, et les confondre rendait le
+  # job rouge alors que le rapport était bien là, téléchargeable en artefact.
+  #
+  # Il ne PEUT pas réussir tant que Pages n'est pas activé sur le dépôt, et ce
+  # réglage ne peut pas vivre ici : `actions/configure-pages` sait activer
+  # Pages, mais son option `enablement` « requires a token other than
+  # GITHUB_TOKEN » — un PAT avec le scope `repo`. Ajouter un secret pour
+  # publier un rapport contredirait ADR-003, dont l'argument central est que ce
+  # dépôt tourne sans compte ni clé.
+  #
+  # Donc le job ne tente pas puis n'échoue pas : il VÉRIFIE d'abord, et se
+  # déclare ignoré avec la marche à suivre. Un rouge permanent qu'on apprend à
+  # ignorer est pire qu'un job qui dit ce qu'il attend.
+  pages:
+    name: Publier le rapport
+    needs: report
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    # Groupe distinct de celui du workflow : deux branches peuvent publier, et
+    # une publication en cours ne doit pas être annulée en plein vol.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Pages est-il activé sur le dépôt ?
+        id: verifier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node -e '
+            const https = require("https");
+            const fs = require("fs");
+            const fin = (actif) => fs.appendFileSync(process.env.GITHUB_OUTPUT, `actif=${actif}\n`);
+            https
+              .get(
+                {
+                  hostname: "api.github.com",
+                  path: `/repos/${process.env.GITHUB_REPOSITORY}/pages`,
+                  headers: {
+                    "user-agent": "ci",
+                    accept: "application/vnd.github+json",
+                    authorization: `Bearer ${process.env.GH_TOKEN}`,
+                  },
+                },
+                (r) => {
+                  r.resume();
+                  const actif = r.statusCode === 200;
+                  fin(actif);
+                  console.log(actif
+                    ? "Pages actif : publication en cours."
+                    : `::notice title=Publication ignoree::GitHub Pages est desactive sur le depot (HTTP ${r.statusCode}). Reglage unique, une fois pour toutes : Settings > Pages > Build and deployment > Source : GitHub Actions. Le rapport HTML reste telechargeable en artefact a chaque run.`);
+                }
+              )
+              .on("error", (e) => { fin(false); console.log(`::notice::sonde Pages indisponible : ${e.message}`); });
+          '
+
+      - name: Récupérer le rapport
+        if: steps.verifier.outputs.actif == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: rapport-html
+          path: rapport
+
+      - name: Configurer Pages
+        if: steps.verifier.outputs.actif == 'true'
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Téléverser le rapport
+        if: steps.verifier.outputs.actif == 'true'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: rapport
+
+      # `continue-on-error` sur cette étape SEULE, et pas sur le job : un échec
+      # réel de déploiement reste visible dans la liste des étapes, mais ne fait
+      # pas rougir un run dont les 58 tests sont verts. Publier un rapport ne
+      # gouverne pas le signal de test.
+      - name: Publier sur GitHub Pages
+        id: deploiement
+        if: steps.verifier.outputs.actif == 'true'
+        continue-on-error: true
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # Firefox est NON BLOQUANT et hors du chemin des PR — gate §6 de
+  # docs/ARCHITECTURE.md : « 100 % vert · non bloquant · job hebdo, issue auto
+  # si rouge ». Les trois parties sont maintenant implémentées. Jusqu'ici le
+  # job n'avait JAMAIS tourné et « Chrome + Firefox » était une affirmation
+  # sans preuve — premier run réel : Firefox 144, 58 tests, 1 min 02, vert.
+  firefox:
+    name: Firefox (non bloquant)
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    # `issues: write` uniquement ici, et uniquement pour l'ouverture d'issue
+    # ci-dessous. Aucun autre job du pipeline n'écrit quoi que ce soit.
+    permissions:
+      contents: read
+      issues: write
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Construire l'application de test
+        run: yarn build:test
+
+      - name: Démarrer l'application
+        run: |
+          yarn start:ci > /tmp/app.log 2>&1 &
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              for (let i = 1; i <= 120; i++) {
+                if ((await sonde("http://localhost:3001/testData/seed/scenarios")) === 200) process.exit(0);
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              process.exit(1);
+            })();
+          ' && exit 0
+          tail -n 150 /tmp/app.log || true
+          exit 1
+
+      - name: Cypress — Firefox, suite entière
+        run: yarn cy:run --browser firefox
+
+      # « issue auto si rouge » — sans cette étape, la gate §6 n'était qu'une
+      # ligne de tableau. Un job non bloquant dont personne ne regarde le
+      # résultat ne mesure rien.
+      - name: Ouvrir une issue si Firefox est rouge
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Firefox rouge — $(date -u +%Y-%m-%d)" \
+            --label ci \
+            --body "Le job Firefox hebdomadaire a échoué.
+
+          Run : ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          Commit : ${GITHUB_SHA}
+
+          Firefox est non bloquant (gate §6) : la suite Chrome reste la
+          référence. Cette issue existe pour que l'écart entre navigateurs soit
+          traité, et non découvert six semaines plus tard."
