@@ -76,7 +76,7 @@ const TransactionCreateStepThree: React.FC<TransactionCreateStepThreeProps> = ({
           <Grid item>
             <Grid container direction="column" justifyContent="flex-start" alignItems="center">
               <Grid item>
-                <Avatar src={receiver.avatar} />
+                <Avatar src={receiver.avatar} alt={`${receiver.firstName} ${receiver.lastName}`} />
               </Grid>
               <Grid item>
                 <Typography component="h2" variant="h6" color="primary" gutterBottom>

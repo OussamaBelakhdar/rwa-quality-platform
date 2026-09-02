@@ -116,7 +116,10 @@ export const mainListItems = (
   toggleDrawer: ((event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void) | undefined,
   showTemporaryDrawer: Boolean
 ) => (
-  <div>
+  // Fragment et non <div> : `<List>` rend un <ul>, et un <ul> ne peut contenir
+  // directement qu'un <li>. Le <div> était la violation `list` relevée par axe
+  // sur les CINQ pages clés — le tiroir est partagé par tout le layout.
+  <>
     <ListItem
       button
       // @ts-ignore
@@ -169,18 +172,18 @@ export const mainListItems = (
       </ListItemIcon>
       <ListItemText primary="Notifications" />
     </ListItem>
-  </div>
+  </>
 );
 
 export const secondaryListItems = (signOutPending: Function) => (
-  <div>
+  <>
     <ListItem button onClick={() => signOutPending()} data-test="sidenav-signout">
       <ListItemIcon>
         <LogoutIcon />
       </ListItemIcon>
       <ListItemText primary="Logout" />
     </ListItem>
-  </div>
+  </>
 );
 
 interface Props {

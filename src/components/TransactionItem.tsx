@@ -98,13 +98,14 @@ const TransactionItem: React.FC<TransactionProps> = ({ transaction }) => {
                 badgeContent={
                   <SmallAvatar
                     src={transaction.receiverAvatar}
+                    alt={transaction.receiverName}
                     classes={{
                       root: classes.root,
                     }}
                   />
                 }
               >
-                <Avatar src={transaction.senderAvatar} />
+                <Avatar src={transaction.senderAvatar} alt={transaction.senderName} />
               </Badge>
             </ListItemAvatar>
           </Grid>
