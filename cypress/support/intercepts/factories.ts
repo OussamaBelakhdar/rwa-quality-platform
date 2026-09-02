@@ -27,8 +27,15 @@ const alias = (nom: string): InterceptAlias => `@${nom}`;
  * la route front du détail est `/transaction/:id` au SINGULIER, l'API est
  * `/transactions/:id`. Une convention de nommage de l'amont n'est pas une
  * garantie. Toutes les requêtes de l'application sont absolues vers
- * `http://localhost:<backendPort>` (aucun proxy Vite ; `src/setupProxy.js` est
- * un vestige CRA), donc l'ancrage est exact, pas approximatif.
+ * `http://localhost:<backendPort>` — vérifié sur l'ensemble de `src/`, aucune
+ * URL relative — donc l'ancrage est exact et non approximatif.
+ *
+ * `src/setupProxy.js` existe encore et n'est PAS mort : `scripts/testServer.ts`
+ * l'importe pour le serveur statique de CI. Il ne change rien ici, les URLs de
+ * l'application étant absolues, mais il ne faut pas le supprimer sans regarder.
+ *
+ * `apiUrl` est lui-même dérivé de `VITE_BACKEND_PORT` dans `cypress.config.ts`,
+ * pour qu'il n'existe qu'UNE valeur de port à tenir à jour.
  */
 export const api = (chemin: string): string => `${Cypress.expose("apiUrl")}${chemin}`;
 

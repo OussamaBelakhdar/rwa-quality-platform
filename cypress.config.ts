@@ -20,6 +20,18 @@ try {
   awsConfig = require(path.join(__dirname, "./aws-exports-es5.js"));
 } catch (e) {}
 
+/**
+ * Dérivé de `.env`, jamais écrit en dur.
+ *
+ * Depuis la semaine 5, TOUS les matchers d'intercept sont ancrés sur cette
+ * valeur (`cypress/support/intercepts/factories.ts`). Un `VITE_BACKEND_PORT`
+ * modifié sans mise à jour d'`apiUrl` ferait donc rater chaque intercept — en
+ * silence pour un espion sans `cy.wait`. `getBackendPort` (`src/utils/portUtils.ts`)
+ * demandait déjà de tenir les deux à jour à la main : une consigne à deux
+ * endroits est une consigne qu'on oublie.
+ */
+const apiUrl = `http://localhost:${process.env.VITE_BACKEND_PORT}`;
+
 export default defineConfig({
   retries: {
     runMode: 2,
@@ -32,11 +44,11 @@ export default defineConfig({
     defaultPassword: process.env.SEED_DEFAULT_USER_PASSWORD,
   },
   expose: {
-    apiUrl: "http://localhost:3001",
+    apiUrl,
     mobileViewportWidthBreakpoint: 414,
     coverage: false,
     codeCoverage: {
-      url: "http://localhost:3001/__coverage__",
+      url: `${apiUrl}/__coverage__`,
       exclude: "cypress/**/*.*",
     },
     paginationPageSize: process.env.PAGINATION_PAGE_SIZE,
