@@ -120,9 +120,66 @@ niveau » dont la réponse est, pour la première fois, _ne pas toucher au test_
 
 ---
 
-## Suite
+---
 
-Les sources 1 et 2 restent non exercées. Elles décrivent des comportements
-applicatifs **légitimes** — un ordre non garanti, une latence variable — que le
-test doit absorber, et elles appellent donc l'inverse du diagnostic ci-dessus.
-Les couvrir demande des specs de commentaires et de likes, qui n'existent pas.
+## Sources 1 et 2 — le diagnostic inverse
+
+Les deux autres sources décrivent des comportements applicatifs **légitimes** :
+une API qui ne promet pas d'ordre, un serveur dont la latence varie. Elles
+appellent donc l'inverse du diagnostic précédent — ici, c'est au test de
+s'adapter.
+
+Elles ne cassaient rien faute de couverture. Deux specs comblent le trou :
+`transactions/commentaires.cy.ts` et `transactions/likes.cy.ts`.
+
+### `commentaires.cy.ts` — ordre non garanti
+
+- **Classe** : donnée non ordonnée (aucune promesse de contrat)
+- **Correction** : assertion de **présence**, jamais de position.
+  `should("contain", "premier").and("contain", "second")`. Un test qui asserte
+  `.eq(0)` invente une garantie que l'API ne donne pas — c'est le test qui a
+  tort, pas le serveur.
+
+### `likes.cy.ts` — latence variable
+
+- **Classe** : race réseau
+- **Correction** : `cy.wait(alias, { timeout: 10000 })`. La borne est justifiée
+  par le comportement observé du serveur — jusqu'à 5,5 s, au-delà du
+  `defaultCommandTimeout` de 4 s. **On attend la réponse, pas une durée** :
+  `cy.wait(5500)` serait la mauvaise réponse à la même question, et le hook du
+  dépôt la refuse.
+
+### Preuve par mutation
+
+Même application, même flake injecté, seule l'écriture du test change :
+
+| Version                               | Commentaires | Likes    | Taux global |
+| ------------------------------------- | ------------ | -------- | ----------- |
+| Correcte (présence / attente d'alias) | 0 %          | 0 %      | **0,00 %**  |
+| Naïve (position / pas d'attente)      | **70 %**     | **30 %** | **100 %**   |
+
+Vingt exécutions de chaque. C'est la démonstration que la semaine cherchait :
+face à un flake identique, la même suite peut être stable ou inutilisable selon
+la façon dont elle assère.
+
+---
+
+## Ce que la semaine a aussi corrigé dans l'outillage
+
+Deux gardes du dépôt se sont révélés faux pendant l'écriture de ces specs.
+
+| Garde                | Défaut                                                                                                          | État    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- | ------- |
+| `check-selectors.js` | refusait un préfixe **présent** dans `src/` : son motif ignorait la forme MUI `inputProps={{ "data-test": … }}` | corrigé |
+| `check-spec.sh`      | bloquait un commentaire citant `cy.wait(5500)` comme contre-exemple                                             | corrigé |
+
+Le second mérite d'être noté pour ce qu'il dit de ma propre méthode : ce défaut
+avait **déjà** été corrigé en semaine 5, sur la règle « pas de `any` ». J'avais
+corrigé l'instance sans regarder si les autres règles souffraient du même mal.
+Elles en souffraient toutes.
+
+Toutes les règles lisent désormais une vue « code seul » — sauf `@ts-ignore`,
+qui est lui-même un commentaire. Et les règles de **présence** aussi, où le
+défaut s'inverse : un `cy.seed` laissé en commentaire les satisferait sans rien
+seeder, faux négatif bien plus grave qu'un faux positif. `check-hook.js` passe
+de 8 à 17 cas et garde la classe, pas une instance.
