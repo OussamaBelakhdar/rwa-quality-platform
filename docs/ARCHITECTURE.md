@@ -294,13 +294,13 @@ Le coût d'une migration Cypress → Playwright est ainsi borné à L2 + L3 — 
 
 ## Index des ADR
 
-| ADR | Décision                                                                  | Semaine |
-| --- | ------------------------------------------------------------------------- | ------- |
-| 001 | `Cypress.expose()` comme frontière config/secret, et conventions de specs | 0       |
-| 002 | Typer et durcir les App Actions héritées de l'upstream                    | 3       |
-| 003 | Parallélisation par `cypress-split` sans Cloud                            | 6       |
-| 004 | Grille de décision composant / API / E2E                                  | 8       |
-| 005 | Coexistence et critères de migration Playwright                           | 10      |
-| 006 | Exposition des services XState aux tests (`VITE_TEST_HOOKS`)              | 3       |
-| 007 | Endpoints d'écriture dans le backend pour le seeding des tests            | 4       |
-| 008 | Factories d'intercept nommées par intention, pas paramétrées              | 5       |
+| ADR | Décision                                                                                   | Semaine |
+| --- | ------------------------------------------------------------------------------------------ | ------- |
+| 001 | `Cypress.expose()` comme frontière config/secret, et conventions de specs                  | 0       |
+| 002 | Typer et durcir les App Actions héritées de l'upstream                                     | 3       |
+| 003 | Paralléliser par `cypress-split` sans Cloud, et retirer les workflows hérités qui échouent | 6       |
+| 004 | Grille de décision composant / API / E2E                                                   | 8       |
+| 005 | Coexistence et critères de migration Playwright                                            | 10      |
+| 006 | Exposition des services XState aux tests (`VITE_TEST_HOOKS`)                               | 3       |
+| 007 | Endpoints d'écriture dans le backend pour le seeding des tests                             | 4       |
+| 008 | Factories d'intercept nommées par intention, pas paramétrées                               | 5       |
