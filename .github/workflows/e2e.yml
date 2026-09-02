@@ -81,8 +81,13 @@ jobs:
       # (ADR-007) — elle vérifie donc la bonne API, pas juste un port ouvert.
       - name: Démarrer l'application
         run: |
-          yarn dev:test &
-          for i in $(seq 1 90); do
+          echo "node $(node -v) · yarn $(yarn -v)"
+          command -v curl >/dev/null || { echo "curl absent de l'image" >&2; exit 1; }
+
+          yarn dev:test > /tmp/app.log 2>&1 &
+          echo "pid=$!"
+
+          for i in $(seq 1 120); do
             front=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 || true)
             api=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/testData/seed/scenarios || true)
             if [ "$front" = "200" ] && [ "$api" = "200" ]; then
@@ -91,7 +96,13 @@ jobs:
             fi
             sleep 1
           done
-          echo "L'application n'a pas démarré : front=$front api=$api" >&2
+
+          # Une étape de démarrage qui échoue sans montrer le journal du
+          # serveur ne dit rien : on repart deviner. Le journal est donc
+          # imprimé ici, et lui seul explique l'échec.
+          echo "=== L'application n'a pas démarré : front=$front api=$api ==="
+          echo "=== journal de yarn dev:test ==="
+          tail -n 150 /tmp/app.log || echo "(journal vide)"
           exit 1
 
       - name: Cypress — shard ${{ matrix.shard }}
@@ -132,12 +143,13 @@ jobs:
 
       - name: Démarrer l'application
         run: |
-          yarn dev:test &
-          for i in $(seq 1 90); do
+          yarn dev:test > /tmp/app.log 2>&1 &
+          for i in $(seq 1 120); do
             api=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/testData/seed/scenarios || true)
             [ "$api" = "200" ] && exit 0
             sleep 1
           done
+          tail -n 150 /tmp/app.log || true
           exit 1
 
       - name: Cypress — Firefox, suite entière
