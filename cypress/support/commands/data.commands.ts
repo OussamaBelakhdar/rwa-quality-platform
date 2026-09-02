@@ -1,6 +1,6 @@
 import type { NouvelleTransaction } from "@plugins/db.task";
 import { motDePasseParDefaut } from "@support/commands/env.commands";
-import type { UtilisateurSansMotDePasse } from "../../fixtures/builders/user.builder";
+import type { UtilisateurSansMotDePasse } from "@fixtures/builders/user.builder";
 import type { SeedScenario } from "@support/types";
 
 /**

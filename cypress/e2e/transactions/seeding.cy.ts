@@ -1,4 +1,4 @@
-import { userBuilder } from "../../fixtures/builders/user.builder";
+import { userBuilder } from "@fixtures/builders/user.builder";
 
 // Niveau E2E : la création de données par la couche L1 se vérifie en
 // constatant qu'elle apparaît dans l'interface. Un test de contrat prouverait

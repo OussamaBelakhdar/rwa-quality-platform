@@ -96,6 +96,9 @@ const BankAccountsContainer: React.FC<Props> = ({ authService, bankAccountsServi
       <BankAccountList
         bankAccounts={bankAccountsState?.context.results!}
         deleteBankAccount={deleteBankAccount}
+        hasError={bankAccountsState.matches("failure")}
+        errorMessage={bankAccountsState.context?.message}
+        onRetry={() => sendBankAccounts("FETCH")}
       />
     </StyledPaper>
   );

@@ -125,6 +125,86 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
 | `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
 
+## Semaine 5 — réseau (2026-09-01)
+
+| Métrique                      | Valeur                                      | Note                                                                                                                                                                                                                                                       |
+| ----------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Specs E2E                     | 19 fichiers (13 → 19)                       | `cypress/e2e/network/` : 6 fichiers                                                                                                                                                                                                                        |
+| Tests                         | **58** (40 → 58)                            | 18 tests réseau, sur 6 fichiers                                                                                                                                                                                                                            |
+| Suite complète                | vert, **34 s** (2 mesures identiques)       | 58/58. Les 48-50 s relevés plus tôt l'étaient avec des tâches de fond concurrentes — cf. « mesures écartées »                                                                                                                                              |
+| `cypress/e2e/network/` seul   | **14 s**, 18/18                             | 3 exécutions consécutives vertes                                                                                                                                                                                                                           |
+| `yarn cy:random`              | vert, **10 ordres sur 10**                  | preuve d'isolation (P1) maintenue. Deux mesures écartées : voir ci-dessous                                                                                                                                                                                 |
+| `yarn cy:burn` sur `network/` | **10 × 18 = 180 exécutions, 0,00 %**        | retries forcés à zéro ; seuil §6 : 2 %                                                                                                                                                                                                                     |
+| Factories d'intercept         | **13 exports, 4 corps** de fonction         | ADR-008 vérifié sur 3 domaines : les exports sont des noms, la logique de chaque famille vit dans `factories.ts` et n'existe qu'en un exemplaire                                                                                                           |
+| Alias TypeScript              | +1 (`@fixtures/*`)                          | supprime les derniers imports relatifs vers `cypress/fixtures/` (6 sites, dont 2 en dette depuis la semaine 4)                                                                                                                                             |
+| Sélecteurs `data-test`        | 75 → **79**                                 | 4 clés ajoutées : 3 pour l'écran d'erreur, partagées par les 4 surfaces, et l'indicateur de chargement du détail. `check:selectors` et `check:autocompletion` verts                                                                                        |
+| Correctifs dans `src/`        | **7 défauts, 12 fichiers**                  | écran d'erreur partagé (`ErrorState` + 4 surfaces `dataMachine`), message d'erreur perdu (`dataMachine`), chargement invisible du détail, double signe et montant nul (`TransactionAmount`). Chacun verrouillé par un test de régression mutation-testé    |
+| `expose.apiUrl`               | dérivé de `VITE_BACKEND_PORT`               | il était écrit en dur pendant que l'application lisait `.env`. Sans conséquence tant que les matchers étaient relatifs ; depuis qu'ils sont tous ancrés dessus, un port divergent ferait rater chaque intercept — en silence pour un espion sans `cy.wait` |
+| Nouvelles gates               | `yarn check:hook` · `yarn check:references` | le hook n'avait aucune couverture, et rien ne détectait qu'une citation `fichier.ts:ligne` de la doc avait pourri — quatre l'avaient fait, décalées par mes propres correctifs. Les deux scripts sont mutation-testés                                      |
+
+### Ce que le stub réseau a trouvé, que le backend ne pouvait pas produire
+
+C'est le rendement de la semaine : onze comportements que la suite ne pouvait
+pas atteindre avant. **Neuf sont corrigés ici** — sept dans l'application, deux
+dans l'outillage de test. Les deux restants, un risque et une contrainte de
+conception, sont documentés sans être traités, et le plan dit pourquoi.
+
+| Constat                                                              | Preuve                                                                                                                                                                                                                        | Statut                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Un **500 se rendait comme une liste vide** — pas de message d'erreur | `dataMachine` entrait bien en `failure`, mais aucun composant ne le lisait : le rendu retombait sur `showEmptyList` (`TransactionList.tsx`)                                                                                   | **corrigé dans l'application** — composant `ErrorState` partagé (message + reprise) ; `showEmptyList` exclut désormais `hasError`                                                                                                 |
+| Une **coupure réseau** produisait le même écran qu'un 500            | même état `failure`, même `empty-list-header`                                                                                                                                                                                 | **corrigé** par le même changement — les deux causes affichent maintenant leur propre message (« Request failed with status code 500 » / « Network Error »)                                                                       |
+| Le **message d'erreur était toujours vide**                          | `setMessage` lisait `event.message` alors que XState v4 range l'erreur d'un `invoke` dans `event.data`. La machine « capturait » une erreur sans contenu                                                                      | **corrigé dans `dataMachine.ts`** — défaut trouvé en voulant AFFICHER le message, pas en le cherchant                                                                                                                             |
+| Le **même défaut sur trois autres surfaces**                         | notifications et comptes bancaires retombaient sur « No Notifications » / « No Bank Accounts » ; le détail d'une transaction ne rendait **rien du tout** — page blanche                                                       | **corrigé** — `ErrorState` câblé sur les quatre surfaces `dataMachine`, 3 tests dédiés                                                                                                                                            |
+| Le détail d'une transaction restait **blanc pendant le chargement**  | le conteneur n'affichait « Loading... » que sur `idle`, état quitté dès le `FETCH` ; l'état `loading` n'était rendu nulle part                                                                                                | **corrigé** — une ligne, trouvée en câblant l'écran d'erreur au même endroit                                                                                                                                                      |
+| Un **montant négatif** se rendait `--$5.00`                          | `TransactionAmount.tsx` préfixait `-` pour tout paiement et `formatAmount` en produisait un second. `backend/validators.ts:87` ne valide `amount` qu'avec `isNumeric()` : rien n'interdit un négatif côté API                 | **corrigé dans l'application** — signe = SENS, montant en valeur absolue. Verrouillé par test de régression, mutation-testé                                                                                                       |
+| Un **montant nul** se rendait `-0`                                   | `{transaction.amount && formatAmount(...)}` rendait le nombre `0`, que React affiche tel quel. La garde ne protégeait rien : `amount` est requis par le modèle                                                                | **corrigé dans l'application** — même correctif d'une ligne, test de régression dédié                                                                                                                                             |
+| Un **`FETCH` envoyé pendant `loading` est perdu en silence**         | l'état `loading` de `dataMachine` ne déclare aucune transition sur `FETCH` ; la requête de page 2 ne partait jamais                                                                                                           | contrainte de conception, documentée dans la spec et dans `PLAN.md`                                                                                                                                                               |
+| L'application **n'a aucun timeout applicatif**                       | `asyncUtils.ts:3` crée axios sans `timeout` ; axios 1.20.0 vaut `timeout: 0` par défaut (« a timeout is not created »). L'E2E qui le prouvait par le succès a été **retiré** : 9 s pour une propriété statique, refusé par P3 | risque amont, constaté. Un backend lent laisse la liste en `loading` sans fin                                                                                                                                                     |
+| `cy.appState` rendait un **objet sous un type `string`**             | `dataMachine.success` a trois sous-états (l'état `success` de `dataMachine`) ; le type L2 affirmait que « toutes les machines ont des états plats »                                                                           | **défaut du code de test, corrigé et verrouillé** — type `EtatDonnees` dérivé de `DataSchema`, contrat mutation-testé dans `typage.contract.ts`                                                                                   |
+| `check-spec.sh` bloquait sa **propre documentation**                 | la règle « pas de `any` » grepait le fichier entier : un commentaire citant `task(event: string, arg?: any)` la déclenchait. Préexistant sur `main`                                                                           | **corrigé et outillé** — règle rendue sensible aux commentaires, et `yarn check:hook` rejoue les 8 cas à chaque `yarn lint`. Le script est lui-même mutation-testé : remettre le grep naïf le fait échouer sur les 3 cas de prose |
+
+Les neuf premiers ne sont atteignables que par intercept : le backend réel ne
+renvoie ni 500 ni montant négatif, ne se coupe pas, et répond trop vite pour
+qu'un timeout se pose.
+
+Les deux derniers ne viennent pas d'un intercept mais du fait d'en écrire un, et
+ce sont les plus instructifs — **l'outillage de test a produit deux faux
+témoignages** : un type qui affirmait une propriété du domaine qui était fausse,
+et un garde-fou qui refusait sa propre documentation. Les deux disaient « tout
+va bien » à leur manière. C'est le motif de la semaine 4, une couche plus bas.
+
+### Deux mesures d'isolation écartées, et pourquoi elles sont écrites ici
+
+Deux exécutions de `cy:random` ont échoué pendant la clôture — 2 tests de
+`e2e/onboarding/premier-acces.cy.ts` (semaine 4), sur un `POST /login` en 401.
+Ni l'une ni l'autre n'est retenue comme mesure, et la raison est vérifiable :
+
+| Fait                                                                   | Mesure                                                                   |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Les deux échecs ont eu lieu pendant qu'un **autre run Cypress** vivait | 5 processus `cypress` concurrents constatés au moment du second          |
+| Durée de la première : **37 min 19 s** pour une suite de 48 s          | **46× le nominal** — le budget de 4 s des assertions n'a plus aucun sens |
+| Rejeu de la graine exacte, machine libre (`CY_RANDOM_SEED=1566325581`) | **52/52** — donc ni dépendance d'ordre, ni couplage entre specs          |
+| `cy:burn` sur la spec incriminée, isolée                               | **40 exécutions, 0 échec**                                               |
+| `cy:random`, machine libre                                             | **6 ordres, 6 verts**, 48 s chacun                                       |
+
+Écrit ici plutôt que supprimé pour deux raisons. La première : un vert obtenu
+après avoir jeté un rouge doit dire ce qu'il a jeté, sinon c'est le vert qui
+ment. La seconde : la conclusion « c'est un flake » a été formulée AVANT d'être
+mesurée, et elle était fausse — le coupable est le banc de mesure, pas la spec.
+C'est le même piège que la semaine 4, à l'envers.
+
+**Ce que ça laisse ouvert** : ces tests tiennent un aller-retour `POST /login`
+dans le budget de 4 s par défaut. Sous une charge 46× supérieure, ils cèdent.
+Le sharding de la semaine 6 mettra plusieurs runs en parallèle sur une même
+machine — c'est exactement cette condition. À revérifier là, pas à supposer.
+
+### Deux pièges d'API relevés en écrivant
+
+| Piège                                                       | Ce qui se passe réellement                                                                                                                          |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cy.intercept(url, { delay })` pour « retarder la réponse » | construit un `StaticResponse` : c'est un **stub vide** servi en retard. Retarder la vraie réponse demande `req.continue((res) => res.setDelay(ms))` |
+| Deux alias sur le même endpoint pour séquencer deux pages   | Cypress résout du **dernier** intercept déclaré au premier. L'ordre inverse fait résoudre les deux requêtes sur le même alias                       |
+
 ## Semaine 4 — isolation intra-spec : deux approches mesurées, une retenue
 
 P1 parle de « chaque test », or `cy:random` ne mélangeait que les **fichiers**.

@@ -60,6 +60,9 @@ const NotificationsContainer: React.FC<Props> = ({ authService, notificationsSer
       <NotificationList
         notifications={notificationsState?.context?.results!}
         updateNotification={updateNotification}
+        hasError={notificationsState.matches("failure")}
+        errorMessage={notificationsState.context?.message}
+        onRetry={() => sendNotifications({ type: "FETCH" })}
       />
     </StyledPaper>
   );

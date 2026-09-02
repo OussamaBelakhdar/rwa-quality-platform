@@ -52,6 +52,9 @@ const TransactionContactsList: React.FC<TransactionContactListProps> = ({
         loadNextPage={loadNextPage}
         pagination={pageData as TransactionPagination}
         showCreateButton
+        hasError={current.matches("failure")}
+        errorMessage={current.context.message}
+        onRetry={() => send("FETCH", { ...dateRangeFilters, ...amountRangeFilters })}
       />
     </>
   );

@@ -5,6 +5,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { isEmpty } from "lodash/fp";
 
 import SkeletonList from "./SkeletonList";
+import ErrorState from "./ErrorState";
 import { TransactionResponseItem, TransactionPagination } from "../models";
 import EmptyList from "./EmptyList";
 import TransactionInfiniteList from "./TransactionInfiniteList";
@@ -30,6 +31,12 @@ export interface TransactionListProps {
   loadNextPage: Function;
   pagination: TransactionPagination;
   filterComponent: ReactNode;
+  /** La machine est en `failure` : la requête n'a pas abouti. */
+  hasError?: Boolean;
+  /** Message porté par la machine, affiché tel quel. */
+  errorMessage?: string;
+  /** Relance la requête. Sans elle, l'écran d'erreur est une impasse. */
+  onRetry?: () => void;
 }
 
 const TransactionList: React.FC<TransactionListProps> = ({
@@ -40,8 +47,15 @@ const TransactionList: React.FC<TransactionListProps> = ({
   loadNextPage,
   pagination,
   filterComponent,
+  hasError,
+  errorMessage,
+  onRetry,
 }) => {
-  const showEmptyList = !isLoading && transactions?.length === 0;
+  // `!hasError` est la correction de fond : sans lui, une requête en échec
+  // retombait sur la liste vide, et un 500 devenait indiscernable d'un compte
+  // sans transaction. Trois causes, un seul écran — l'utilisateur ne pouvait
+  // pas savoir s'il n'avait rien ou si le service était tombé.
+  const showEmptyList = !isLoading && !hasError && transactions?.length === 0;
   const showSkeleton = isLoading && isEmpty(pagination);
 
   return (
@@ -49,6 +63,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
       {filterComponent}
       <ListSubheader component="div">{header}</ListSubheader>
       {showSkeleton && <SkeletonList />}
+      {hasError && <ErrorState entity="transactions" message={errorMessage} onRetry={onRetry} />}
       {transactions.length > 0 && (
         <TransactionInfiniteList
           transactions={transactions}
