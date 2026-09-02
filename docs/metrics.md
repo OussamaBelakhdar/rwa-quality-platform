@@ -127,17 +127,20 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 
 ## Semaine 6 — CI/CD (2026-09-02)
 
-| Métrique                    | Valeur                             | Note                                                                                                 |
-| --------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Pipeline                    | `.github/workflows/e2e.yml`        | 5 jobs : `qualite`, `e2e` (4 shards), `report`, `pages`, `firefox`                                   |
-| Dépendance à Cypress Cloud  | **aucune**                         | pas de `record`, pas de clé, pas de service tiers (P6, ADR-003)                                      |
-| Actions épinglées           | **13 sur 13, par SHA complet**     | SHA résolus par `git ls-remote`, donc par un autre protocole que l'API REST                          |
-| Droits `pages: write`       | **1 job sur 5**                    | le job `pages` seul ; les 4 shards tournent en `contents: read`                                      |
-| Shards en CI                | **157 à 215 s**                    | écart 1,04× à 1,23× sur trois runs — contre 2,06× en local : le coût fixe écrase le déséquilibre     |
-| Workflows hérités supprimés | 3                                  | 78 échecs et 0 succès sur 100 runs. `merge-develop-into-flake-demo` et `.circleci/` gardés : inertes |
-| Artefacts produits par run  | **6**                              | `rapport-html` (374 Ko), `junit` (10 Ko), et les résultats bruts des 4 shards                        |
-| Conclusion du run           | **success**, tous jobs verts       | `qualite`, 4 shards, `report` et `pages` — plus aucun rouge permanent                                |
-| **Firefox**                 | **58/58 en 1 min 02**, Firefox 144 | job non bloquant, hebdomadaire (lundi 6 h UTC), avec ouverture d'issue automatique si rouge          |
+| Métrique                     | Valeur                               | Note                                                                                                                                                  |
+| ---------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pipeline                     | `.github/workflows/e2e.yml`          | 5 jobs : `qualite`, `e2e` (4 shards), `report`, `pages`, `firefox`                                                                                    |
+| Dépendance à Cypress Cloud   | **aucune**                           | pas de `record`, pas de clé, pas de service tiers (P6, ADR-003)                                                                                       |
+| Actions épinglées            | **13 sur 13, par SHA complet**       | SHA résolus par `git ls-remote`, donc par un autre protocole que l'API REST                                                                           |
+| Droits `pages: write`        | **1 job sur 5**                      | le job `pages` seul ; les 4 shards tournent en `contents: read`                                                                                       |
+| Shards en CI                 | **157 à 215 s**                      | écart 1,04× à 1,23× sur trois runs — contre 2,06× en local : le coût fixe écrase le déséquilibre                                                      |
+| Workflows hérités supprimés  | 3                                    | 78 échecs et 0 succès sur 100 runs. `merge-develop-into-flake-demo` et `.circleci/` gardés : inertes                                                  |
+| Artefacts produits par run   | **6**                                | `rapport-html` (374 Ko), `junit` (10 Ko), et les résultats bruts des 4 shards                                                                         |
+| Conclusion du run            | **success**, tous jobs verts         | `qualite`, 4 shards, `report` et `pages` — plus aucun rouge permanent                                                                                 |
+| **Firefox**                  | **58/58 en 1 min 02**, Firefox 144   | job non bloquant, hebdomadaire (lundi 6 h UTC), avec ouverture d'issue automatique si rouge                                                           |
+| `retries`                    | `runMode: 2`, `openMode: 0`          | les DEUX écrits, y compris celui qui vaut zéro par défaut : une valeur implicite n'est pas une décision. Justification en tête de `cypress.config.ts` |
+| `yarn cy:burn` suite entière | **10 × 58 = 580 exécutions, 0,00 %** | à la clôture, retries forcés à zéro                                                                                                                   |
+| `patch-package` en CI        | ✔ vérifié dans le log               | `react-virtualized@9.22.5 ✔` — pas de `--ignore-scripts`, comme le plan l'exige                                                                      |
 
 ### Où passe le temps en CI — décomposition mesurée d'un shard
 
@@ -180,6 +183,28 @@ Deux honnêtetés à poser sur ce tableau :
    la suite (33 s) alors que la CI la met à ~90 s, soit **2,7× plus lent**. La
    leçon n'est pas que l'ADR se trompait sur le fond ; c'est qu'un chiffre local
    ne se transpose pas en CI, et que je l'avais transposé.
+
+### Les retries, et ce qu'ils ne font pas
+
+Le critère du plan disait « `retries: { runMode: 2, openMode: 0 }` et
+justification écrite ». La config ne portait que `runMode` — `openMode` valait
+zéro par défaut, donc le comportement était juste, mais **une valeur implicite
+n'est pas une décision** : le lecteur devait consulter la doc de Cypress pour
+savoir ce que fait le dépôt. Les deux sont maintenant écrits, et la
+justification vit là où la valeur vit, en tête de `cypress.config.ts` :
+
+- **Pourquoi en CI** — une suite E2E partage sa machine avec quatre shards, un
+  serveur applicatif et un backend. Mesuré en semaine 5 : sous charge
+  concurrente, la même graine est passée de 33 s à 37 minutes et deux tests ont
+  cédé sur un budget de 4 s. Sans retry, ce bruit d'infrastructure deviendrait
+  un rouge indiscernable d'une régression.
+- **Pourquoi pas en local** — un test qu'on écrit doit échouer tout de suite et
+  une seule fois. Un retry pendant le développement transforme un bug
+  déterministe en énigme intermittente.
+- **Ce que ça ne fait pas** — un retry n'est pas un correctif. La règle #10
+  traite tout test ayant nécessité un retry en CI comme flaky. `yarn cy:burn`
+  mesure le taux réel en **forçant les retries à zéro** : il mesure le test, pas
+  le filet.
 
 ### Firefox : une case cochée sans preuve, jusqu'au premier run
 
