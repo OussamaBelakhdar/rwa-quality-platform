@@ -153,6 +153,25 @@ avec les commandes pour reproduire chaque chiffre.
 | `check-spec.sh` bloquait un commentaire citant `cy.wait(5500)`         | corrigé **par classe** : j'avais réparé l'instance en semaine 5, pas la classe |
 | La gate §6 sur la quarantaine n'était **pas exécutable**               | `yarn check:quarantine`, mutation-testé sur 5 cas                              |
 
+### Un point du plan non livré, et pourquoi
+
+« Activer Test Replay sur le free tier Cypress Cloud pour un run de
+démonstration » figurait au plan de la semaine 7. **Il n'est pas livré.**
+
+La ligne a été écrite en semaine 0 ; ADR-003 a été accepté en semaine 6, après
+mesure, et son argument central est que ce dépôt tourne **sans compte ni clé**.
+Il a écarté Cypress Cloud, Currents et sorry-cypress pour cette seule raison.
+Ouvrir un compte six jours plus tard pour une capture d'écran affaiblirait
+l'ADR sans rien prouver de plus : **un plan écrit avant une décision ne
+l'emporte pas sur elle.**
+
+Ce que Test Replay apporte — le post-mortem d'un échec CI — est couvert
+autrement, sans compte : artefacts sur échec seulement, rapport HTML agrégé
+publié à chaque run, annotations `::error::` lisibles sans authentification, et
+`cy:burn` qui mesure le flake en forçant les retries à zéro, ce que Test Replay
+ne fait pas. La couverture n'est pas identique, et ce paragraphe existe pour ne
+pas prétendre le contraire.
+
 ### La grille de diagnostic avait un trou
 
 Les six classes du skill `flake-diagnosis` — race réseau, détachement DOM, sujet
