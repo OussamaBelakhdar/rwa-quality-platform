@@ -125,6 +125,79 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
 | `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
 
+## Semaine 6 — CI/CD (2026-09-02)
+
+| Métrique                    | Valeur                         | Note                                                                                                 |
+| --------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Pipeline                    | `.github/workflows/e2e.yml`    | 5 jobs : `qualite`, `e2e` (4 shards), `report`, `pages`, `firefox`                                   |
+| Dépendance à Cypress Cloud  | **aucune**                     | pas de `record`, pas de clé, pas de service tiers (P6, ADR-003)                                      |
+| Actions épinglées           | **13 sur 13, par SHA complet** | SHA résolus par `git ls-remote`, donc par un autre protocole que l'API REST                          |
+| Droits `pages: write`       | **1 job sur 5**                | le job `pages` seul ; les 4 shards tournent en `contents: read`                                      |
+| Shards en CI                | **156 / 159 / 161 / 163 s**    | écart **1,04×** — contre 2,06× en local, le coût fixe écrase le déséquilibre                         |
+| Workflows hérités supprimés | 3                              | 78 échecs et 0 succès sur 100 runs. `merge-develop-into-flake-demo` et `.circleci/` gardés : inertes |
+
+### Où passe le temps en CI — décomposition mesurée d'un shard
+
+C'est le chiffre que le plan demandait, et il ne dit pas ce que j'espérais.
+
+| Étape                           | Durée     |
+| ------------------------------- | --------- |
+| Initialisation du conteneur     | 24 s      |
+| Checkout                        | 1 s       |
+| **`yarn install`**              | **73 s**  |
+| `yarn build:test`               | 16 s      |
+| Démarrage de l'application      | 11 s      |
+| **Cypress (un quart de suite)** | **23 s**  |
+| Artefacts                       | 1 s       |
+| **Total**                       | **151 s** |
+
+**Coût fixe par runner : 128 s** — soit tout sauf les 23 s de Cypress. La
+valeur estimée dans ADR-003 avant écriture du workflow était de 127 s, tirée
+des runs échoués de l'amont : elle est confirmée à 1 s près, par une mesure
+indépendante.
+
+### Séquentiel contre 4 shards
+
+| Configuration                       | Temps d'horloge | Temps machine |
+| ----------------------------------- | --------------- | ------------- |
+| 1 runner, suite entière _(calculé)_ | ~218 s          | ~218 s        |
+| 4 runners shardés _(observé)_       | **163 s**       | **~604 s**    |
+
+**Gain : ~55 s d'horloge, pour ~390 s de temps machine supplémentaire.**
+
+Deux honnêtetés à poser sur ce tableau :
+
+1. La ligne « 1 runner » est **calculée** à partir de parties mesurées
+   (128 s de coût fixe + 4 × 23 s de Cypress), pas observée en un seul run. Pour
+   l'observer il faudrait un run non shardé, que `workflow_dispatch` permet mais
+   qui demande une authentification dont je ne dispose pas ici.
+2. **ADR-003 avait annoncé ~11 s de gain, la mesure en donne ~55.** La direction
+   était juste — le gain est marginal au regard du temps machine — mais la
+   magnitude était fausse, parce que la prédiction utilisait la durée LOCALE de
+   la suite (33 s) alors que la CI la met à ~90 s, soit **2,7× plus lent**. La
+   leçon n'est pas que l'ADR se trompait sur le fond ; c'est qu'un chiffre local
+   ne se transpose pas en CI, et que je l'avais transposé.
+
+### Ce que la CI a trouvé, et que rien d'autre ne pouvait trouver
+
+Trois défauts, tous invisibles en local, tous du même genre : **supposer présent
+ce qui n'a jamais été déclaré.**
+
+| Défaut                                               | Effet                                                                                     |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `check-spec.sh` extrayait son argument avec **`jq`** | Absent de l'image : le hook sortait en 0, il **échouait ouvert**, en silence              |
+| Ma sonde de démarrage utilisait **`curl`**           | Absent aussi : la boucle tournait 90 fois sur des valeurs vides sans rien dire            |
+| La CI lançait **`yarn dev:test`**                    | Pré-bundling Vite à froid + backend sous `nodemon`+`nyc`+`ts-node` : jamais prêt en 120 s |
+
+Les deux premiers ont la même forme que les défauts de la semaine 5 : un
+garde-fou qui se désactive au lieu de bloquer. Le troisième est un choix : la CI
+teste désormais l'**artefact construit** (`build:test` 16 s + `start:ci` 11 s),
+pas un serveur de développement — ce qui est à la fois plus rapide et plus juste.
+
+Et c'est `yarn check:hook`, ajouté à la clôture de la semaine 5 « parce qu'une
+règle vérifiée une fois n'est pas une garantie », qui a attrapé le premier — à
+sa toute première exécution en CI.
+
 ## Semaine 5 — réseau (2026-09-01)
 
 | Métrique                      | Valeur                                      | Note                                                                                                                                                                                                                                                       |
