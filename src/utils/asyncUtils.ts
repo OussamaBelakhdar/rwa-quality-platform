@@ -1,4 +1,5 @@
 import axios from "axios";
+import { AUTH_TOKEN_NAME } from "./authTokenName";
 
 const httpClient = axios.create({
   withCredentials: true,
@@ -12,7 +13,7 @@ httpClient.interceptors.request.use((config) => {
     process.env.VITE_AWS_COGNITO ||
     process.env.VITE_GOOGLE
   ) {
-    const accessToken = localStorage.getItem(process.env.VITE_AUTH_TOKEN_NAME!);
+    const accessToken = localStorage.getItem(AUTH_TOKEN_NAME);
     // @ts-ignore
     config.headers["Authorization"] = `Bearer ${accessToken}`;
   }

@@ -15,7 +15,7 @@ L'architecture (§4, couche L2) annonçait un accès à l'état applicatif par `
 
 | Fichier                                                                      | Service                      | Garde            | Durée de vie                                                                     |
 | ---------------------------------------------------------------------------- | ---------------------------- | ---------------- | -------------------------------------------------------------------------------- |
-| `src/containers/App.tsx:29`                                                  | `authService`                | `window.Cypress` | **singleton de module** (`interpret(authMachine).start()`, `authMachine.ts:275`) |
+| `src/containers/App.tsx:29`                                                  | `authService`                | `window.Cypress` | **singleton de module** (`interpret(authMachine).start()`, `authMachine.ts:276`) |
 | `AppAuth0.tsx:28`, `AppOkta.tsx:30`, `AppCognito.tsx:32`, `AppGoogle.tsx:15` | `authService`                | `window.Cypress` | idem                                                                             |
 | `TransactionPublicList.tsx:27`                                               | `publicTransactionService`   | `window.Cypress` | par montage (`useMachine`)                                                       |
 | `TransactionContactsList.tsx:27`                                             | `contactTransactionService`  | `window.Cypress` | par montage                                                                      |

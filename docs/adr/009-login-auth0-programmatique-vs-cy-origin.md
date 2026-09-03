@@ -113,14 +113,26 @@ Vérifié contre la documentation Cypress, qui décrit ce même flux pour cette 
 application. Ces prérequis ne sont pas des détails d'installation : deux d'entre
 eux changent ce que l'ADR peut promettre.
 
-| Réglage                                                    | Où                                            | Pourquoi                                                                                                                                                                                                      |
-| ---------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Type d'application **SPA**                                 | Applications                                  | Auth0 _déconseille_ le grant `password` aux clients publics, mais le tableau de bord permet de l'activer et Cypress documente ce cas pour les tests. La crainte inverse — « un SPA ne peut pas » — est fausse |
-| Grant type **Password**                                    | Application → Advanced Settings → Grant Types | sans lui, `/oauth/token` répond `unauthorized_client`                                                                                                                                                         |
-| **Default Directory** = `Username-Password-Authentication` | Tenant Settings → API Authorization Settings  | sans lui, le grant `password` échoue même une fois activé, avec une erreur qui ne nomme pas la cause                                                                                                          |
-| Une **API** dont l'Identifier devient l'`audience`         | Applications → APIs                           | sans audience d'API, Auth0 rend un jeton **opaque** et non un JWT : `checkAuth0Jwt` le rejette (RS256 + JWKS + audience)                                                                                      |
-| **Client Secret** de l'application                         | Application → Settings                        | `/oauth/token` en grant `password` l'exige. C'est le prérequis le plus lourd de conséquence : voir ci-dessous                                                                                                 |
-| `VITE_AUTH_TOKEN_NAME` décommenté                          | `.env`                                        | `asyncUtils.ts:15` lit `localStorage[VITE_AUTH_TOKEN_NAME]` pour poser l'en-tête `Bearer`. Commenté, la clé vaut la chaîne `"undefined"` — symétrique, donc silencieux, mais faux                             |
+| Réglage                                            | Où                                            | Pourquoi                                                                                                                                                                                                        |
+| -------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type d'application **SPA**                         | Applications                                  | Auth0 _déconseille_ le grant `password` aux clients publics, mais le tableau de bord permet de l'activer et Cypress documente ce cas pour les tests. La crainte inverse — « un SPA ne peut pas » — est fausse   |
+| Grant type **Password**                            | Application → Advanced Settings → Grant Types | il autorise aussi le grant d'extension `password-realm` retenu ici ; sans lui, `/oauth/token` répond `unauthorized_client`                                                                                      |
+| ~~**Default Directory**~~                          | ~~Tenant Settings~~                           | **Plus nécessaire** — voir ci-dessous. C'était le prérequis le plus intrusif : un réglage global qui change aussi l'Universal Login                                                                             |
+| Une **API** dont l'Identifier devient l'`audience` | Applications → APIs                           | sans audience d'API, Auth0 rend un jeton **opaque** et non un JWT : `checkAuth0Jwt` le rejette (RS256 + JWKS + audience)                                                                                        |
+| **Client Secret** de l'application                 | Application → Settings                        | `/oauth/token` en grant `password` l'exige. C'est le prérequis le plus lourd de conséquence : voir ci-dessous                                                                                                   |
+| ~~`VITE_AUTH_TOKEN_NAME` décommenté~~              | ~~`.env`~~                                    | **Plus nécessaire** — le nom de clé a un défaut (`src/utils/authTokenName.ts`). Non définie, la variable faisait ranger le jeton sous la chaîne littérale `"undefined"` : symétrique donc silencieux, mais faux |
+
+**Le realm est passé en paramètre, pas réglé sur le tenant.** Auth0 offre un
+grant d'extension, `http://auth0.com/oauth/grant_type/password-realm`, qui prend
+le nom de la connexion en paramètre `realm`. Il est retenu ici à la place du
+grant `password` nu, pour une raison qui n'est pas cosmétique : le grant nu
+exige un **Default Directory** au niveau du tenant, réglage global qui change
+aussi le comportement de l'Universal Login. Faire dépendre une suite de tests
+d'un réglage à cette portée, c'est demander de modifier la production pour que
+les tests passent.
+
+Le realm vaut `Username-Password-Authentication` par défaut et vit dans
+`expose` (`auth0_realm`) : c'est un nom de connexion, pas un secret.
 
 **Le client secret est un vrai secret, et il tombe du bon côté d'ADR-001.** Il va
 dans `env` (`cypress.env.json`, non commité), **jamais** dans `expose` : les
