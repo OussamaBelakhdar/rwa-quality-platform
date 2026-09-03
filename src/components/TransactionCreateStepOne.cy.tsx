@@ -1,7 +1,7 @@
 import TransactionCreateStepOne from "./TransactionCreateStepOne";
-import { DefaultPrivacyLevel, User } from "../models";
+import { userResponseBuilder } from "@fixtures/builders/user.builder";
 
-// Niveau COMPOSANT (ADR-004, ligne 3) : props → rendu, sans réseau ni machine.
+// Niveau COMPOSANT (ADR-004, ligne 12) : props → rendu, sans réseau ni machine.
 //
 // Ce composant n'a qu'un travail : composer la recherche et la liste, et faire
 // remonter le destinataire choisi. Un E2E prouverait le parcours de virement
@@ -9,25 +9,10 @@ import { DefaultPrivacyLevel, User } from "../models";
 // câblage `setReceiver` est justement ce qui casse en silence quand la liste
 // change de forme.
 
-const utilisateur = (id: string, firstName: string, lastName: string): User => ({
-  id,
-  uuid: `3f1a6c2e-0000-4000-8000-${id.padStart(12, "0")}`,
-  firstName,
-  lastName,
-  username: `${firstName}${id}`,
-  // Le composant ne lit pas le mot de passe ; chaîne vide plutôt qu'un faux
-  // secret (rules/testing.md #3).
-  password: "",
-  email: `${firstName.toLowerCase()}@example.com`,
-  phoneNumber: "615-555-0134",
-  balance: 0,
-  avatar: "",
-  defaultPrivacyLevel: DefaultPrivacyLevel.public,
-  createdAt: new Date("2026-01-01T00:00:00.000Z"),
-  modifiedAt: new Date("2026-01-01T00:00:00.000Z"),
-});
-
-const users = [utilisateur("1", "Heath", "Hills"), utilisateur("2", "Amir", "Sanchez")];
+const users = [
+  userResponseBuilder({ id: "1", firstName: "Heath", lastName: "Hills" }),
+  userResponseBuilder({ id: "2", firstName: "Amir", lastName: "Sanchez" }),
+];
 
 describe("TransactionCreateStepOne", () => {
   it("compose la recherche et la liste des destinataires", () => {

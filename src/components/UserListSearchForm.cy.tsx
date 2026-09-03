@@ -1,6 +1,6 @@
 import UserListSearchForm from "./UserListSearchForm";
 
-// Niveau COMPOSANT (ADR-004, ligne 3). Même contrat que CommentForm : ce
+// Niveau COMPOSANT (ADR-004, ligne 11). Même contrat que CommentForm : ce
 // `data-test` passe par `inputProps` de MUI, donc le contrôle statique ne dit
 // rien de sa présence dans le DOM. Aucune spec E2E ne couvre encore la liste
 // d'utilisateurs — ce test est la seule chose qui tienne la promesse du

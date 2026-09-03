@@ -93,6 +93,23 @@ détient le format.
 | 9   | Un 500 rendu comme écran d'erreur plutôt que comme liste vide     | **E2E + intercept** | le backend réel ne produit pas de 500 à la demande                    |
 | 10  | Absence de violation a11y sur une page assemblée                  | **E2E + axe**       | une violation naît souvent de la COMPOSITION, pas d'un composant seul |
 
+### Trois classes ajoutées en clôturant la semaine 8
+
+Le tableau ci-dessus reste celui des dix comportements sur lesquels la grille a
+été construite. Ces trois lignes ont été ajoutées ensuite, quand les composants
+nommés par `docs/PLAN.md` ont été couverts : elles relèvent de classes de
+décision que les dix premières ne contenaient pas.
+
+| #   | Comportement                                                                       | Niveau        | Raison                                                                                                                      |
+| --- | ---------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 11  | Un `data-test` posé par une prop de la bibliothèque UI (`inputProps` de MUI)       | **Composant** | `check:selectors` compare deux textes : il prouve la DÉCLARATION, pas la LIVRAISON au DOM. Seul le rendu distingue les deux |
+| 12  | Câblage d'un composant de composition (`TransactionCreateStepOne` → `setReceiver`) | **Composant** | un E2E prouve le parcours de virement entier sans dire si c'est CE composant qui a perdu le clic                            |
+| 13  | Validation des champs et état du bouton du formulaire de réglages                  | **Composant** | même classe que la ligne 4, autre formulaire : Formik et Yup, ni réseau ni navigation                                       |
+
+La ligne 11 n'a pas été déduite : elle vient de la montée MUI de Dependabot #11,
+qui retire `inputProps` de `TextField`. Six `data-test` du dépôt disparaissaient
+du DOM avec un source resté valide et un contrôle statique resté vert.
+
 Deux enseignements de ce tableau, plus utiles que le tableau lui-même :
 
 - **Les lignes 1 à 4 étaient toutes couvertes en E2E, ou pas couvertes du

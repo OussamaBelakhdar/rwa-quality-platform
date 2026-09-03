@@ -1,4 +1,4 @@
-import { DefaultPrivacyLevel } from "../../../src/models";
+import { DefaultPrivacyLevel, User } from "../../../src/models";
 import type { NouvelUtilisateur } from "@plugins/db.task";
 
 /**
@@ -70,3 +70,33 @@ class UserBuilder {
     return { ...this.etat };
   }
 }
+
+/**
+ * Utilisateur COMPLET, tel que l'API le renvoie — pour monter un composant.
+ *
+ * À ne pas confondre avec `userBuilder()` ci-dessus, qui produit un
+ * `NouvelUtilisateur` destiné au SEED : celui-là n'a ni `id`, ni `uuid`, ni
+ * `balance`, parce que c'est le backend qui les attribue. Un composant, lui,
+ * reçoit l'objet déjà créé — deux besoins distincts, deux fabriques.
+ *
+ * Signature `(overrides?: Partial<User>): User` conforme à
+ * .claude/rules/typescript.md : defaults valides, écarts explicites.
+ */
+export const userResponseBuilder = (overrides: Partial<User> = {}): User => ({
+  id: "u1",
+  uuid: "3f1a6c2e-0000-4000-8000-000000000001",
+  firstName: "Heath",
+  lastName: "Hills",
+  username: "Heath93",
+  // Le champ existe dans `User` ; aucun composant ne le lit. Chaîne vide
+  // plutôt qu'un faux secret (.claude/rules/testing.md #3).
+  password: "",
+  email: "heath@example.com",
+  phoneNumber: "615-555-0134",
+  balance: 0,
+  avatar: "",
+  defaultPrivacyLevel: DefaultPrivacyLevel.public,
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  modifiedAt: new Date("2026-01-01T00:00:00.000Z"),
+  ...overrides,
+});

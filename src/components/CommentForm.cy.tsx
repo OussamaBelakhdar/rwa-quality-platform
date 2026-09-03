@@ -1,6 +1,6 @@
 import CommentForm from "./CommentForm";
 
-// Niveau COMPOSANT (ADR-004, ligne 3) : props → rendu, sans réseau ni machine.
+// Niveau COMPOSANT (ADR-004, ligne 11) : props → rendu, sans réseau ni machine.
 //
 // Ce fichier prouve ce que `yarn check:selectors` ne PEUT pas prouver. Le script
 // compare deux textes : le `data-test` écrit dans `src/` et l'union typée. Il ne

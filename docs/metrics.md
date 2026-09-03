@@ -129,7 +129,7 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 
 | Métrique                        | Valeur                       | Note                                                                                                                            |
 | ------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Tests de composant              | 0 → **23**                   | 10 composants, **1 s** pour l'ensemble                                                                                          |
+| Tests de composant              | 0 → **27**                   | 10 composants, **2 s** pour l'ensemble ; validation des réglages prouvée par mutation                                           |
 | Tests E2E                       | 60 → **65**                  | dont 5 pages auditées par axe                                                                                                   |
 | Ratio des niveaux               | **31 % / 3 % / 66 %**        | composant / API / E2E — **publié, non ciblé** (ADR-004)                                                                         |
 | Sélecteurs typés                | 79 → **84 clés, 8 préfixes** | 5 clés posées via `inputProps` de MUI étaient invisibles du contrôle statique                                                   |
