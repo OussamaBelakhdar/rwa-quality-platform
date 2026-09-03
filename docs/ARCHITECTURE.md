@@ -99,11 +99,15 @@ rwa-quality-platform/
 ├── docs/
 │   ├── ARCHITECTURE.md              # ce document
 │   ├── adr/
-│   │   ├── 001-migration-cypress-15.md
-│   │   ├── 002-app-actions-vs-page-objects.md
-│   │   ├── 003-parallelisation-sans-cloud.md
+│   │   ├── 001-frontiere-expose-env-et-conventions-de-specs.md
+│   │   ├── 002-typer-et-durcir-les-app-actions.md
+│   │   ├── 003-parallelisation-sans-cypress-cloud.md
 │   │   ├── 004-grille-composant-api-e2e.md
-│   │   └── 005-coexistence-playwright.md
+│   │   ├── 005-coexistence-playwright.md          # semaine 10, à venir
+│   │   ├── 006-exposition-xstate-aux-tests.md
+│   │   ├── 007-endpoints-de-test-dans-le-backend.md
+│   │   ├── 008-factories-d-intercept-nommees-par-intention.md
+│   │   └── 009-login-auth0-programmatique-vs-cy-origin.md
 │   ├── flakiness-report.md
 │   └── metrics.md                   # chiffres suivis (cf. §8)
 ├── cypress.config.ts
