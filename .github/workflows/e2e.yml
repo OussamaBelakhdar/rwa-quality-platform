@@ -352,6 +352,76 @@ jobs:
             cypress/videos
           retention-days: 7
           if-no-files-found: ignore
+  # Flux Auth0 — job SÉPARÉ, et il ne peut pas en être autrement.
+  #
+  # `VITE_AUTH0=true` est figé au BUILD (Vite `define`) : dans ce mode, tout
+  # l'applicatif passe par Auth0 et les 20 specs qui utilisent `cy.login`
+  # (Passport) échoueraient. Les deux modes ne cohabitent pas dans un même
+  # artefact — d'où un job qui construit sa propre application.
+  #
+  # La cible est le fournisseur OIDC local (ADR-010) : la suite reste exécutable
+  # sans compte tiers (P6), comme ADR-003 l'a imposé pour Cypress Cloud. Pointer
+  # `VITE_AUTH0_DOMAIN` sur un vrai tenant suffirait à exécuter le MÊME job
+  # contre Auth0.
+  auth0:
+    name: Flux Auth0 (fournisseur local)
+    needs: qualite
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    env:
+      VITE_AUTH0: "true"
+      VITE_AUTH0_DOMAIN: http://localhost:3100
+      VITE_AUTH0_CLIENTID: client-local
+      VITE_AUTH0_AUDIENCE: http://localhost:3001
+      VITE_AUTH0_SCOPE: openid profile email
+      VITE_AUTH_TOKEN_NAME: authAccessToken
+      # Pas des secrets : identifiants du fournisseur LOCAL, définis par
+      # ADR-010. Un vrai tenant les remplacerait par des secrets de dépôt.
+      AUTH0_USERNAME: test@rwa.local
+      AUTH0_PASSWORD: s3cret1234$
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Construire l'application en mode Auth0
+        run: yarn build:test
+
+      - name: Démarrer le fournisseur OIDC et l'application
+        run: |
+          yarn oidc:local > /tmp/oidc.log 2>&1 &
+          yarn start:ci > /tmp/app.log 2>&1 &
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              for (let i = 1; i <= 120; i++) {
+                const api = await sonde("http://localhost:3001/testData/seed/scenarios");
+                const oidc = await sonde("http://localhost:3100/.well-known/jwks.json");
+                if (api === 200 && oidc === 200) process.exit(0);
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              process.exit(1);
+            })();
+          ' && exit 0
+          echo "=== fournisseur OIDC ==="; tail -n 60 /tmp/oidc.log || true
+          echo "=== application ==="; tail -n 120 /tmp/app.log || true
+          exit 1
+
+      - name: Cypress — flux Auth0
+        run: yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
+
+
 
   # Quarantaine — gate §6 : « ≤ 5 tests, chacun avec ticket daté < 14 j »,
   # job séparé et NON BLOQUANT.

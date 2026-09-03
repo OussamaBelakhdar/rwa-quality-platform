@@ -32,7 +32,7 @@ Cypress.Commands.add("loginAuth0", () => {
         () => {
           cy.visit("/");
           cy.origin(
-            `https://${Cypress.expose("auth0_domain")}`,
+            Cypress.expose("auth0_origin"),
             { args: { username, password } },
             ({ username: identifiant, password: motDePasse }) => {
               cy.get("input#username").type(identifiant);

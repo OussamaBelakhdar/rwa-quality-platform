@@ -113,6 +113,13 @@ export default defineConfig({
     // Auth0 — configuration PUBLIQUE (ADR-001). Le client secret n'est PAS ici :
     // les valeurs d'`expose` sont lisibles par le code de la page sous test.
     auth0_domain: process.env.VITE_AUTH0_DOMAIN,
+    // Origine complète, schéma compris. Même règle que `getDomain` du SDK et
+    // que `baseAuth0` du backend : un domaine déjà préfixé est pris tel quel.
+    // Calculée ICI et pas dans la commande, pour que les trois consommateurs
+    // lisent une seule valeur au lieu de réimplémenter la règle chacun (ADR-010).
+    auth0_origin: /^https?:\/\//.test(process.env.VITE_AUTH0_DOMAIN || "")
+      ? process.env.VITE_AUTH0_DOMAIN
+      : `https://${process.env.VITE_AUTH0_DOMAIN}`,
     auth0_client_id: process.env.VITE_AUTH0_CLIENTID,
     auth0_audience: process.env.VITE_AUTH0_AUDIENCE,
     auth0_scope: process.env.VITE_AUTH0_SCOPE,

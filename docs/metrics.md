@@ -260,6 +260,42 @@ probable d'environnement et non de test, à re-regarder s'il réapparaît.
 
 ## Semaine 9 — Auth0 (2026-09-03)
 
+### Le flux s'exécute — fournisseur OIDC local (ADR-010)
+
+Le critère « Compte Auth0 gratuit » reste **non tenu** : il exige un compte
+tiers. Mais cette ÉTAPE contredit **P6**, le principe au nom duquel ADR-003 a
+écarté Cypress Cloud « après mesure ». ADR-010 tranche en faveur du principe et
+livre un fournisseur OIDC local — **cible interchangeable**, pas chemin
+parallèle : `VITE_AUTH0_DOMAIN` pointé sur un vrai tenant exécute le même code.
+
+| Mesure                                   | Valeur                                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Tests Auth0                              | **2 passants**, 4 s                                                                               |
+| Taux de flake (`cy:burn`, 10 exécutions) | **0,00 %** — seuil §6 à 2 %                                                                       |
+| Vidéo                                    | `cypress/videos/auth0.cy.ts.mp4`, 1,07 Mo, 4 s — **non commitée** (rules/git.md)                  |
+| Dépendances ajoutées                     | **aucune** — `jsonwebtoken`, `cors`, `express` déjà présents ; `crypto` exporte un JWK nativement |
+| Jobs CI                                  | 7 → **8** — le flux s'exécute au lieu d'être en attente                                           |
+
+### Deux défauts trouvés en le faisant marcher
+
+Aucun n'était devinable ; les deux viennent d'une trace ajoutée au fournisseur
+parce que « le clic ne soumet pas » ne se diagnostique pas à l'œil.
+
+| Symptôme                                   | Cause                                                                                            | Preuve                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| Le clic réussit, l'URL ne bouge pas        | `<button name="action">` **masque** `form.action` (DOM clobbering) — la soumission n'aboutit pas | 6 GET `/authorize`, **0 POST**       |
+| La soumission passe, le jeton n'arrive pas | Pas d'en-têtes CORS : le préflight du navigateur échoue et l'échange du `code` ne part jamais    | **9 OPTIONS `/oauth/token`, 0 POST** |
+
+Auth0 émet ces en-têtes nativement. Un fournisseur local qui les oublie teste un
+flux qui ne ressemble pas au vrai — c'est exactement le risque que l'ADR
+s'engageait à ne pas créer, et il s'est présenté au premier essai.
+
+### Ce que la CI exécute désormais
+
+Un job **séparé**, et il ne peut pas en être autrement : `VITE_AUTH0=true` est
+figé au build, donc dans ce mode les 20 specs qui utilisent `cy.login`
+(Passport) échoueraient. Les deux modes ne cohabitent pas dans un même artefact.
+
 | Métrique                              | Valeur              | Note                                                     |
 | ------------------------------------- | ------------------- | -------------------------------------------------------- |
 | Tests E2E                             | 65 → **67**         | 2 en attente tant qu'aucun tenant n'est configuré        |
