@@ -222,7 +222,7 @@ Temps cible : **< 6 min** de PR à verdict pour la suite complète sur 4 shards.
 
 ---
 
-## 7. Stratégie de niveaux (ADR-004, résumé)
+## 7. Stratégie de niveaux (résumé — la grille complète et ses dix cas sont dans ADR-004)
 
 | Comportement                                         | Niveau             | Raison                                                |
 | ---------------------------------------------------- | ------------------ | ----------------------------------------------------- |
@@ -236,7 +236,7 @@ Temps cible : **< 6 min** de PR à verdict pour la suite complète sur 4 shards.
 
 Une couche héritée non revendiquée : `src/__tests__` (tests unitaires Vitest de l'upstream) est conservée telle quelle. Elle n'entre pas dans le ratio ci-dessous et n'est pas maintenue par ce projet.
 
-Ratio cible : ~40 % composant / 20 % API / 40 % E2E. Le ratio réel est publié dans `metrics.md` ; l'écart est commenté, pas masqué.
+Ratio **observé et publié**, non ciblé — ADR-004. Une cible de ratio se retourne contre la grille : atteindre un pourcentage obligerait à écrire des tests que la grille ne réclame pas. Le ratio est une conséquence de la grille, pas une consigne. Il est relu à chaque clôture de semaine dans `metrics.md`, et l'écart est commenté.
 
 ---
 
@@ -244,15 +244,15 @@ Ratio cible : ~40 % composant / 20 % API / 40 % E2E. Le ratio réel est publié 
 
 Publiées dans `docs/metrics.md`, mises à jour à chaque semaine du plan.
 
-| Métrique                               | Définition                                                                 | Cible              |
-| -------------------------------------- | -------------------------------------------------------------------------- | ------------------ |
-| Durée de suite (séquentiel / 4 shards) | Wall-clock CI                                                              | < 6 min shardé     |
-| Taux de flake                          | Tests échouant puis passant au retry / total, sur 10 runs (`yarn cy:burn`) | < 2 %              |
-| Taille de la quarantaine               | Tests `@quarantine` actifs                                                 | ≤ 5, âge < 14 j    |
-| Temps gagné par `cy.session`           | Durée suite avec vs sans cache de session                                  | Chiffre brut       |
-| Couverture front / back                | `@cypress/code-coverage`                                                   | Tendance           |
-| Violations a11y                        | axe, par sévérité                                                          | 0 critical/serious |
-| Ratio composant / API / E2E            | Nombre de tests par niveau                                                 | ~40/20/40          |
+| Métrique                               | Définition                                                                 | Cible                                    |
+| -------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| Durée de suite (séquentiel / 4 shards) | Wall-clock CI                                                              | < 6 min shardé                           |
+| Taux de flake                          | Tests échouant puis passant au retry / total, sur 10 runs (`yarn cy:burn`) | < 2 %                                    |
+| Taille de la quarantaine               | Tests `@quarantine` actifs                                                 | ≤ 5, âge < 14 j                          |
+| Temps gagné par `cy.session`           | Durée suite avec vs sans cache de session                                  | Chiffre brut                             |
+| Couverture front / back                | `@cypress/code-coverage`                                                   | Tendance                                 |
+| Violations a11y                        | axe, par sévérité                                                          | 0 critical/serious                       |
+| Ratio composant / API / E2E            | Nombre de tests par niveau                                                 | **aucune** — publié, non ciblé (ADR-004) |
 
 ---
 

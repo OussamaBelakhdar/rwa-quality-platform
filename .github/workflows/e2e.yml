@@ -320,6 +320,39 @@ jobs:
         continue-on-error: true
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
+  # Component tests — gate §6 : « 100 % vert, BLOQUANT ».
+  #
+  # Aucun serveur applicatif à démarrer : le component testing lance son propre
+  # serveur Vite. Le job est donc le plus court du pipeline, et c'est cohérent
+  # avec ADR-004 — 18 ms par test contre 283 ms en E2E, mesuré.
+  component:
+    name: Component tests
+    needs: qualite
+    runs-on: ubuntu-latest
+    container:
+      image: cypress/browsers:22.20.0
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer les dépendances
+        run: yarn install --frozen-lockfile
+
+      - name: Cypress — composants
+        run: yarn cy:component
+
+      - name: Artefacts de diagnostic
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: diagnostic-component
+          path: |
+            cypress/screenshots
+            cypress/videos
+          retention-days: 7
+          if-no-files-found: ignore
+
   # Quarantaine — gate §6 : « ≤ 5 tests, chacun avec ticket daté < 14 j »,
   # job séparé et NON BLOQUANT.
   #

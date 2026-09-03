@@ -23,6 +23,14 @@ yarn && yarn dev   # front :3000, API :3001
 
 ## État
 
+**Semaine 8 — component testing et accessibilité.** La suite comptait **60 tests et zéro test de composant**, pour une cible affichée de 40 %. [ADR-004](docs/adr/004-grille-composant-api-e2e.md) tranche : une grille décide comportement par comportement, et le ratio est **publié, jamais ciblé** — atteindre un pourcentage obligerait à écrire des tests que la grille ne réclame pas.
+
+Appliquée rétroactivement, elle me met en défaut : les deux défauts trouvés en semaine 5 — `--$5.00` et `-0` — sont **props → rendu**. Mesuré, médianes sur 13 et 8 exécutions : **18 ms en composant contre 283 ms en E2E**, et l'E2E exige en plus une base seedée, une session et deux serveurs. 23 tests de composant les recouvrent au bon niveau, en 1 seconde.
+
+Côté accessibilité, `cypress-axe` sur 5 pages a relevé 6 règles violées. **Deux sont éliminées** — `link-name` (10 nœuds : un logo SVG sans nom accessible, un lecteur d'écran annonçait « lien » sans dire vers quoi) et `image-alt` (24 nœuds : les `<Avatar>` MUI rendent un `<img>` sans `alt`). Les quatre restantes, antérieures au projet, entrent dans une **base de référence qui ne peut que rétrécir** : toute violation nouvelle échoue, et une règle corrigée qu'on laisserait dans la liste échoue aussi. Ce second garde-fou a mordu à son premier run, sur une règle que j'avais listée à tort.
+
+Couverture enfin mesurable — `dev:coverage` lançait un serveur sans `VITE_TEST_HOOKS`, donc la suite ne pouvait pas tourner dessus : **80,25 % de statements, 57,33 % de branches**. C'est l'écart qui parle, pas le premier chiffre.
+
 **Semaine 7 — flakiness.** Le flake vient de `upstream/flake-demo`, maintenue par l'équipe Cypress, et il est injecté **dans l'application** : un flake que j'aurais écrit ne prouverait que ma capacité à écrire un bug. Résultat brut : **22 tests flaky à 37,93 %**. Mais 22 symptômes ne font pas 22 causes — retirer un seul `throw` ramène le taux à **0,00 %** sur 290 exécutions. Prouvé par isolation, pas déduit.
 
 Le chiffre qui compte est ailleurs. `cy:burn` (retries à zéro) voit 22 tests instables ; `cy:run` (`runMode: 2`) n'en montre que **4**. **Dix-huit masqués**, et la durée qui passe de 36 s à 2 min 17. Une équipe qui ne lit que `cy:run` conclurait « quatre tests flaky, quarantaine » — et manquerait que l'application échoue une fois sur deux sur sa requête principale. C'est la démonstration que `runMode: 2` est une mesure, pas une solution.

@@ -125,6 +125,100 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
 | `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
 
+## Semaine 8 — component testing et accessibilité (2026-09-02)
+
+| Métrique                        | Valeur                       | Note                                                                                                                            |
+| ------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Tests de composant              | 0 → **27**                   | 10 composants, **2 s** pour l'ensemble ; validation des réglages prouvée par mutation                                           |
+| Tests E2E                       | 60 → **65**                  | dont 5 pages auditées par axe                                                                                                   |
+| Ratio des niveaux               | **31 % / 3 % / 66 %**        | composant / API / E2E — **publié, non ciblé** (ADR-004)                                                                         |
+| Sélecteurs typés                | 79 → **84 clés, 8 préfixes** | 5 clés posées via `inputProps` de MUI étaient invisibles du contrôle statique                                                   |
+| Coût par test, mesuré           | **18 ms** contre **283 ms**  | composant contre E2E, médianes sur n=13 et n=8                                                                                  |
+| Violations a11y **corrigées**   | **3 règles**                 | `link-name` (10 nœuds), `image-alt` (24) et `list` (10) éliminées                                                               |
+| Violations bloquantes restantes | **3 règles, sur 1 page**     | 4 pages sur 5 n'en ont plus aucune. Les 2 par page qui subsistent sont `moderate` (`region`, `heading-order`), sous le seuil §6 |
+| Couverture (statements)         | **80,25 %**                  | `src/` 78,1 % · `backend/` 84,4 % — mesurée par la suite E2E instrumentée                                                       |
+| Couverture (branches)           | **57,33 %**                  | l'écart avec les statements est le chiffre intéressant : les chemins d'erreur restent sous-couverts                             |
+| Gates outillées                 | 6 → **7**                    | `check:levels` — chaque spec déclare son niveau, l'emplacement le confirme                                                      |
+| Jobs CI                         | 6 → **7**                    | `component`, bloquant (gate §6)                                                                                                 |
+
+### La base de référence a exigé sa propre réduction
+
+La première correction de `list` était **incomplète** : j'avais remplacé le
+`<div>` qui enveloppait les items du tiroir par un fragment, sans voir que les
+`ListItem` rendaient des `<a>` via `component={RouterLink}` — un `<ul>`
+contenant des `<a>` viole la même règle. Je l'avais écrit dans le commit plutôt
+que de laisser croire à une correction.
+
+Complétée : `ListItem disablePadding` + `ListItemButton`, cinq items, ce qui
+rend enfin `<li><a>…</a></li>`. Effet de bord bienvenu — les quatre
+`// @ts-ignore` que le typage de `component={RouterLink}` imposait ont disparu.
+
+**C'est le test qui a exigé la suite.** `list` étant corrigée sur les cinq
+pages, la base a refusé de la garder :
+
+```
+AssertionError: règles corrigées sur flux public — les retirer de la base : list
+```
+
+Une base de dérogations qui ne peut que rétrécir n'est pas une commodité : ici,
+elle a transformé une correction partielle en correction complète, sans que
+personne ait à s'en souvenir.
+
+### Deux scripts hérités qui ne pouvaient pas fonctionner ensemble
+
+`yarn dev:coverage` lançait `start:react`, **sans `--mode test`** : la suite
+échouait dessus faute de `VITE_TEST_HOOKS` (ADR-006), puisque `window.__services__`
+est absent de tout build sans le drapeau. La couverture E2E était donc
+inatteignable en l'état, et personne ne l'avait constaté parce que personne ne
+l'avait lancée.
+
+`yarn dev:coverage:test` combine les deux. Et `expose.coverage`, figé à `false`,
+dépend désormais de la **même** variable que l'instrumentation Vite : deux
+interrupteurs pour une seule intention, c'est un interrupteur qu'on oubliera.
+
+### Ce que la grille a désigné, et que l'E2E faisait à sa place
+
+ADR-004 appliquée rétroactivement montre que les quatre premières lignes de la
+grille étaient couvertes en E2E ou pas couvertes du tout. Les deux défauts
+trouvés en semaine 5 — `--$5.00` et `-0` — sont **props → rendu** : 283 ms et
+une base seedée là où 18 ms suffisaient.
+
+Les E2E de la semaine 5 restent : leur objet est la mutation de réponse, pas le
+formatage. La duplication d'assertion est assumée et bornée à trois lignes.
+
+### Le contrôle statique prouvait la déclaration, pas la livraison
+
+Trouvé en instruisant la montée MUI de Dependabot #11, qui saute quatre
+versions majeures. MUI 9 retire `inputProps` de `TextField` au profit du slot
+`htmlInput` — vérifié dans le paquet publié, la prop a disparu des
+`propTypes`. **Six `data-test` du dépôt transitent par cette prop** : le source
+reste valide, et l'attribut disparaît du DOM.
+
+La suite E2E n'en attrapait qu'un, faute de couvrir les cinq autres pages. Et
+`check-selectors.js` ne pouvait structurellement rien voir : il compare deux
+textes. Pire, son extraction de clés statiques ne reconnaissait que
+`data-test="cle"` et manquait l'écriture MUI `"data-test": "cle"` — les cinq
+clés étaient absentes de `dansSrc` **et** de l'union, donc ni « manquante » ni
+« fantôme ». Un garde-fou vert sur des sélecteurs qu'il ne gardait pas.
+
+| Mutation sur `UserListSearchForm`             | `yarn types` | `check:selectors` | test de composant |
+| --------------------------------------------- | ------------ | ----------------- | ----------------- |
+| `inputProps` → `InputProps` (signature MUI 9) | vert         | vert              | **rouge**         |
+| ligne supprimée                               | vert         | **rouge**         | rouge             |
+
+La première ligne est la panne réelle : les deux gardes statiques restent verts,
+seul le rendu trahit — `expected <div.MuiOutlinedInput-root> to match 'input'`.
+Les deux contrôles se complètent, l'un sur la **déclaration**, l'autre sur la
+**livraison**. Trois tests de composant couvrent les six sélecteurs en 559 ms.
+
+### Un échec de composant non reproduit
+
+Une exécution de `yarn cy:component` sur dix a échoué (22/23), immédiatement
+après un `yarn install` qui remplaçait `node_modules` sous le serveur Vite du
+runner. **Non reproduit en 15 exécutions consécutives depuis**, ni en CI (#34 :
+18 jobs verts). Consigné plutôt que passé sous silence : 1 sur 16, cause
+probable d'environnement et non de test, à re-regarder s'il réapparaît.
+
 ## Semaine 7 — flakiness (2026-09-02)
 
 | Métrique                      | Valeur                      | Note                                                                   |

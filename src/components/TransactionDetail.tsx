@@ -131,11 +131,13 @@ const TransactionDetail: React.FC<TransactionProps> = ({
                 data-test="transaction-sender-avatar"
                 className={classes.avatarLarge}
                 src={transaction.senderAvatar}
+                alt={transaction.senderName}
               />
               <Avatar
                 data-test="transaction-receiver-avatar"
                 className={classes.avatarLarge}
                 src={transaction.receiverAvatar}
+                alt={transaction.receiverName}
               />
             </AvatarGroup>
             {/* eat up space to right of AvatarGroup: */}

@@ -147,11 +147,17 @@ const NavBar: React.FC<NavBarProps> = ({ drawerOpen, toggleDrawer, notifications
           className={classes.title}
           data-test="app-name-logo"
         >
+          {/*
+            `aria-label` : le seul contenu de ce lien est le logo SVG, donc il
+            n'avait aucun nom accessible — violation `link-name` relevée par axe
+            sur les CINQ pages clés, la barre de navigation étant partagée.
+          */}
           <Link
             to="/"
             style={{ color: "#fff", textDecoration: "none" }}
             component={RouterLink}
             underline="hover"
+            aria-label="Real World App — accueil"
           >
             {xsBreakpoint ? (
               <RWALogoIcon className={classes.logo} />

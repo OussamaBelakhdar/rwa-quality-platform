@@ -94,7 +94,16 @@ export default defineConfig({
   expose: {
     apiUrl,
     mobileViewportWidthBreakpoint: 414,
-    coverage: false,
+    /**
+     * Piloté par la MÊME variable que l'instrumentation Vite
+     * (`vite-plugin-istanbul`, option `requireEnv`). Deux interrupteurs pour
+     * une seule intention, c'est un interrupteur qu'on oubliera : sans
+     * instrumentation, la collecte ne trouve rien ; sans collecte,
+     * l'instrumentation ralentit pour rien.
+     *
+     * `yarn dev:coverage:test` + `CYPRESS_COVERAGE=true yarn cy:run`.
+     */
+    coverage: process.env.CYPRESS_COVERAGE === "true",
     codeCoverage: {
       url: `${apiUrl}/__coverage__`,
       exclude: "cypress/**/*.*",
@@ -156,6 +165,16 @@ export default defineConfig({
       // coexistaient (`db:seed` non typée et `db:reset` typée par TaskMap), et
       // le prochain contributeur en aurait choisi un au hasard.
       on("task", enregistrerTachesDb(config.expose.apiUrl));
+      // `log` : la seule façon de faire sortir un relevé sur le terminal depuis
+      // le navigateur. Utilisée par `support/a11y.ts` pour publier les
+      // violations non bloquantes, qui seraient invisibles autrement.
+      on("task", {
+        log: (message: string) => {
+          console.log(message);
+          return null;
+        },
+      });
+
       on("task", {
         "env:validate": () =>
           validerEnvironnement(config.expose.apiUrl, config.env.defaultPassword),

@@ -98,7 +98,7 @@ const TransactionCreateStepTwo: React.FC<TransactionCreateStepTwoProps> = ({
       <Box display="flex" height={200} alignItems="center" justifyContent="center">
         <Grid container direction="column" justifyContent="flex-start" alignItems="center">
           <Grid item>
-            <Avatar src={receiver.avatar} />
+            <Avatar src={receiver.avatar} alt={`${receiver.firstName} ${receiver.lastName}`} />
           </Grid>
           <Grid item>
             <Typography component="h2" variant="h6" color="primary" gutterBottom>
