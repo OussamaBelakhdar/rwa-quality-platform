@@ -125,6 +125,45 @@ Mesure à périmètre égal : les **8 specs de la semaine 1**, 20 tests, même m
 | Tag de domaine de la spec API  | `@seeding` — `@api` décrivait le niveau, pas le domaine (règle #6)                                                              |
 | `yarn cy:burn`                 | 10 × 40 = **400 exécutions, 0,00 %**                                                                                            |
 
+## Maintenance — faker 6 → 10 (2026-09-03)
+
+Dependabot #38, 27 erreurs de compilation, 35 appels traduits sur 4 fichiers.
+Renommages mécaniques pour 34 d'entre eux (`random.uuid` → `string.uuid`,
+`name.*` → `person.*`, `helpers.randomize` → `helpers.arrayElement`,
+`finance.account` → `finance.accountNumber`, `company.companyName` →
+`company.name`…). **Le 35e n'était pas mécanique**, et c'est le seul qui comptait.
+
+| Champ         | faker 6 (`phone.phoneNumberFormat(0)`) | faker 10, remplaçant naturel |
+| ------------- | -------------------------------------- | ---------------------------- |
+| `phoneNumber` | `398-225-9900`                         | `691-531-1666 x9017`         |
+
+Le remplaçant ajoute une extension. Le seed est un **contrat de données** — le
+formulaire de réglages valide le téléphone par regex — donc la forme est
+réaffirmée explicitement via `helpers.fromRegExp` plutôt que déléguée à un
+`style` dont la sortie change entre versions.
+
+### Ce que rien ne vérifiait
+
+`yarn types` passe, les 44 tests unitaires passent, et `data/database-seed.json`
+n'est régénéré qu'à la main : **aucun contrôle du dépôt ne voyait la forme des
+données de seed**. Le défaut serait apparu des semaines plus tard, au premier
+`yarn db:seed` de quelqu'un d'autre.
+
+`scripts/check-seed-contract.js` déclare le contrat et le vérifie — 8e gate,
+chaînée dans `yarn lint`, 39 invariants sur 8 collections et 735
+enregistrements. Elle accepte un chemin en argument, pour contrôler un seed
+fraîchement généré avant de le committer.
+
+| Contrôle                                      | Résultat                          |
+| --------------------------------------------- | --------------------------------- |
+| seed committé (faker 6)                       | **39 invariants tenus**           |
+| seed régénéré avec faker 10                   | **les mêmes 39**                  |
+| mutation : extension, uuid invalide, n° alpha | **3 ruptures signalées**, nommées |
+
+La ligne du milieu est la preuve de la migration ; la dernière est la preuve du
+contrôle. Le contre-exemple attrapé est mot pour mot `691-531-1666 x9017` —
+celui que `phone.number()` aurait produit sans la décision ci-dessus.
+
 ## Semaine 8 — component testing et accessibilité (2026-09-02)
 
 | Métrique                        | Valeur                       | Note                                                                                                                            |
