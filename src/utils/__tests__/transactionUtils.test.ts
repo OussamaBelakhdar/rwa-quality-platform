@@ -22,7 +22,7 @@ const fakeTransaction = (
   createdAt?: Date
 ): Transaction => ({
   id: shortid(),
-  uuid: faker.datatype.uuid(),
+  uuid: faker.string.uuid(),
   source: shortid(),
   amount: getFakeAmount(),
   description: "food",
@@ -58,16 +58,16 @@ describe("Transaction Utils", () => {
 
       const currentUser = {
         id: "9IUK0xpw",
-        uuid: faker.datatype.uuid(),
-        firstName: faker.name.firstName(),
-        lastName: faker.name.lastName(),
-        username: faker.internet.userName(),
+        uuid: faker.string.uuid(),
+        firstName: faker.person.firstName(),
+        lastName: faker.person.lastName(),
+        username: faker.internet.username(),
         password: "abc123",
         email: faker.internet.email(),
-        phoneNumber: faker.phone.phoneNumber(),
-        avatar: faker.internet.avatar(),
+        phoneNumber: faker.phone.number(),
+        avatar: faker.image.avatar(),
         defaultPrivacyLevel: DefaultPrivacyLevel.public,
-        balance: faker.datatype.number(),
+        balance: faker.number.int(),
         createdAt: faker.date.past(),
         modifiedAt: faker.date.recent(),
       };

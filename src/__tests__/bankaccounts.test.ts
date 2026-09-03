@@ -35,12 +35,12 @@ describe("BankAccounts", () => {
 
   it("should create a bank account for user", () => {
     const user: User = getRandomUser();
-    const accountNumber = faker.finance.account(10);
+    const accountNumber = faker.finance.accountNumber(10);
 
     const accountDetails: Partial<BankAccount> = {
-      bankName: `${faker.company.companyName()} Bank`,
+      bankName: `${faker.company.name()} Bank`,
       accountNumber,
-      routingNumber: faker.finance.account(9),
+      routingNumber: faker.finance.accountNumber(9),
     };
     const result = createBankAccountForUser(user.id, accountDetails);
     expect(result.userId).toBe(user.id);
