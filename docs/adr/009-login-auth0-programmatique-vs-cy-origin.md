@@ -113,14 +113,23 @@ Vérifié contre la documentation Cypress, qui décrit ce même flux pour cette 
 application. Ces prérequis ne sont pas des détails d'installation : deux d'entre
 eux changent ce que l'ADR peut promettre.
 
-| Réglage                                            | Où                                            | Pourquoi                                                                                                                                                                                                        |
-| -------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Type d'application **SPA**                         | Applications                                  | Auth0 _déconseille_ le grant `password` aux clients publics, mais le tableau de bord permet de l'activer et Cypress documente ce cas pour les tests. La crainte inverse — « un SPA ne peut pas » — est fausse   |
-| Grant type **Password**                            | Application → Advanced Settings → Grant Types | il autorise aussi le grant d'extension `password-realm` retenu ici ; sans lui, `/oauth/token` répond `unauthorized_client`                                                                                      |
-| ~~**Default Directory**~~                          | ~~Tenant Settings~~                           | **Plus nécessaire** — voir ci-dessous. C'était le prérequis le plus intrusif : un réglage global qui change aussi l'Universal Login                                                                             |
-| Une **API** dont l'Identifier devient l'`audience` | Applications → APIs                           | sans audience d'API, Auth0 rend un jeton **opaque** et non un JWT : `checkAuth0Jwt` le rejette (RS256 + JWKS + audience)                                                                                        |
-| **Client Secret** de l'application                 | Application → Settings                        | `/oauth/token` en grant `password` l'exige. C'est le prérequis le plus lourd de conséquence : voir ci-dessous                                                                                                   |
-| ~~`VITE_AUTH_TOKEN_NAME` décommenté~~              | ~~`.env`~~                                    | **Plus nécessaire** — le nom de clé a un défaut (`src/utils/authTokenName.ts`). Non définie, la variable faisait ranger le jeton sous la chaîne littérale `"undefined"` : symétrique donc silencieux, mais faux |
+| Réglage                                            | Où                                  | Pourquoi                                                                                                                                                                                                                                                        |
+| -------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type d'application **SPA**                         | Applications                        | Auth0 _déconseille_ le grant `password` aux clients publics, mais le tableau de bord permet de l'activer et Cypress documente ce cas pour les tests. La crainte inverse — « un SPA ne peut pas » — est fausse                                                   |
+| ~~Grant type **Password**~~                        | ~~Advanced Settings → Grant Types~~ | **Plus nécessaire depuis la révision.** `cy.origin` passe par le formulaire hébergé, donc par _authorization_code + PKCE_ — le SDK ne touche jamais `/oauth/token` en grant password. Vérifié : le mot `grant_type` n'apparaît nulle part dans le code du dépôt |
+| ~~**Default Directory**~~                          | ~~Tenant Settings~~                 | **Plus nécessaire** — voir ci-dessous. C'était le prérequis le plus intrusif : un réglage global qui change aussi l'Universal Login                                                                                                                             |
+| Une **API** dont l'Identifier devient l'`audience` | Applications → APIs                 | sans audience d'API, Auth0 rend un jeton **opaque** et non un JWT : `checkAuth0Jwt` le rejette (RS256 + JWKS + audience)                                                                                                                                        |
+| ~~**Client Secret**~~                              | ~~Application → Settings~~          | **Plus nécessaire depuis la révision** — c'était le prérequis du chemin programmatique, écarté                                                                                                                                                                  |
+| ~~`VITE_AUTH_TOKEN_NAME` décommenté~~              | ~~`.env`~~                          | **Plus nécessaire** — le nom de clé a un défaut (`src/utils/authTokenName.ts`). Non définie, la variable faisait ranger le jeton sous la chaîne littérale `"undefined"` : symétrique donc silencieux, mais faux                                                 |
+
+**Il ne reste que deux prérequis**, et aucun n'est un réglage à modifier : créer
+une application de type **SPA**, et créer une **API** dont l'Identifier devient
+l'`audience`. Les quatre autres lignes de ce tableau ont été supprimées par du
+code ou par la révision de la décision — pas par de la documentation.
+
+Ce qui suit ne concerne plus que la **variante documentée** (login
+programmatique), conservée parce que le critère de la semaine demande deux
+variantes et quand utiliser laquelle.
 
 **Le realm est passé en paramètre, pas réglé sur le tenant.** Auth0 offre un
 grant d'extension, `http://auth0.com/oauth/grant_type/password-realm`, qui prend
