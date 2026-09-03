@@ -20,12 +20,12 @@ fait, pas ce que la documentation d'Auth0 décrit.
 
 ### Ce que le code impose
 
-| Fait                                                                         | Où                             | Conséquence                                                                                                                                                                        |
-| ---------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Le backend valide le JWT en **RS256 contre le JWKS** du tenant               | `backend/helpers.ts:15-27`     | Un jeton signé par une clé inconnue du JWKS est rejeté                                                                                                                             |
+| Fait                                                                         | Où                             | Conséquence                                                                                                                                                                         |
+| ---------------------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Le backend valide le JWT en **RS256 contre le JWKS** du tenant               | `backend/helpers.ts:15-27`     | Un jeton signé par une clé inconnue du JWKS est rejeté                                                                                                                              |
 | `/testData` est monté **avant** `checkAuth0Jwt` et termine la requête        | `backend/app.ts:73` puis `:80` | Le seeding reste joignable en mode Auth0 : `cy.seed` fonctionne (ADR-007). Le `.unless({ path: ["/testData/*"] })` de `helpers.ts:108` est une **ceinture-bretelles**, pas la cause |
-| Le SDK est configuré en `cacheLocation="localstorage"`                       | `src/index.auth0.tsx:42`       | Le cache du SDK est capturable et restaurable par `cy.session`                                                                                                                     |
-| **27 appels** à `cy.login`, mais **11 connexions réelles** mesurées côté API | `cypress/e2e/`, `cypress/api/` | `cy.session` avec `cacheAcrossSpecs` amortit déjà le login. C'est ce chiffre qui compte, pas le nombre d'appels                                                                    |
+| Le SDK est configuré en `cacheLocation="localstorage"`                       | `src/index.auth0.tsx:42`       | Le cache du SDK est capturable et restaurable par `cy.session`                                                                                                                      |
+| **27 appels** à `cy.login`, mais **11 connexions réelles** mesurées côté API | `cypress/e2e/`, `cypress/api/` | `cy.session` avec `cacheAcrossSpecs` amortit déjà le login. C'est ce chiffre qui compte, pas le nombre d'appels                                                                     |
 
 Le troisième fait rend le login programmatique praticable. Sans lui — cache en
 mémoire, le défaut du SDK — il faudrait passer par l'UI.
@@ -119,14 +119,15 @@ eux changent ce que l'ADR peut promettre.
 | ~~Grant type **Password**~~                        | ~~Advanced Settings → Grant Types~~ | **Plus nécessaire depuis la révision.** `cy.origin` passe par le formulaire hébergé, donc par _authorization_code + PKCE_ — le SDK ne touche jamais `/oauth/token` en grant password. Vérifié : le mot `grant_type` n'apparaît nulle part dans le code du dépôt |
 | ~~**Default Directory**~~                          | ~~Tenant Settings~~                 | **Plus nécessaire** — voir ci-dessous. C'était le prérequis le plus intrusif : un réglage global qui change aussi l'Universal Login                                                                                                                             |
 | Une **API** dont l'Identifier devient l'`audience` | Applications → APIs                 | sans audience d'API, Auth0 rend un jeton **opaque** et non un JWT : `checkAuth0Jwt` le rejette (RS256 + JWKS + audience)                                                                                                                                        |
+| Un **utilisateur de test**                         | User Management → Users             | un tenant neuf n'a **aucun utilisateur** : sans lui, le formulaire s'affiche et personne ne peut s'y connecter. La connexion `Username-Password-Authentication` existe par défaut, elle n'est pas à créer                                                       |
 | ~~**Client Secret**~~                              | ~~Application → Settings~~          | **Plus nécessaire depuis la révision** — c'était le prérequis du chemin programmatique, écarté                                                                                                                                                                  |
 | ~~`VITE_AUTH_TOKEN_NAME` décommenté~~              | ~~`.env`~~                          | **Plus nécessaire** — le nom de clé a un défaut (`src/utils/authTokenName.ts`). Non définie, la variable faisait ranger le jeton sous la chaîne littérale `"undefined"` : symétrique donc silencieux, mais faux                                                 |
 
-**Il ne reste que deux prérequis**, et aucun n'est un réglage à modifier : créer
-une application de type **SPA**, et créer une **API** dont l'Identifier devient
-l'`audience`. Les quatre autres lignes de ce tableau ont été supprimées par du
-code ou par la révision de la décision — pas par de la documentation.
-
+**Il reste trois prérequis**, et aucun n'est un réglage à modifier : créer
+une application **SPA**, une **API** dont l'Identifier devient l'`audience`, et
+un **utilisateur de test**. Les quatre autres lignes de ce tableau ont été
+supprimées par du code ou par la révision de la décision — pas par de la
+documentation.
 Ce qui suit ne concerne plus que la **variante documentée** (login
 programmatique), conservée parce que le critère de la semaine demande deux
 variantes et quand utiliser laquelle.

@@ -35,7 +35,11 @@ Cypress.Commands.add("loginAuth0", () => {
             Cypress.expose("auth0_origin"),
             { args: { username, password } },
             ({ username: identifiant, password: motDePasse }) => {
-              cy.get("input#username").type(identifiant);
+              // L'Universal Login d'Auth0 rend `input#username` quand la connexion
+              // exige un nom d'utilisateur, et `input#email` sinon. Accepter les
+              // deux évite d'imposer un réglage de tenant de plus — le fournisseur
+              // local, lui, sert `#username`.
+              cy.get("input#username, input#email").type(identifiant);
               // `log: false` : le mot de passe ne doit apparaître ni dans le
               // journal du runner, ni dans la vidéo d'un échec CI.
               cy.get("input#password").type(motDePasse, { log: false });
