@@ -57,6 +57,8 @@ declare global {
       createTransaction(details: NouvelleTransaction): Chainable<Transaction>;
       /** Connecte un utilisateur par l'API, sans passer par le formulaire. */
       login(username: string): Chainable<void>;
+      /** Connecte via l'UI Auth0 (cy.origin) et met la session en cache (ADR-009). */
+      loginAuth0(): Chainable<void>;
       /** Lit l'état courant d'une machine XState — chaîne si plat, objet si imbriqué (ADR-006). */
       appState(nom: ServiceName): Chainable<EtatXState>;
     }

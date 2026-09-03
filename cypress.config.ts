@@ -209,10 +209,16 @@ export default defineConfig({
          * tenant mal réglé.
          */
         getAuth0Credentials() {
+          // Le chemin IMPLÉMENTÉ est `cy.origin` (ADR-009, révision) : il ne
+          // demande PAS de client secret. `AUTH0_CLIENT_SECRET` reste documenté
+          // dans `.env` pour la variante programmatique, mais n'est pas exigé.
+          // Mêmes sources que le drapeau `auth0_configured` ci-dessous. Deux
+          // expressions différentes produisaient un drapeau vrai et une tâche en
+          // échec — le défaut même que ce lot corrigeait, reparu un cran plus
+          // loin. Une seule règle, consultée aux deux endroits.
           const requis = {
-            AUTH0_USERNAME: process.env.AUTH0_USERNAME,
-            AUTH0_PASSWORD: process.env.AUTH0_PASSWORD,
-            AUTH0_CLIENT_SECRET: process.env.AUTH0_CLIENT_SECRET,
+            AUTH0_USERNAME: config.env.auth0_username || process.env.AUTH0_USERNAME,
+            AUTH0_PASSWORD: config.env.auth0_password || process.env.AUTH0_PASSWORD,
             VITE_AUTH0_DOMAIN: process.env.VITE_AUTH0_DOMAIN,
             VITE_AUTH0_CLIENTID: process.env.VITE_AUTH0_CLIENTID,
             VITE_AUTH0_AUDIENCE: process.env.VITE_AUTH0_AUDIENCE,
@@ -226,11 +232,7 @@ export default defineConfig({
                 `${manquantes.join(", ")}. Voir docs/adr/009-login-auth0-programmatique-vs-cy-origin.md.`
             );
           }
-          return {
-            username: requis.AUTH0_USERNAME,
-            password: requis.AUTH0_PASSWORD,
-            clientSecret: requis.AUTH0_CLIENT_SECRET,
-          };
+          return { username: requis.AUTH0_USERNAME, password: requis.AUTH0_PASSWORD };
         },
         getOktaCredentials() {
           const username = process.env.OKTA_USERNAME;
@@ -308,7 +310,6 @@ export default defineConfig({
       config.expose.auth0_configured = [
         config.env.auth0_username || process.env.AUTH0_USERNAME,
         config.env.auth0_password || process.env.AUTH0_PASSWORD,
-        process.env.AUTH0_CLIENT_SECRET,
         process.env.VITE_AUTH0_DOMAIN,
         process.env.VITE_AUTH0_CLIENTID,
         process.env.VITE_AUTH0_AUDIENCE,

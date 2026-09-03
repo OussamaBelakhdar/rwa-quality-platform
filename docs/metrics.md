@@ -258,6 +258,55 @@ runner. **Non reproduit en 15 exécutions consécutives depuis**, ni en CI (#34 
 18 jobs verts). Consigné plutôt que passé sous silence : 1 sur 16, cause
 probable d'environnement et non de test, à re-regarder s'il réapparaît.
 
+## Semaine 9 — Auth0 (2026-09-03)
+
+| Métrique                              | Valeur              | Note                                                     |
+| ------------------------------------- | ------------------- | -------------------------------------------------------- |
+| Tests E2E                             | 65 → **67**         | 2 en attente tant qu'aucun tenant n'est configuré        |
+| Défauts amont corrigés                | **7**               | tous trouvés avant qu'un seul appel Auth0 ne soit tenté  |
+| Prérequis à la charge du propriétaire | 6 → **3**           | trois supprimés par du code, pas par de la documentation |
+| Sélecteurs typés                      | 84 clés, 8 préfixes | inchangé                                                 |
+
+### La décision de l'ADR s'est inversée, et c'est une mesure qui l'a fait
+
+ADR-009 retenait d'abord le **login programmatique**, sur un argument de coût :
+« payé par 20 specs sur 22 ». Faux. `cy.session` avec `cacheAcrossSpecs` amortit
+déjà le login : comptées côté API sur une exécution complète, les **27**
+invocations de `cy.login` produisent **11** `POST /login` réels.
+
+|                                |        |
+| ------------------------------ | ------ |
+| Appels `cy.login` dans le code | 27     |
+| Connexions réelles, mesurées   | **11** |
+
+S'y ajoutent deux faits que le raisonnement initial ignorait : l'amont teste
+Auth0 sur cette application avec `cy.origin` enveloppé dans `cy.session`, et
+`docs/PLAN.md` énonce ce livrable mot pour mot. **L'ADR contredisait le livrable
+qu'il servait.**
+
+Conséquence directe : le chemin retenu ne demande **aucun client secret**. Le
+prérequis le plus lourd disparaît — et avec lui le premier vrai secret du
+projet.
+
+### Ce qui est vérifiable sans tenant, et vérifié
+
+| Contrôle                                                       | Résultat                                                      |
+| -------------------------------------------------------------- | ------------------------------------------------------------- |
+| Suite complète, spec présente et non configurée                | **67 tests, 65 passants, 2 en attente, 0 échec**              |
+| La spec attend au lieu d'échouer                               | `Pending: 2`, `Failing: 0`                                    |
+| Le garde n'est pas vide — drapeau forcé, sans identifiants     | la tâche **nomme** les variables absentes                     |
+| Le garde n'est pas vide — drapeau forcé, identifiants factices | la spec **atteint `cy.origin`** et échoue sur le faux domaine |
+
+La dernière ligne est celle qui compte : elle prouve que le chemin s'exécute
+jusqu'à la frontière d'origine, et que seul le tenant manque.
+
+### Un résidu attrapé par la mutation
+
+Le drapeau acceptait `CYPRESS_auth0_username` quand la tâche ne lisait que
+`process.env.AUTH0_USERNAME` — drapeau vrai, tâche en échec. Exactement le
+défaut que ce lot corrigeait, reparu un cran plus loin. Les deux consultent
+désormais la même expression.
+
 ## Audit de clôture des semaines 7 et 8 (2026-09-03)
 
 Relecture des critères de `docs/PLAN.md` et de la checklist `close-week`, un par

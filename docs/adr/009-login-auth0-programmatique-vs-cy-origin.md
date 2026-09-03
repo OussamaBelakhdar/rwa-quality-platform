@@ -1,6 +1,6 @@
 # ADR-009 — Login Auth0 : programmatique par défaut, `cy.origin` pour une seule spec
 
-**Statut** : accepté
+**Statut** : accepté, **décision révisée le 2026-09-03** (voir « Révision »)
 **Date** : 2026-09-03
 **Semaine du plan** : 9
 
@@ -20,12 +20,12 @@ fait, pas ce que la documentation d'Auth0 décrit.
 
 ### Ce que le code impose
 
-| Fait                                                                  | Où                             | Conséquence                                                                                                                                                                        |
-| --------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Le backend valide le JWT en **RS256 contre le JWKS** du tenant        | `backend/helpers.ts:15-27`     | Un jeton signé par une clé inconnue du JWKS est rejeté                                                                                                                             |
-| `/testData` est monté **avant** `checkAuth0Jwt` et termine la requête | `backend/app.ts:73` puis `:80` | Le seeding reste joignable en mode Auth0 : `cy.seed` fonctionne (ADR-007). Le `.unless({ path: ["/testData/*"] })` de `helpers.ts:94` est une **ceinture-bretelles**, pas la cause |
-| Le SDK est configuré en `cacheLocation="localstorage"`                | `src/index.auth0.tsx:42`       | Le cache du SDK est capturable et restaurable par `cy.session`                                                                                                                     |
-| **20 specs sur 22** appellent `cy.login` (27 appels)                  | `cypress/e2e/`, `cypress/api/` | Le coût du login est payé par presque toute la suite ; celui de `cy.origin` ne doit l'être qu'une fois                                                                             |
+| Fait                                                                         | Où                             | Conséquence                                                                                                                                                                        |
+| ---------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Le backend valide le JWT en **RS256 contre le JWKS** du tenant               | `backend/helpers.ts:15-27`     | Un jeton signé par une clé inconnue du JWKS est rejeté                                                                                                                             |
+| `/testData` est monté **avant** `checkAuth0Jwt` et termine la requête        | `backend/app.ts:73` puis `:80` | Le seeding reste joignable en mode Auth0 : `cy.seed` fonctionne (ADR-007). Le `.unless({ path: ["/testData/*"] })` de `helpers.ts:94` est une **ceinture-bretelles**, pas la cause |
+| Le SDK est configuré en `cacheLocation="localstorage"`                       | `src/index.auth0.tsx:42`       | Le cache du SDK est capturable et restaurable par `cy.session`                                                                                                                     |
+| **27 appels** à `cy.login`, mais **11 connexions réelles** mesurées côté API | `cypress/e2e/`, `cypress/api/` | `cy.session` avec `cacheAcrossSpecs` amortit déjà le login. C'est ce chiffre qui compte, pas le nombre d'appels                                                                    |
 
 Le troisième fait rend le login programmatique praticable. Sans lui — cache en
 mémoire, le défaut du SDK — il faudrait passer par l'UI.
@@ -190,6 +190,50 @@ montée** (ADR-006 le documente). Les normaliser sans tenant pour les vérifier
 échangerait un défaut connu contre un défaut invisible. L'orphelin d'ADR-006 est
 donc refermé pour Auth0 et **explicitement rouvert, avec sa raison**, pour les
 trois autres.
+
+## Révision — la décision s'inverse
+
+La première rédaction retenait le login programmatique par défaut, sur un
+argument de coût : « payé par 20 specs sur 22 ». **Cet argument était faux**, et
+deux vérifications l'ont montré.
+
+**La mesure.** `cy.session` avec `cacheAcrossSpecs: true` amortit déjà le login.
+Comptées côté API pendant une exécution complète, les **27** invocations de
+`cy.login` produisent **11** `POST /login` réels — pas 27. Le coût d'un login
+par l'UI se paie donc onze fois, pas vingt, et la différence avec le chemin
+programmatique se réduit d'autant.
+
+**L'amont.** `cypress-realworld-app` teste Auth0 sur cette application exacte
+avec `cy.origin` **enveloppé dans `cy.session`**, pas avec `/oauth/token`. Une
+implémentation qui fonctionne pour ce code-ci pèse plus qu'un raisonnement sur
+le coût.
+
+**Le plan.** `docs/PLAN.md` énonce le livrable de la semaine : « le flux Auth0
+testé avec `cy.session` + `cy.origin` ». L'ADR contredisait le livrable qu'il
+était censé servir.
+
+### Ce qui est retenu désormais
+
+**`cy.origin` enveloppé dans `cy.session` est le chemin IMPLÉMENTÉ.** Le login
+programmatique reste **documenté** comme variante, avec la grille ci-dessous —
+c'est ce que le critère de la semaine demande : deux variantes et quand utiliser
+laquelle, pas deux implémentations.
+
+Trois conséquences, dont une qui aurait dû peser dès le départ :
+
+- **Aucun client secret n'est nécessaire.** Le prérequis le plus lourd
+  disparaît, et avec lui le premier vrai secret du projet. Les prérequis à la
+  charge du propriétaire du dépôt passent de quatre à **trois**.
+- Le retour de redirection est exercé par **chaque** création de session, et
+  non par une spec unique : `onRedirectCallback`, l'échange du code et la route
+  d'arrivée sont couverts sans test dédié.
+- Le contrôle « une seule spec `cy.origin` » n'a plus lieu d'être : la commande
+  L2 est le seul appelant, ce qui est plus fort qu'une limite comptée.
+
+### Ce que la première rédaction avait raison de dire
+
+Que le programmatique ne prouve jamais le retour de redirection. C'est exact, et
+c'est désormais un argument **pour** le chemin retenu, pas contre lui.
 
 ## Conséquences
 
