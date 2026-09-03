@@ -9,6 +9,7 @@ import {
   adaptV4Theme,
 } from "@mui/material";
 import { Auth0Provider } from "@auth0/auth0-react";
+import { auth0ProviderOptions } from "./utils/auth0Options";
 import AppAuth0 from "./containers/AppAuth0";
 import { history } from "./utils/historyUtils";
 
@@ -32,14 +33,13 @@ const root = createRoot(document.getElementById("root")!);
 /* istanbul ignore if */
 if (process.env.VITE_AUTH0) {
   root.render(
+    // Les options sont dans un module TYPÉ (`utils/auth0Options.ts`) : ce
+    // fichier-ci n'entre pas dans le programme de `yarn types`, donc une prop
+    // invalide y passerait inaperçue — c'est exactement ce qui est arrivé avec
+    // `audience` et `scope` restés au premier niveau (ADR-009, défaut 2).
     <Auth0Provider
-      domain={process.env.VITE_AUTH0_DOMAIN!}
-      clientId={process.env.VITE_AUTH0_CLIENTID!}
-      redirectUri={window.location.origin}
-      audience={process.env.VITE_AUTH0_AUDIENCE}
-      scope={process.env.VITE_AUTH0_SCOPE}
+      {...auth0ProviderOptions(window.location.origin)}
       onRedirectCallback={onRedirectCallback}
-      cacheLocation="localstorage"
     >
       <Router history={history}>
         <StyledEngineProvider injectFirst>

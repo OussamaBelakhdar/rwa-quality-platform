@@ -110,8 +110,16 @@ export default defineConfig({
     },
     paginationPageSize: process.env.PAGINATION_PAGE_SIZE,
 
-    // Auth0
+    // Auth0 — configuration PUBLIQUE (ADR-001). Le client secret n'est PAS ici :
+    // les valeurs d'`expose` sont lisibles par le code de la page sous test.
     auth0_domain: process.env.VITE_AUTH0_DOMAIN,
+    auth0_client_id: process.env.VITE_AUTH0_CLIENTID,
+    auth0_audience: process.env.VITE_AUTH0_AUDIENCE,
+    auth0_scope: process.env.VITE_AUTH0_SCOPE,
+    // Le grant `password-realm` prend le realm en PARAMÈTRE, ce qui évite
+    // d'exiger un « Default Directory » au niveau du tenant — un réglage global
+    // qui affecte aussi l'Universal Login (ADR-009).
+    auth0_realm: process.env.AUTH0_REALM || "Username-Password-Authentication",
 
     // Okta
     okta_domain: process.env.VITE_OKTA_DOMAIN,
@@ -188,13 +196,41 @@ export default defineConfig({
         "find:database"(queryPayload) {
           return queryDatabase(queryPayload, (data, attrs) => _.find(data.results, attrs));
         },
+        /**
+         * Identifiants SECRETS du login programmatique Auth0 (ADR-009).
+         *
+         * Le client secret en fait partie : `/oauth/token` en grant
+         * `password-realm` l'exige. Il transite par une tâche, donc par le
+         * process Node, et jamais par `expose` — lisible par la page.
+         *
+         * Les variables manquantes sont NOMMÉES une par une. Un message
+         * générique laisse chercher laquelle des six manque, et c'est
+         * exactement ce qui fait passer une configuration incomplète pour un
+         * tenant mal réglé.
+         */
         getAuth0Credentials() {
-          const username = process.env.AUTH0_USERNAME;
-          const password = process.env.AUTH0_PASSWORD;
-          if (!username || !password) {
-            throw new Error("AUTH0_USERNAME and AUTH0_PASSWORD must be set");
+          const requis = {
+            AUTH0_USERNAME: process.env.AUTH0_USERNAME,
+            AUTH0_PASSWORD: process.env.AUTH0_PASSWORD,
+            AUTH0_CLIENT_SECRET: process.env.AUTH0_CLIENT_SECRET,
+            VITE_AUTH0_DOMAIN: process.env.VITE_AUTH0_DOMAIN,
+            VITE_AUTH0_CLIENTID: process.env.VITE_AUTH0_CLIENTID,
+            VITE_AUTH0_AUDIENCE: process.env.VITE_AUTH0_AUDIENCE,
+          };
+          const manquantes = Object.entries(requis)
+            .filter(([, v]) => !v)
+            .map(([k]) => k);
+          if (manquantes.length) {
+            throw new Error(
+              `Login Auth0 impossible : ${manquantes.length} variable(s) absente(s) de .env.local — ` +
+                `${manquantes.join(", ")}. Voir docs/adr/009-login-auth0-programmatique-vs-cy-origin.md.`
+            );
           }
-          return { username, password };
+          return {
+            username: requis.AUTH0_USERNAME,
+            password: requis.AUTH0_PASSWORD,
+            clientSecret: requis.AUTH0_CLIENT_SECRET,
+          };
         },
         getOktaCredentials() {
           const username = process.env.OKTA_USERNAME;
@@ -261,7 +297,22 @@ export default defineConfig({
       // Derive the auth-provider guard flags from the fully-resolved
       // config.env so every credential source is honored (CYPRESS_* vars,
       // --env, cypress.env.json), matching the prior Cypress.env() guards.
-      config.expose.auth0_configured = Boolean(config.env.auth0_username);
+      // La tâche `getAuth0Credentials` lit `process.env.AUTH0_USERNAME` — ce que
+      // `.env` demande de renseigner. Le drapeau ne lisait que `config.env` :
+      // les deux moitiés ne regardaient pas la même source, et un utilisateur
+      // conforme à `.env` obtenait une tâche qui marche et un drapeau faux,
+      // donc des specs qui se taisent au lieu d'échouer (ADR-009).
+      // Le drapeau exige l'ENSEMBLE des variables du chemin programmatique, pas
+      // seulement le nom d'utilisateur : une configuration partielle produisait
+      // un drapeau vrai puis un échec au premier appel, loin de sa cause.
+      config.expose.auth0_configured = [
+        config.env.auth0_username || process.env.AUTH0_USERNAME,
+        config.env.auth0_password || process.env.AUTH0_PASSWORD,
+        process.env.AUTH0_CLIENT_SECRET,
+        process.env.VITE_AUTH0_DOMAIN,
+        process.env.VITE_AUTH0_CLIENTID,
+        process.env.VITE_AUTH0_AUDIENCE,
+      ].every(Boolean);
       config.expose.okta_configured = Boolean(config.env.okta_username);
       config.expose.cognito_configured = Boolean(config.env.cognito_username);
       // Google's gate is its public client id, which already lives in expose.

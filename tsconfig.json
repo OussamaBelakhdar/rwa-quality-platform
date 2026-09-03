@@ -24,6 +24,7 @@
     "backend",
     "src/__tests__",
     "cypress.d.ts",
-    "src/utils/portUtils.ts"
+    "src/utils/portUtils.ts",
+    "src/utils/auth0Options.ts"
   ]
 }
