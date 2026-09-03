@@ -107,6 +107,32 @@ qu'aux composants ayant un test de composant, qui les fait entrer dans le
 programme. Dette nommée, chiffrée à 25 erreurs et une `resolutions`, non
 refermée ici.
 
+### Ce que le chemin programmatique exige du tenant
+
+Vérifié contre la documentation Cypress, qui décrit ce même flux pour cette même
+application. Ces prérequis ne sont pas des détails d'installation : deux d'entre
+eux changent ce que l'ADR peut promettre.
+
+| Réglage                                                    | Où                                            | Pourquoi                                                                                                                                                                                                      |
+| ---------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type d'application **SPA**                                 | Applications                                  | Auth0 _déconseille_ le grant `password` aux clients publics, mais le tableau de bord permet de l'activer et Cypress documente ce cas pour les tests. La crainte inverse — « un SPA ne peut pas » — est fausse |
+| Grant type **Password**                                    | Application → Advanced Settings → Grant Types | sans lui, `/oauth/token` répond `unauthorized_client`                                                                                                                                                         |
+| **Default Directory** = `Username-Password-Authentication` | Tenant Settings → API Authorization Settings  | sans lui, le grant `password` échoue même une fois activé, avec une erreur qui ne nomme pas la cause                                                                                                          |
+| Une **API** dont l'Identifier devient l'`audience`         | Applications → APIs                           | sans audience d'API, Auth0 rend un jeton **opaque** et non un JWT : `checkAuth0Jwt` le rejette (RS256 + JWKS + audience)                                                                                      |
+| **Client Secret** de l'application                         | Application → Settings                        | `/oauth/token` en grant `password` l'exige. C'est le prérequis le plus lourd de conséquence : voir ci-dessous                                                                                                 |
+| `VITE_AUTH_TOKEN_NAME` décommenté                          | `.env`                                        | `asyncUtils.ts:15` lit `localStorage[VITE_AUTH_TOKEN_NAME]` pour poser l'en-tête `Bearer`. Commenté, la clé vaut la chaîne `"undefined"` — symétrique, donc silencieux, mais faux                             |
+
+**Le client secret est un vrai secret, et il tombe du bon côté d'ADR-001.** Il va
+dans `env` (`cypress.env.json`, non commité), **jamais** dans `expose` : les
+valeurs d'`expose` sont lisibles par le code de la page sous test. C'est
+exactement la frontière qu'ADR-001 a tracée, et le premier secret du projet qui
+n'est pas un mot de passe public.
+
+C'est aussi un argument que l'option A (`cy.origin`) n'a pas : **elle ne
+nécessite aucun secret client.** Elle reste écartée pour son coût — 20 specs
+contre 1 — mais l'écart de surface d'exposition est réel et doit être écrit
+plutôt que tu.
+
 ## Options considérées
 
 | Option                                                              | Avantages                                                                                                                                                                                                                  | Inconvénients                                                                                                                                                                                                                                                                                                                                                                                                  | Coût                                                                                                                     |
