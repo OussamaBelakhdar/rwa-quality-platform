@@ -162,7 +162,9 @@
 **Livrable** : le flux Auth0 testé avec `cy.session` + `cy.origin`.
 
 - Compte Auth0 gratuit, tenant SPA, `.env` non commité.
-- Branche `feat/auth0` avec `src/index.auth0.tsx` (fourni par la RWA).
+- Branche `week-9/auth0` avec `src/index.auth0.tsx` (fourni par la RWA). _Le plan
+  disait `feat/auth0` ; `.claude/rules/git.md` impose `week-<n>/<sujet>` et c'est
+  une contrainte dure. La règle l'emporte sur le plan qui la précède._
 - Deux variantes documentées : login programmatique (API Auth0) vs `cy.origin` (UI Auth0) — quand utiliser laquelle.
 - Vidéo 60 s du test qui passe.
 
@@ -190,7 +192,7 @@
 | ------------------------------------ | ------- | --------------------------------------------------------------------------------------- |
 | Commandes & internes (Expert)        | 1       | `00-foundations/`                                                                       |
 | Réseau cy.intercept (Expert)         | 5       | `network/`                                                                              |
-| Authentification (Expert)            | 2, 9    | `cy.login`, branche `feat/auth0`                                                        |
+| Authentification (Expert)            | 2, 9    | `cy.login`, branche `week-9/auth0`                                                      |
 | Custom commands typées (Expert)      | 3       | `index.d.ts`                                                                            |
 | Architecture / App Actions / seeding | 3, 4    | `app-actions/`, `plugins/db.task.ts`, `backend/test-data.routes.ts`, ADR-002, ADR-006   |
 | Component testing (Expert)           | 8       | `src/**/*.cy.tsx`, ADR-004                                                              |
