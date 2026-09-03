@@ -258,6 +258,26 @@ runner. **Non reproduit en 15 exécutions consécutives depuis**, ni en CI (#34 
 18 jobs verts). Consigné plutôt que passé sous silence : 1 sur 16, cause
 probable d'environnement et non de test, à re-regarder s'il réapparaît.
 
+## Audit de clôture des semaines 7 et 8 (2026-09-03)
+
+Relecture des critères de `docs/PLAN.md` et de la checklist `close-week`, un par
+un, après coup. Deux manques trouvés, tous deux comblés ici — la semaine 8 était
+mergée avec sa CI verte, ce qui n'est pas la même chose que « complète ».
+
+| Critère                                                                | État avant l'audit                                  | Après                                                             |
+| ---------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------- |
+| S7 — étudier `fileParallelism: false`                                  | **non tenu** : aucune mention hors du plan lui-même | mesuré et écrit dans [`flakiness-report.md`](flakiness-report.md) |
+| S8 — `close-week` §2 : `yarn cy:random`                                | non exécuté                                         | **65/65**                                                         |
+| S8 — `close-week` §2 : `yarn cy:burn` sur les specs touchées           | non exécuté                                         | **0,00 %** sur 10 exécutions (spec a11y, 5 tests × 10)            |
+| S7 — flake réel de `flake-demo`, non fabriqué                          | tenu                                                | —                                                                 |
+| S7 — quarantaine, job CI non bloquant, `cy:burn`                       | tenus                                               | —                                                                 |
+| S8 — composants nommés par le plan                                     | tenu après ajout de `TransactionCreateStepOne`      | —                                                                 |
+| S8 — ADR-004 sur 10 comportements, axe sur 5 pages, couverture publiée | tenus                                               | —                                                                 |
+
+La leçon tient en une ligne : **une CI verte prouve que ce qui est écrit passe,
+pas que ce qui était demandé est écrit.** Seule la relecture des critères
+attrape un critère jamais commencé.
+
 ## Semaine 7 — flakiness (2026-09-02)
 
 | Métrique                      | Valeur                      | Note                                                                   |
