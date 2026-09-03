@@ -30,6 +30,7 @@ export type DataTestPrefix =
   | "transaction-comment-input"
   | "transaction-like-button"
   | "transaction-like-count"
+  | "user-list-item"
   | "bankaccount-list-item"
   | "notification-list-item";
 
