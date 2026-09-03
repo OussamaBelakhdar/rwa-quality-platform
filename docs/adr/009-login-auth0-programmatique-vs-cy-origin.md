@@ -1,6 +1,6 @@
 # ADR-009 — Login Auth0 : programmatique par défaut, `cy.origin` pour une seule spec
 
-**Statut** : accepté
+**Statut** : accepté, **décision révisée le 2026-09-03** (voir « Révision »)
 **Date** : 2026-09-03
 **Semaine du plan** : 9
 
@@ -20,12 +20,12 @@ fait, pas ce que la documentation d'Auth0 décrit.
 
 ### Ce que le code impose
 
-| Fait                                                                  | Où                             | Conséquence                                                                                                                                                                        |
-| --------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Le backend valide le JWT en **RS256 contre le JWKS** du tenant        | `backend/helpers.ts:15-27`     | Un jeton signé par une clé inconnue du JWKS est rejeté                                                                                                                             |
-| `/testData` est monté **avant** `checkAuth0Jwt` et termine la requête | `backend/app.ts:73` puis `:80` | Le seeding reste joignable en mode Auth0 : `cy.seed` fonctionne (ADR-007). Le `.unless({ path: ["/testData/*"] })` de `helpers.ts:94` est une **ceinture-bretelles**, pas la cause |
-| Le SDK est configuré en `cacheLocation="localstorage"`                | `src/index.auth0.tsx:42`       | Le cache du SDK est capturable et restaurable par `cy.session`                                                                                                                     |
-| **20 specs sur 22** appellent `cy.login` (27 appels)                  | `cypress/e2e/`, `cypress/api/` | Le coût du login est payé par presque toute la suite ; celui de `cy.origin` ne doit l'être qu'une fois                                                                             |
+| Fait                                                                         | Où                             | Conséquence                                                                                                                                                                        |
+| ---------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Le backend valide le JWT en **RS256 contre le JWKS** du tenant               | `backend/helpers.ts:15-27`     | Un jeton signé par une clé inconnue du JWKS est rejeté                                                                                                                             |
+| `/testData` est monté **avant** `checkAuth0Jwt` et termine la requête        | `backend/app.ts:73` puis `:80` | Le seeding reste joignable en mode Auth0 : `cy.seed` fonctionne (ADR-007). Le `.unless({ path: ["/testData/*"] })` de `helpers.ts:108` est une **ceinture-bretelles**, pas la cause |
+| Le SDK est configuré en `cacheLocation="localstorage"`                       | `src/index.auth0.tsx:42`       | Le cache du SDK est capturable et restaurable par `cy.session`                                                                                                                     |
+| **27 appels** à `cy.login`, mais **11 connexions réelles** mesurées côté API | `cypress/e2e/`, `cypress/api/` | `cy.session` avec `cacheAcrossSpecs` amortit déjà le login. C'est ce chiffre qui compte, pas le nombre d'appels                                                                    |
 
 Le troisième fait rend le login programmatique praticable. Sans lui — cache en
 mémoire, le défaut du SDK — il faudrait passer par l'UI.
@@ -113,14 +113,23 @@ Vérifié contre la documentation Cypress, qui décrit ce même flux pour cette 
 application. Ces prérequis ne sont pas des détails d'installation : deux d'entre
 eux changent ce que l'ADR peut promettre.
 
-| Réglage                                            | Où                                            | Pourquoi                                                                                                                                                                                                        |
-| -------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Type d'application **SPA**                         | Applications                                  | Auth0 _déconseille_ le grant `password` aux clients publics, mais le tableau de bord permet de l'activer et Cypress documente ce cas pour les tests. La crainte inverse — « un SPA ne peut pas » — est fausse   |
-| Grant type **Password**                            | Application → Advanced Settings → Grant Types | il autorise aussi le grant d'extension `password-realm` retenu ici ; sans lui, `/oauth/token` répond `unauthorized_client`                                                                                      |
-| ~~**Default Directory**~~                          | ~~Tenant Settings~~                           | **Plus nécessaire** — voir ci-dessous. C'était le prérequis le plus intrusif : un réglage global qui change aussi l'Universal Login                                                                             |
-| Une **API** dont l'Identifier devient l'`audience` | Applications → APIs                           | sans audience d'API, Auth0 rend un jeton **opaque** et non un JWT : `checkAuth0Jwt` le rejette (RS256 + JWKS + audience)                                                                                        |
-| **Client Secret** de l'application                 | Application → Settings                        | `/oauth/token` en grant `password` l'exige. C'est le prérequis le plus lourd de conséquence : voir ci-dessous                                                                                                   |
-| ~~`VITE_AUTH_TOKEN_NAME` décommenté~~              | ~~`.env`~~                                    | **Plus nécessaire** — le nom de clé a un défaut (`src/utils/authTokenName.ts`). Non définie, la variable faisait ranger le jeton sous la chaîne littérale `"undefined"` : symétrique donc silencieux, mais faux |
+| Réglage                                            | Où                                  | Pourquoi                                                                                                                                                                                                                                                        |
+| -------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type d'application **SPA**                         | Applications                        | Auth0 _déconseille_ le grant `password` aux clients publics, mais le tableau de bord permet de l'activer et Cypress documente ce cas pour les tests. La crainte inverse — « un SPA ne peut pas » — est fausse                                                   |
+| ~~Grant type **Password**~~                        | ~~Advanced Settings → Grant Types~~ | **Plus nécessaire depuis la révision.** `cy.origin` passe par le formulaire hébergé, donc par _authorization_code + PKCE_ — le SDK ne touche jamais `/oauth/token` en grant password. Vérifié : le mot `grant_type` n'apparaît nulle part dans le code du dépôt |
+| ~~**Default Directory**~~                          | ~~Tenant Settings~~                 | **Plus nécessaire** — voir ci-dessous. C'était le prérequis le plus intrusif : un réglage global qui change aussi l'Universal Login                                                                                                                             |
+| Une **API** dont l'Identifier devient l'`audience` | Applications → APIs                 | sans audience d'API, Auth0 rend un jeton **opaque** et non un JWT : `checkAuth0Jwt` le rejette (RS256 + JWKS + audience)                                                                                                                                        |
+| ~~**Client Secret**~~                              | ~~Application → Settings~~          | **Plus nécessaire depuis la révision** — c'était le prérequis du chemin programmatique, écarté                                                                                                                                                                  |
+| ~~`VITE_AUTH_TOKEN_NAME` décommenté~~              | ~~`.env`~~                          | **Plus nécessaire** — le nom de clé a un défaut (`src/utils/authTokenName.ts`). Non définie, la variable faisait ranger le jeton sous la chaîne littérale `"undefined"` : symétrique donc silencieux, mais faux                                                 |
+
+**Il ne reste que deux prérequis**, et aucun n'est un réglage à modifier : créer
+une application de type **SPA**, et créer une **API** dont l'Identifier devient
+l'`audience`. Les quatre autres lignes de ce tableau ont été supprimées par du
+code ou par la révision de la décision — pas par de la documentation.
+
+Ce qui suit ne concerne plus que la **variante documentée** (login
+programmatique), conservée parce que le critère de la semaine demande deux
+variantes et quand utiliser laquelle.
 
 **Le realm est passé en paramètre, pas réglé sur le tenant.** Auth0 offre un
 grant d'extension, `http://auth0.com/oauth/grant_type/password-realm`, qui prend
@@ -190,6 +199,50 @@ montée** (ADR-006 le documente). Les normaliser sans tenant pour les vérifier
 échangerait un défaut connu contre un défaut invisible. L'orphelin d'ADR-006 est
 donc refermé pour Auth0 et **explicitement rouvert, avec sa raison**, pour les
 trois autres.
+
+## Révision — la décision s'inverse
+
+La première rédaction retenait le login programmatique par défaut, sur un
+argument de coût : « payé par 20 specs sur 22 ». **Cet argument était faux**, et
+deux vérifications l'ont montré.
+
+**La mesure.** `cy.session` avec `cacheAcrossSpecs: true` amortit déjà le login.
+Comptées côté API pendant une exécution complète, les **27** invocations de
+`cy.login` produisent **11** `POST /login` réels — pas 27. Le coût d'un login
+par l'UI se paie donc onze fois, pas vingt, et la différence avec le chemin
+programmatique se réduit d'autant.
+
+**L'amont.** `cypress-realworld-app` teste Auth0 sur cette application exacte
+avec `cy.origin` **enveloppé dans `cy.session`**, pas avec `/oauth/token`. Une
+implémentation qui fonctionne pour ce code-ci pèse plus qu'un raisonnement sur
+le coût.
+
+**Le plan.** `docs/PLAN.md` énonce le livrable de la semaine : « le flux Auth0
+testé avec `cy.session` + `cy.origin` ». L'ADR contredisait le livrable qu'il
+était censé servir.
+
+### Ce qui est retenu désormais
+
+**`cy.origin` enveloppé dans `cy.session` est le chemin IMPLÉMENTÉ.** Le login
+programmatique reste **documenté** comme variante, avec la grille ci-dessous —
+c'est ce que le critère de la semaine demande : deux variantes et quand utiliser
+laquelle, pas deux implémentations.
+
+Trois conséquences, dont une qui aurait dû peser dès le départ :
+
+- **Aucun client secret n'est nécessaire.** Le prérequis le plus lourd
+  disparaît, et avec lui le premier vrai secret du projet. Les prérequis à la
+  charge du propriétaire du dépôt passent de quatre à **trois**.
+- Le retour de redirection est exercé par **chaque** création de session, et
+  non par une spec unique : `onRedirectCallback`, l'échange du code et la route
+  d'arrivée sont couverts sans test dédié.
+- Le contrôle « une seule spec `cy.origin` » n'a plus lieu d'être : la commande
+  L2 est le seul appelant, ce qui est plus fort qu'une limite comptée.
+
+### Ce que la première rédaction avait raison de dire
+
+Que le programmatique ne prouve jamais le retour de redirection. C'est exact, et
+c'est désormais un argument **pour** le chemin retenu, pas contre lui.
 
 ## Conséquences
 

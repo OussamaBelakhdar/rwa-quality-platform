@@ -166,7 +166,19 @@
   disait `feat/auth0` ; `.claude/rules/git.md` impose `week-<n>/<sujet>` et c'est
   une contrainte dure. La règle l'emporte sur le plan qui la précède._
 - Deux variantes documentées : login programmatique (API Auth0) vs `cy.origin` (UI Auth0) — quand utiliser laquelle.
-- Vidéo 60 s du test qui passe.
+- Vidéo 60 s du test qui passe. — **faite** : `cypress/videos/auth0.cy.ts.mp4`,
+  4 s, non commitée (`rules/git.md` interdit les vidéos au dépôt).
+
+**État des critères au 2026-09-03.** Le premier reste **non tenu**, et ce
+document le porte tel quel plutôt que de l'adapter.
+
+| Critère                          | État                                                                                                                                                                                                                                               |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Compte Auth0 gratuit, tenant SPA | **non tenu** — exige un compte tiers. ADR-010 constate que cette ÉTAPE contredit **P6**, tranche en faveur du principe, et livre un fournisseur OIDC local comme cible par défaut. Le tenant réel reste joignable en changeant `VITE_AUTH0_DOMAIN` |
+| `.env` non commité               | tenu, et **exécutoire** depuis `check-secrets.js`                                                                                                                                                                                                  |
+| Branche + `src/index.auth0.tsx`  | tenu — le fichier n'était chargé par personne, il l'est                                                                                                                                                                                            |
+| Deux variantes documentées       | tenu — ADR-009, décision révisée après mesure                                                                                                                                                                                                      |
+| Vidéo du test qui passe          | tenu                                                                                                                                                                                                                                               |
 
 **Référentiel** : Authentification (Expert). C'est la ligne la plus rare sur un profil francophone — ne pas la sauter.
 

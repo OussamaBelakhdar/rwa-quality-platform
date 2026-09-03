@@ -3,4 +3,5 @@
 import "./dom.commands";
 import "./data.commands";
 import "./auth.commands";
+import "./auth0.commands";
 import "./app-state.commands";

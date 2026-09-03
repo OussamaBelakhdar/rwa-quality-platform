@@ -12,17 +12,31 @@ import awsConfig from "../src/aws-exports";
 
 dotenv.config();
 
+/**
+ * Base de l'émetteur Auth0, avec ou sans schéma.
+ *
+ * Même règle que `getDomain` d'`auth0-spa-js` : un domaine déjà préfixé par
+ * `http://` ou `https://` est pris tel quel, sinon on préfixe en HTTPS. Sans
+ * cela, le backend construirait `https://http://localhost:3100/…` et rejetterait
+ * tout jeton émis par le fournisseur local (ADR-010). Une seule règle,
+ * appliquée des deux côtés de l'application.
+ */
+const baseAuth0 = (domaine?: string): string =>
+  /^https?:\/\//.test(domaine || "") ? domaine! : `https://${domaine}`;
+
+const AUTH0_BASE = baseAuth0(process.env.VITE_AUTH0_DOMAIN);
+
 const auth0JwtConfig = {
   secret: jwksRsa.expressJwtSecret({
     cache: true,
     rateLimit: true,
     jwksRequestsPerMinute: 5,
-    jwksUri: `https://${process.env.VITE_AUTH0_DOMAIN}/.well-known/jwks.json`,
+    jwksUri: `${AUTH0_BASE}/.well-known/jwks.json`,
   }),
 
   // Validate the audience and the issuer.
   audience: process.env.VITE_AUTH0_AUDIENCE,
-  issuer: `https://${process.env.VITE_AUTH0_DOMAIN}/`,
+  issuer: `${AUTH0_BASE}/`,
   algorithms: ["RS256"],
 };
 
