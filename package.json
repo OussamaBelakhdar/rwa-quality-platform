@@ -121,6 +121,7 @@
     "istanbul-lib-coverage": "3.2.2",
     "jsdom": "^22.1.0",
     "json": "11.0.0",
+    "jsonwebtoken": "8.5.1",
     "jwks-rsa": "2.0.5",
     "lowdb": "1.0.0",
     "mocha-junit-reporter": "^2.2.1",
