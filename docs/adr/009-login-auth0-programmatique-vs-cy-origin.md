@@ -79,13 +79,33 @@ Ils bloqueraient la semaine sous une forme trompeuse. Chacun est vérifié.
    décision est orpheline depuis. Cet ADR la referme, mais **pour Auth0
    seulement** : voir « Périmètre » ci-dessous.
 
-### Un angle mort du gate
+### Un angle mort du gate, et ce qu'il cachait
 
 `src/index.auth0.tsx` **n'est pas dans le `include` de `tsconfig.json`**. Le
 contrôle d'excès de propriétés de TypeScript aurait signalé les props JSX
-invalides du défaut 2 ; il ne l'a pas fait parce que le fichier n'entre pas
-dans le programme compilé. `yarn types` ne le verrait pas davantage après
-correction. Le fichier rejoint le périmètre dans le même lot.
+invalides du défaut 2 ; il ne l'a pas fait parce que le fichier n'entre pas dans
+le programme compilé.
+
+L'y ajouter a été tenté, et **mesuré** : le fichier tire `AppAuth0` puis tout le
+graphe de l'application, et fait apparaître **35 erreurs latentes**. Le
+diagnostic est celui déjà rencontré pour Express : quatre paquets déclarent
+`"@types/react": "*"`, donc une **seconde copie en 19.0.1** cohabite avec la
+18.3.17 du sommet, pour une application React 18. Une `resolutions` ramène 35 à 25. Les 25 restantes sont d'authentiques défauts amont, dont `toggleDrawer()`
+appelé sans argument à quatre endroits de `NavDrawer` alors qu'il en exige un —
+introduit en amont, commit `24848db`, jamais vu parce que jamais typé.
+
+Corriger 25 erreurs dans neuf composants **dépourvus de test de composant**
+serait exactement le risque refusé plus haut pour les shells Okta et Google :
+échanger un défaut connu contre un défaut invisible. Le besoin réel est plus
+étroit — empêcher la classe du défaut 2 de revenir. Les options du provider sont
+donc extraites dans `src/utils/auth0Options.ts`, un module qui n'importe que les
+**types du SDK** : il entre dans `yarn types` sans rien tirer d'autre, et son
+annotation `Auth0ProviderOptions` casse la compilation si les options dérivent.
+
+La couverture de `src/` par `yarn types` reste donc partielle : elle ne tient
+qu'aux composants ayant un test de composant, qui les fait entrer dans le
+programme. Dette nommée, chiffrée à 25 erreurs et une `resolutions`, non
+refermée ici.
 
 ## Options considérées
 
@@ -117,13 +137,13 @@ programmatique ne peut pas prouver : que le retour de redirection est câblé.
 
 ### Périmètre du lot
 
-| Correctif                                                                                                                              | Fichiers                      | Ampleur              |
-| -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------- |
-| Charger l'entrée Auth0 sous `VITE_AUTH0` (import dynamique dans `index.tsx`, pour que le bundle Auth0 reste hors du chemin par défaut) | `src/index.tsx`               | ~6 lignes            |
-| `authorizationParams` pour `audience`, `scope`, `redirect_uri`                                                                         | `src/index.auth0.tsx`         | ~5 lignes            |
-| `registerService("auth", authService)` et retrait de l'exposition héritée                                                              | `src/containers/AppAuth0.tsx` | 1 site sur 77 lignes |
-| Drapeau `auth0_configured` aligné sur la source que lit la tâche                                                                       | `cypress.config.ts`           | 1 ligne              |
-| `src/index.auth0.tsx` dans le périmètre de `yarn types`                                                                                | `tsconfig.json`               | 1 ligne              |
+| Correctif                                                                                                                              | Fichiers                                               | Ampleur           |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------- |
+| Charger l'entrée Auth0 sous `VITE_AUTH0` (import dynamique dans `index.tsx`, pour que le bundle Auth0 reste hors du chemin par défaut) | `src/index.tsx`                                        | ~6 lignes         |
+| `authorizationParams` pour `audience`, `scope`, `redirect_uri`                                                                         | `src/index.auth0.tsx`                                  | ~5 lignes         |
+| `registerService` + les trois services de composant, **en gardant** le bloc `window.Cypress` amont comme le fait `App.tsx`             | `src/containers/AppAuth0.tsx`                          | 4 enregistrements |
+| Drapeau `auth0_configured` aligné sur la source que lit la tâche                                                                       | `cypress.config.ts`                                    | 1 ligne           |
+| Options du provider extraites dans un module typé, entré dans `yarn types`                                                             | `src/utils/auth0Options.ts` (nouveau), `tsconfig.json` | ~30 lignes        |
 
 **Hors périmètre, et assumé comme tel** : `AppOkta.tsx`, `AppCognito.tsx` et
 `AppGoogle.tsx` conservent leurs 6 gardes `window.Cypress` restantes. Chez Okta
@@ -154,8 +174,10 @@ trois autres.
     Au-delà, la décision a dérivé.
   - `yarn check:surface` — `/testData` doit rester injoignable en production, y
     compris en mode Auth0 (ADR-007).
-  - `yarn types` couvre désormais `src/index.auth0.tsx` : la classe de défaut 2
-    ne peut plus repasser silencieusement.
+  - `yarn types` couvre désormais `src/utils/auth0Options.ts` : la classe de
+    défaut 2 ne peut plus repasser silencieusement. **Vérifié par mutation** —
+    remettre `redirectUri`/`audience`/`scope` au premier niveau produit
+    `TS2353: 'redirectUri' does not exist in type 'Auth0ProviderOptions'`.
 
 ## À mesurer, une fois le tenant disponible
 

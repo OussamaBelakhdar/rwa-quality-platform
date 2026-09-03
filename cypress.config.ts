@@ -261,7 +261,14 @@ export default defineConfig({
       // Derive the auth-provider guard flags from the fully-resolved
       // config.env so every credential source is honored (CYPRESS_* vars,
       // --env, cypress.env.json), matching the prior Cypress.env() guards.
-      config.expose.auth0_configured = Boolean(config.env.auth0_username);
+      // La tâche `getAuth0Credentials` lit `process.env.AUTH0_USERNAME` — ce que
+      // `.env` demande de renseigner. Le drapeau ne lisait que `config.env` :
+      // les deux moitiés ne regardaient pas la même source, et un utilisateur
+      // conforme à `.env` obtenait une tâche qui marche et un drapeau faux,
+      // donc des specs qui se taisent au lieu d'échouer (ADR-009).
+      config.expose.auth0_configured = Boolean(
+        config.env.auth0_username || process.env.AUTH0_USERNAME
+      );
       config.expose.okta_configured = Boolean(config.env.okta_username);
       config.expose.cognito_configured = Boolean(config.env.cognito_username);
       // Google's gate is its public client id, which already lives in expose.
