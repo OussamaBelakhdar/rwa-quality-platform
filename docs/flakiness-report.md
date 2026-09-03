@@ -186,6 +186,76 @@ la façon dont elle assère.
 
 ---
 
+## `fileParallelism: false` — ce qu'elle traite, ce qu'elle masque
+
+`vite.config.ts:43` porte une mitigation de flake venue de l'amont, commentée
+« #1666: Run tests sequentially to avoid race conditions with shared
+database.json file ». Le plan de la semaine demandait de l'étudier plutôt que
+de la constater. Une mitigation qu'on n'a pas mesurée est une superstition.
+
+### Ce qu'elle traite : une vraie course, reproduite
+
+Huit fichiers de `src/__tests__/` instancient lowdb sur **le même fichier**
+(`backend/database.ts:92`). Aucun ne contient d'appel d'écriture — c'est le code
+backend qu'ils exercent qui écrit. Vérifié sans supposer : empreinte SHA-256 de
+`data/database.json` avant et après une exécution, **différentes**.
+
+Mitigation levée (`vitest --run --fileParallelism`), 15 exécutions, la base
+restaurée par `yarn db:seed:dev` avant chacune :
+
+| Configuration                       | Échecs       |
+| ----------------------------------- | ------------ |
+| `fileParallelism: false` (tel quel) | **0 sur 5**  |
+| `fileParallelism` activé            | **1 sur 15** |
+
+L'échec, textuel :
+
+```
+FAIL  src/__tests__/comments.test.ts
+SyntaxError: Malformed JSON in file: data/database.json
+Unterminated string in JSON at position 204800 (line 6064 column 26)
+  ❯ FileSync.read  node_modules/lowdb/adapters/FileSync.js:37
+  ❯ backend/database.ts:92   const db = low(adapter);
+```
+
+Une **lecture déchirée** : un worker lit pendant qu'un autre écrit. La position
+204800 vaut exactement 200 Ko — une frontière de tampon d'écriture, pas un
+hasard. La mitigation traite donc quelque chose de réel, et le taux de 1/15
+explique pourquoi l'amont a serialisé plutôt que diagnostiqué : à cette
+fréquence, la course passe pour un incident.
+
+### Ce qu'elle masque : le couplage, et son prix
+
+Sérialiser supprime le symptôme, pas la cause. Les huit fichiers partagent
+toujours un état mutable global — exactement ce que **P1** interdit, et ce que
+la suite E2E de ce dépôt refuse par ailleurs en passant par les endpoints
+`/testData` plutôt que par le fichier (ADR-007). La règle vaut pour les tests
+de bout en bout et pas pour les tests unitaires du même dépôt : c'est
+l'incohérence que la mitigation rend invisible.
+
+Le prix est mesurable, médianes sur 5 exécutions chacune :
+
+|                          | Durée      |
+| ------------------------ | ---------- |
+| `fileParallelism: false` | **6,60 s** |
+| `fileParallelism` activé | **2,23 s** |
+
+**~3×**, payé à chaque exécution, en local comme en CI.
+
+### Pourquoi elle reste
+
+La retirer sans traiter le partage échangerait 4,4 s contre un flake à 6,7 %.
+La bonne correction est l'isolation — un fichier de base par worker, ou une base
+en mémoire — c'est-à-dire du travail sur `backend/database.ts`, pas sur la
+configuration de test. Elle n'est pas faite ici : la nommer, la chiffrer et
+dire ce qu'elle coûte vaut mieux que de la traiter à moitié.
+
+**Une conséquence pratique, tout de suite** : `generateSeedData.test.ts` est
+entièrement `describe.skip` (ligne 15), et deux tests de `transactions.test.ts`
+le sont aussi. Ce sont les suites qui écrivent le plus. Lever ces `skip` sans
+avoir réglé le partage augmenterait le taux mesuré ci-dessus — le lien entre les
+deux n'était écrit nulle part.
+
 ## Ce que la semaine a aussi corrigé dans l'outillage
 
 Deux gardes du dépôt se sont révélés faux pendant l'écriture de ces specs.
