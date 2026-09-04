@@ -418,8 +418,41 @@ jobs:
           echo "=== application ==="; tail -n 120 /tmp/app.log || true
           exit 1
 
-      - name: Cypress — flux Auth0
+      - name: Cypress — flux Auth0, sans écran de confirmation
         run: yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
+
+      # Auth0 interpose un écran de confirmation quand l'URI de rappel n'est pas
+      # vérifiable — `localhost` en est une — et sa documentation précise qu'il
+      # apparaît MÊME avec « Allow Skipping User Consent » activé. C'est donc le
+      # cas qu'un vrai tenant produira, et la branche qui le traite doit être
+      # exercée : une branche jamais exécutée ne prouve rien.
+      #
+      # Les deux chemins sont couverts, et aucun n'est un sous-ensemble de
+      # l'autre : sans confirmation, ce qui est prouvé est que la branche est
+      # correctement IGNORÉE.
+      - name: Cypress — flux Auth0, avec écran de confirmation
+        env:
+          LOCAL_OIDC_CONSENT: "true"
+        run: |
+          pkill -f "scripts/local-oidc" || true
+          yarn oidc:local > /tmp/oidc-consent.log 2>&1 &
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              for (let i = 1; i <= 60; i++) {
+                if ((await sonde("http://localhost:3100/.well-known/jwks.json")) === 200) process.exit(0);
+                await new Promise((r) => setTimeout(r, 500));
+              }
+              process.exit(1);
+            })();
+          '
+          yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
 
 
 

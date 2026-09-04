@@ -117,6 +117,34 @@ app.post("/authorize", (req: Request, res: Response) => {
   const url = new URL(b.redirect_uri);
   url.searchParams.set("code", code);
   url.searchParams.set("state", b.state);
+
+  // Écran de confirmation, sous drapeau (`LOCAL_OIDC_CONSENT=true`).
+  //
+  // Ce n'est pas de la simulation gratuite : Auth0 interpose cet écran quand
+  // l'URI de rappel n'est pas vérifiable — `localhost` en est une — et sa
+  // documentation précise qu'il apparaît MÊME avec « Allow Skipping User
+  // Consent » activé. Sans ce mode, la branche qui le traite dans
+  // `cy.loginAuth0()` ne serait jamais exécutée, et une branche jamais
+  // exécutée ne prouve rien. Le drapeau la rend testable ici plutôt que le
+  // jour où un vrai tenant la déclenche.
+  if (process.env.LOCAL_OIDC_CONSENT === "true") {
+    // `code` et `state` passent par des champs cachés, PAS par la query de
+    // l'`action` : un formulaire `method="get"` remplace la query string de son
+    // action par ses propres champs. L'y laisser produirait une redirection
+    // sans `code`, et un échec dont la cause serait invisible.
+    const base = `${url.origin}${url.pathname}`;
+    res.type("html").send(`<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>Confirmer</title></head><body>
+<h1>Autoriser l'application ?</h1>
+<form method="get" action="${echapper(base)}">
+  <input type="hidden" name="code" value="${echapper(code)}">
+  <input type="hidden" name="state" value="${echapper(b.state)}">
+  <button type="submit" value="accept">Accept</button>
+</form>
+</body></html>`);
+    return;
+  }
+
   res.redirect(url.toString());
 });
 

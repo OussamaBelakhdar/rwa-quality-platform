@@ -46,6 +46,32 @@ Cypress.Commands.add("loginAuth0", () => {
               cy.get("button[value=default]").click();
             }
           );
+
+          // Auth0 interpose un écran de confirmation quand l'URI de rappel
+          // n'est pas VÉRIFIABLE — `localhost` en est une. Il protège contre
+          // l'usurpation d'application sur la même machine, et sa
+          // documentation précise qu'il apparaît **même** avec « Allow
+          // Skipping User Consent » activé sur l'API.
+          //
+          // Le fournisseur local ne le rend pas. Le test doit donc tolérer sa
+          // présence ET son absence — sans quoi le chemin qui marche
+          // aujourd'hui casserait le jour où un vrai tenant est branché, ou
+          // l'inverse.
+          //
+          // La condition est évaluée DEHORS de `cy.origin`, une fois le
+          // premier bloc terminé : après une connexion réussie sans
+          // confirmation, le navigateur a déjà quitté l'origine d'Auth0, et
+          // toute commande supplémentaire à l'intérieur du bloc échouerait sur
+          // « expected to run against origin ». Le seul endroit sûr pour
+          // décider est ici.
+          cy.url().then((url) => {
+            const origineAuth0 = Cypress.expose("auth0_origin");
+            if (!url.startsWith(origineAuth0)) return;
+            cy.origin(origineAuth0, () => {
+              cy.get("button[value=accept]").click();
+            });
+          });
+
           // Preuve que le retour de redirection a été traité : sans
           // `onRedirectCallback` câblé, l'URL garderait `?code=…&state=…`.
           cy.url().should("equal", `${Cypress.config("baseUrl")}/`);
