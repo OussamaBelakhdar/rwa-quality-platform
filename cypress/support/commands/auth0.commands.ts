@@ -55,16 +55,27 @@ Cypress.Commands.add("loginAuth0", () => {
           //      first-party il n'apparaît pas, sauf `prompt=consent` explicite,
           //      et « Allow Skipping User Consent » le supprime ;
           //   2. la CONFIRMATION DE CONNEXION — affichée quand l'URI de rappel
-          //      n'est pas vérifiable, ce qu'est `localhost`. Elle protège de
-          //      l'usurpation d'application sur la même machine, et « Allow
-          //      Skipping User Consent » ne la supprime PAS. Auth0 n'en
-          //      documente pas le balisage.
+          //      n'est pas vérifiable, ce qu'est une URI de BOUCLAGE comme
+          //      `http://localhost:3000`. Elle protège de l'usurpation
+          //      d'application sur la même machine, « Allow Skipping User
+          //      Consent » ne la supprime PAS, et Auth0 n'en documente pas le
+          //      balisage.
           //
-          // Le premier est traité. Le second ne peut pas l'être à l'aveugle :
-          // deviner un sélecteur qu'on n'a jamais vu produirait un test qui
-          // ment. Il est donc transformé en échec QUI SE NOMME, avec la marche
-          // à suivre — c'est la seule chose honnête tant qu'aucun tenant réel
-          // n'a montré cette page.
+          // Le premier est traité. Le second **n'a pas à l'être** : il se
+          // désactive par un réglage documenté, « Non-Verifiable Callback URI
+          // End-User Confirmation », au niveau du tenant ou de l'APPLICATION —
+          // le niveau application primant. Le désactiver sur la seule
+          // application de test est préférable à deviner un sélecteur jamais
+          // vu : un test qui clique au hasard sur une page inconnue est un test
+          // qui ment.
+          //
+          // Auth0 déconseille de le désactiver, et il a raison — pour une
+          // application de production servie sur un vrai domaine. Ici l'URI de
+          // bouclage n'existe que parce que la suite tourne en local ; la
+          // recommandation vise un risque que ce contexte n'a pas.
+          //
+          // Reste le filet : si l'écran apparaît quand même, l'échec se NOMME
+          // et donne le réglage à changer, au lieu d'un timeout de 4 s.
           //
           // La condition est évaluée DEHORS de `cy.origin` : après une
           // connexion réussie sans écran intermédiaire, le navigateur a déjà
@@ -82,11 +93,13 @@ Cypress.Commands.add("loginAuth0", () => {
                 }
                 throw new Error(
                   "Auth0 a interposé un écran que `cy.loginAuth0()` ne sait pas franchir. " +
-                    "Le bouton de CONSENTEMENT (`button[value=accept]`) est absent : il s'agit " +
-                    "probablement de la CONFIRMATION DE CONNEXION, qu'Auth0 affiche pour un " +
-                    "callback non vérifiable comme `localhost` et que « Allow Skipping User " +
-                    "Consent » ne supprime pas. Son balisage n'est pas documenté. " +
-                    "Relever le HTML de cette page, puis étendre ce fichier (ADR-009)."
+                    "Le bouton de CONSENTEMENT (`button[value=accept]`) est absent : c'est donc " +
+                    "la CONFIRMATION DE CONNEXION, affichée parce que `http://localhost:3000` " +
+                    "est une URI de bouclage. À CORRIGER SUR LE TENANT, pas dans ce fichier : " +
+                    "Applications → (l'application de test) → Advanced Settings → OAuth → " +
+                    "« Non-Verifiable Callback URI End-User Confirmation » → Skip. " +
+                    "Le réglage existe aussi au niveau du tenant ; celui de l'application prime. " +
+                    "Voir ADR-009, section « prérequis du tenant »."
                 );
               });
             });
