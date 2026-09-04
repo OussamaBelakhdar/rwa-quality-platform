@@ -223,7 +223,8 @@
     "check:levels": "node scripts/check-levels.js",
     "dev:coverage:test": "cross-env NODE_ENV=development CYPRESS_COVERAGE=true concurrently yarn:start:react:test yarn:start:api:watch",
     "oidc:local": "yarn tsnode scripts/local-oidc.ts",
-    "dev:auth0:local": "cross-env VITE_AUTH0=true VITE_AUTH0_DOMAIN=http://localhost:3100 VITE_AUTH0_CLIENTID=client-local VITE_AUTH0_AUDIENCE=http://localhost:3001 VITE_AUTH0_SCOPE=\"openid profile email\" VITE_AUTH_TOKEN_NAME=authAccessToken AUTH0_USERNAME=test@rwa.local AUTH0_PASSWORD=s3cret1234$ NODE_ENV=development concurrently yarn:oidc:local yarn:start:react:test yarn:start:api:watch"
+    "dev:auth0:local": "cross-env VITE_AUTH0=true VITE_AUTH0_DOMAIN=http://localhost:3100 VITE_AUTH0_CLIENTID=client-local VITE_AUTH0_AUDIENCE=http://localhost:3001 VITE_AUTH0_SCOPE=\"openid profile email\" VITE_AUTH_TOKEN_NAME=authAccessToken AUTH0_USERNAME=test@rwa.local AUTH0_PASSWORD=s3cret1234$ NODE_ENV=development concurrently yarn:oidc:local yarn:start:react:test yarn:start:api:watch",
+    "auth0:tenant": "node scripts/auth0-tenant.js"
   },
   "engines": {
     "node": "^22.0.0 || ^24.0.0"
