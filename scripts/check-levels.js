@@ -69,6 +69,33 @@ for (const { racine, attendu } of ZONES) {
   }
 }
 
+// ── Specs exclues du run principal : qui les exécute ? ──────────────────────
+//
+// Une spec taguée `@sso` est retirée des shards E2E (`grepTags=-@sso`) parce
+// qu'elle exige une application construite autrement. Elle ne tourne donc que si
+// un job CI la nomme explicitement. Supprimez ce job, ou renommez le fichier, et
+// elle ne s'exécute PLUS NULLE PART — sans que rien n'échoue.
+//
+// C'est le trou que `check-executed.js` ne ferme pas : lui vérifie qu'un run a
+// joué ce qu'il a ENREGISTRÉ, pas qu'une spec a été enregistrée quelque part.
+// Les deux ensemble ferment la classe.
+const WORKFLOW = path.join(RACINE, ".github", "workflows", "e2e.yml");
+if (fs.existsSync(WORKFLOW)) {
+  const ci = fs.readFileSync(WORKFLOW, "utf8");
+  for (const { racine } of ZONES) {
+    for (const fichier of specs(racine)) {
+      if (!/@sso/.test(fs.readFileSync(fichier, "utf8"))) continue;
+      const relatif = path.relative(RACINE, fichier);
+      if (!ci.includes(relatif)) {
+        problemes.push(
+          `${relatif} est taguée @sso — donc exclue des shards — mais aucun job de ` +
+            `.github/workflows/e2e.yml ne la nomme. Elle ne s'exécuterait nulle part.`
+        );
+      }
+    }
+  }
+}
+
 if (problemes.length) {
   console.error("\nniveaux — ADR-004 :");
   problemes.forEach((p) => console.error(`  ${p}`));
