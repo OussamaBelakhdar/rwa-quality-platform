@@ -107,7 +107,9 @@ rwa-quality-platform/
 │   │   ├── 006-exposition-xstate-aux-tests.md
 │   │   ├── 007-endpoints-de-test-dans-le-backend.md
 │   │   ├── 008-factories-d-intercept-nommees-par-intention.md
-│   │   └── 009-login-auth0-programmatique-vs-cy-origin.md
+│   │   ├── 009-login-auth0-programmatique-vs-cy-origin.md
+│   │   ├── 010-fournisseur-oidc-local-pour-le-flux-auth0.md
+│   │   └── 011-cypress-cloud-pour-cy-prompt.md
 │   ├── flakiness-report.md
 │   └── metrics.md                   # chiffres suivis (cf. §8)
 ├── cypress.config.ts
@@ -289,7 +291,13 @@ Le coût d'une migration Cypress → Playwright est ainsi borné à L2 + L3 — 
 
 - Pas de couche BDD/Gherkin : coût de maintenance élevé, valeur nulle sans partie prenante non technique.
 - Pas de Page Objects : redondants avec App Actions + sélecteurs typés sur cette app.
-- Pas de Cypress Cloud en dépendance dure : le projet doit tourner sans compte tiers (P6). Test Replay utilisé une fois en démonstration.
+- Pas de Cypress Cloud en dépendance dure : le projet doit tourner sans compte tiers (P6).
+  La démonstration Test Replay prévue en semaine 7 a été **annulée**, pas réalisée — cette
+  ligne affirmait le contraire jusqu'en semaine 10. Sa valeur (post-mortem d'un échec CI)
+  était remplaçable sans compte, et elle l'a été : artefacts sur échec, rapport HTML agrégé,
+  annotations `::error::`, `cy:burn` (`docs/metrics.md`). Seule exception ouverte, et bornée
+  à un fichier hors `specPattern` : la démonstration `cy.prompt` d'ADR-011, tenue par la gate
+  `check-cloud.js`.
 - Pas de visual regression : `@percy/cypress` et `cy.visualSnapshot` sont **présents dans l'upstream et retirés ici** — le calcul coût/valeur est écrit, ce n'est pas un oubli.
 - Pas d'installation avec `--ignore-scripts` : `patch-package` s'exécute en postinstall (patches MUI v5). Le durcissement passe par le SHA-pin des actions et des `permissions:` minimales.
 - Pas de framework maison au-dessus de Cypress : les abstractions s'arrêtent à L2.
