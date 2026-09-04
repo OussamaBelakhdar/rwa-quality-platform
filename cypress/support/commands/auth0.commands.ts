@@ -24,8 +24,13 @@
  * sélecteurs qu'aux specs — c'est précisément pourquoi ce bloc vit en L2 et non
  * dans la spec.
  */
+import type { TaskMap } from "@plugins/index";
+
 Cypress.Commands.add("loginAuth0", () => {
-  cy.task<{ username: string; password: string }>("getAuth0Credentials").then(
+  // Type DÉRIVÉ du contrat, pas réécrit : `.claude/rules/typescript.md` impose
+  // que l'entrée et la sortie d'une tâche viennent de `TaskMap`. Un type inline
+  // compile aussi bien et ment le jour où la tâche change.
+  cy.task<TaskMap["getAuth0Credentials"]["sortie"]>("getAuth0Credentials").then(
     ({ username, password }) => {
       cy.session(
         ["auth0", username],
@@ -85,12 +90,16 @@ Cypress.Commands.add("loginAuth0", () => {
             const origineAuth0 = Cypress.expose("auth0_origin");
             if (!url.startsWith(origineAuth0)) return;
             cy.origin(origineAuth0, () => {
-              cy.get("body").then(($corps) => {
-                const accepter = $corps.find("button[value=accept]");
-                if (accepter.length) {
-                  cy.wrap(accepter.first()).click();
-                  return;
-                }
+              // `.should()` et non `.then()` : la version précédente prenait un
+              // INSTANTANÉ du DOM. Un écran encore en cours de rendu — le cas
+              // normal contre un tenant distant — donnait `length === 0` et
+              // levait « écran inconnu » alors que l'écran était bien là, juste
+              // lent. Un test qui échoue sur une lenteur est un flake, et la
+              // règle #10 l'interdit sur la spec censée prouver la fiabilité du
+              // SSO. `.should()` réessaie jusqu'au délai ; l'erreur nommée ne
+              // survient donc que si l'écran est RÉELLEMENT différent.
+              cy.get("body", { timeout: 15000 }).should(($corps) => {
+                if ($corps.find("button[value=accept]").length > 0) return;
                 throw new Error(
                   "Auth0 a interposé un écran que `cy.loginAuth0()` ne sait pas franchir. " +
                     "Le bouton de CONSENTEMENT (`button[value=accept]`) est absent : c'est donc " +
@@ -102,6 +111,10 @@ Cypress.Commands.add("loginAuth0", () => {
                     "Voir ADR-009, section « prérequis du tenant »."
                 );
               });
+              // L'assertion ci-dessus garantit que le bouton EXISTE avant qu'on
+              // le cherche : ce `cy.get` ne peut donc plus courir après un
+              // rendu en retard.
+              cy.get("button[value=accept]").first().click();
             });
           });
 

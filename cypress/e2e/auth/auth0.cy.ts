@@ -41,12 +41,20 @@ describe("Auth — connexion via Auth0", { tags: ["@auth", "@smoke", "@sso"] }, 
   });
 
   it("mène l'utilisateur authentifié à son tableau de bord", function () {
-    // Ce que cette assertion prouve et que le login programmatique ne
-    // prouverait pas : le retour de redirection a été traité. Une URL restée
-    // sur `?code=…&state=…` signalerait un `onRedirectCallback` non câblé.
+    // Ce que cet `it` prouve : la session restaurée par `cy.session` suffit à
+    // rendre l'application authentifiée.
+    //
+    // Il ne prouve PAS que le retour de redirection est câblé, et une première
+    // rédaction le prétendait avec `cy.location("search").should("not.contain",
+    // "code=")`. L'assertion était VIDE : `cy.visit("/")` est une navigation
+    // neuve, sa query string est toujours vide, et aucun défaut de
+    // `onRedirectCallback` ne pouvait la faire échouer. Elle décorait.
+    //
+    // La vraie preuve vit là où le flux se joue — dans le setup de
+    // `cy.session`, en L2 : `cy.url().should("equal", baseUrl + "/")` juste
+    // après le passage par l'origine d'Auth0. C'est le seul endroit où une URL
+    // restée sur `?code=…&state=…` serait observable.
     cy.visit("/");
-    cy.location("pathname").should("eq", "/");
-    cy.location("search").should("not.contain", "code=");
     cy.getBySel("sidenav-username").should("be.visible");
   });
 
