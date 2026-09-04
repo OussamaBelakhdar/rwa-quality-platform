@@ -33,16 +33,6 @@ esac
 
 fail=0
 
-# ---- Règles communes specs + couches (L1/L2) ----
-if grep -nE "require\(.*lowdb|from ['\"]lowdb|data/database\.json" <<< "$code"; then
-  echo "P1/L1 violé : aucune écriture ni lecture directe de lowdb depuis cypress/ — passer par les endpoints /testData (cy.seed / cy.task)." >&2; fail=1
-fi
-if grep -nE "['\"]s3cret['\"]" <<< "$code"; then
-  echo "Mot de passe en dur — utiliser cy.env(['defaultPassword']) (rules/testing.md #3, ADR-001)." >&2; fail=1
-fi
-if grep -nE '@ts-ignore' "$file"; then
-  echo "@ts-ignore interdit — utiliser @ts-expect-error commenté, ou corriger le type (rules/typescript.md)." >&2; fail=1
-fi
 # ── Vue CODE SEUL, calculée une fois ────────────────────────────────────────
 # Les lignes de commentaire sont BLANCHIES (pas supprimées) : `grep -n` garde
 # ainsi les vrais numéros de ligne.
@@ -59,7 +49,29 @@ fi
 #
 # Un commentaire de FIN de ligne reste couvert : `const x: any = 1; // note`
 # ne commence pas par un marqueur de commentaire.
+#
+# CETTE AFFECTATION VIT ICI, ET C'EST UN POINT DE CORRECTION, PAS DE STYLE.
+# Elle était placée APRÈS les deux premières règles, qui l'utilisaient déjà.
+# Avec `set -u`, `<<< "$code"` sur une variable non affectée fait échouer la
+# substitution : le `grep` d'une condition `if` rendait faux, et les règles
+# « pas d'accès lowdb » et « pas de mot de passe en dur » — les deux
+# interdits les plus durs du projet — ne se déclenchaient JAMAIS. Le hook
+# écrivait deux lignes `unbound variable` sur stderr et sortait 0.
+# Découvert en semaine 10 : une spec générée par un LLM contenait `s3cret` en
+# clair, le hook l'a laissée passer, et c'est le message d'erreur du shell qui
+# a trahi la panne. Une garde qui échoue OUVERT, la troisième de ce projet.
 code=$(awk '{ if ($0 ~ /^[[:space:]]*(\/\/|\*|\/\*)/) print ""; else print }' "$file")
+
+# ---- Règles communes specs + couches (L1/L2) ----
+if grep -nE "require\(.*lowdb|from ['\"]lowdb|data/database\.json" <<< "$code"; then
+  echo "P1/L1 violé : aucune écriture ni lecture directe de lowdb depuis cypress/ — passer par les endpoints /testData (cy.seed / cy.task)." >&2; fail=1
+fi
+if grep -nE "['\"]s3cret['\"]" <<< "$code"; then
+  echo "Mot de passe en dur — utiliser cy.env(['defaultPassword']) (rules/testing.md #3, ADR-001)." >&2; fail=1
+fi
+if grep -nE '@ts-ignore' "$file"; then
+  echo "@ts-ignore interdit — utiliser @ts-expect-error commenté, ou corriger le type (rules/typescript.md)." >&2; fail=1
+fi
 
 if grep -nE '(:|as|<)[[:space:]]*any\b' <<< "$code"; then
   echo "'any' interdit — utiliser unknown + narrowing (rules/typescript.md)." >&2; fail=1

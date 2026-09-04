@@ -39,6 +39,32 @@ const CAS = [
   ["commentaire citant it.only", "// it.only est interdit ici", false],
   ["code : sélecteur de classe", "cy.get('.ma-classe');", true],
   ["commentaire citant un sélecteur de classe", "// ne jamais écrire cy.get('.x')", false],
+
+  // ── Ajoutés en semaine 10, après une panne silencieuse ────────────────────
+  // Les deux règles les plus dures du projet — pas d'accès lowdb, pas de mot
+  // de passe en dur — étaient MORTES. Elles lisaient `$code` avant que la
+  // variable ne soit affectée : sous `set -u`, la substitution échouait, le
+  // `grep` de la condition rendait faux, et le hook sortait 0 en écrivant
+  // deux `unbound variable` que personne ne lisait.
+  //
+  // Ce fichier ne les couvrait pas. Il a été écrit pour garder « la classe et
+  // non l'instance », et il ne gardait en fait que les quatre règles dont la
+  // panne l'avait occupé. Les huit cas qui suivent couvrent CHAQUE règle
+  // d'interdiction du hook — c'est cela, garder la classe.
+  ["code : require lowdb", 'const db = require("lowdb");', true],
+  ["code : import lowdb", 'import low from "lowdb";', true],
+  ["code : lecture de data/database.json", 'cy.readFile("data/database.json");', true],
+  ["commentaire citant lowdb", "// le serveur tient son instance lowdb en mémoire", false],
+  ["code : mot de passe en dur", 'cy.login("u", "s3cret");', true],
+  ["commentaire citant le mot de passe public", '// le mot de passe public "s3cret" vit dans .env', false],
+  ["code : @ts-ignore (règle qui lit le fichier entier)", "// @ts-ignore", true],
+  ["code : data-test écrit en dur", "cy.get('[data-test=sidenav]');", true],
+  ["commentaire citant un data-test en dur", "// cy.get('[data-test=x]') est interdit", false],
+  ["code : cy.task brut", 'cy.task("db:reset", "default");', true],
+  ["commentaire citant cy.task", '// cy.task("db:reset") n\'est pas typé', false],
+  ["code : sélecteur #id", "cy.get('#username');", true],
+  ["code : it.skip", "it.skip('x', () => {});", true],
+  ["code : describe.only", "describe.only('x', () => {});", true],
 ];
 
 /**
