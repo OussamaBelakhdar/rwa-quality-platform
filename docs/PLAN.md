@@ -166,8 +166,11 @@
   disait `feat/auth0` ; `.claude/rules/git.md` impose `week-<n>/<sujet>` et c'est
   une contrainte dure. La règle l'emporte sur le plan qui la précède._
 - Deux variantes documentées : login programmatique (API Auth0) vs `cy.origin` (UI Auth0) — quand utiliser laquelle.
-- Vidéo 60 s du test qui passe. — **faite** : `cypress/videos/auth0.cy.ts.mp4`,
-  4 s, non commitée (`rules/git.md` interdit les vidéos au dépôt).
+- Vidéo 60 s du test qui passe. — **faite** : `artefacts/semaine-9-flux-auth0.mp4`,
+  4 s, 676 Ko, non commitée (`rules/git.md` interdit les vidéos au dépôt).
+  _Elle était d'abord restée dans `cypress/videos/`, que Cypress VIDE avant
+  chaque run (`trashAssetsBeforeRuns`) : elle avait donc disparu. Un artefact
+  dans un dossier purgé n'est pas un livrable._
 
 **État des critères au 2026-09-03.** Le premier reste **non tenu**, et ce
 document le porte tel quel plutôt que de l'adapter.
