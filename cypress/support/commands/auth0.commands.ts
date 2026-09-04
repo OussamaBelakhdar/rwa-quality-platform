@@ -47,28 +47,48 @@ Cypress.Commands.add("loginAuth0", () => {
             }
           );
 
-          // Auth0 interpose un écran de confirmation quand l'URI de rappel
-          // n'est pas VÉRIFIABLE — `localhost` en est une. Il protège contre
-          // l'usurpation d'application sur la même machine, et sa
-          // documentation précise qu'il apparaît **même** avec « Allow
-          // Skipping User Consent » activé sur l'API.
+          // Auth0 peut interposer un écran après la saisie des identifiants.
+          // Il y en a DEUX, distincts, et les confondre mène à viser le mauvais
+          // bouton :
           //
-          // Le fournisseur local ne le rend pas. Le test doit donc tolérer sa
-          // présence ET son absence — sans quoi le chemin qui marche
-          // aujourd'hui casserait le jour où un vrai tenant est branché, ou
-          // l'inverse.
+          //   1. le CONSENTEMENT — bouton `value=accept`. Pour une application
+          //      first-party il n'apparaît pas, sauf `prompt=consent` explicite,
+          //      et « Allow Skipping User Consent » le supprime ;
+          //   2. la CONFIRMATION DE CONNEXION — affichée quand l'URI de rappel
+          //      n'est pas vérifiable, ce qu'est `localhost`. Elle protège de
+          //      l'usurpation d'application sur la même machine, et « Allow
+          //      Skipping User Consent » ne la supprime PAS. Auth0 n'en
+          //      documente pas le balisage.
           //
-          // La condition est évaluée DEHORS de `cy.origin`, une fois le
-          // premier bloc terminé : après une connexion réussie sans
-          // confirmation, le navigateur a déjà quitté l'origine d'Auth0, et
-          // toute commande supplémentaire à l'intérieur du bloc échouerait sur
-          // « expected to run against origin ». Le seul endroit sûr pour
-          // décider est ici.
+          // Le premier est traité. Le second ne peut pas l'être à l'aveugle :
+          // deviner un sélecteur qu'on n'a jamais vu produirait un test qui
+          // ment. Il est donc transformé en échec QUI SE NOMME, avec la marche
+          // à suivre — c'est la seule chose honnête tant qu'aucun tenant réel
+          // n'a montré cette page.
+          //
+          // La condition est évaluée DEHORS de `cy.origin` : après une
+          // connexion réussie sans écran intermédiaire, le navigateur a déjà
+          // quitté l'origine d'Auth0, et toute commande supplémentaire dans le
+          // bloc échouerait sur « expected to run against origin ».
           cy.url().then((url) => {
             const origineAuth0 = Cypress.expose("auth0_origin");
             if (!url.startsWith(origineAuth0)) return;
             cy.origin(origineAuth0, () => {
-              cy.get("button[value=accept]").click();
+              cy.get("body").then(($corps) => {
+                const accepter = $corps.find("button[value=accept]");
+                if (accepter.length) {
+                  cy.wrap(accepter.first()).click();
+                  return;
+                }
+                throw new Error(
+                  "Auth0 a interposé un écran que `cy.loginAuth0()` ne sait pas franchir. " +
+                    "Le bouton de CONSENTEMENT (`button[value=accept]`) est absent : il s'agit " +
+                    "probablement de la CONFIRMATION DE CONNEXION, qu'Auth0 affiche pour un " +
+                    "callback non vérifiable comme `localhost` et que « Allow Skipping User " +
+                    "Consent » ne supprime pas. Son balisage n'est pas documenté. " +
+                    "Relever le HTML de cette page, puis étendre ce fichier (ADR-009)."
+                );
+              });
             });
           });
 

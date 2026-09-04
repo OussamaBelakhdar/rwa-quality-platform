@@ -418,19 +418,26 @@ jobs:
           echo "=== application ==="; tail -n 120 /tmp/app.log || true
           exit 1
 
-      - name: Cypress — flux Auth0, sans écran de confirmation
+      - name: Cypress — flux Auth0, sans écran intermédiaire
         run: yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
 
-      # Auth0 interpose un écran de confirmation quand l'URI de rappel n'est pas
-      # vérifiable — `localhost` en est une — et sa documentation précise qu'il
-      # apparaît MÊME avec « Allow Skipping User Consent » activé. C'est donc le
-      # cas qu'un vrai tenant produira, et la branche qui le traite doit être
-      # exercée : une branche jamais exécutée ne prouve rien.
+      # Auth0 a DEUX écrans intermédiaires distincts, et les confondre mène à
+      # viser le mauvais bouton :
+      #   - le CONSENTEMENT (`button[value=accept]`), absent pour une
+      #     application first-party sauf `prompt=consent`, et supprimé par
+      #     « Allow Skipping User Consent » ;
+      #   - la CONFIRMATION DE CONNEXION, affichée pour un callback non
+      #     vérifiable comme `localhost`, que ce réglage ne supprime PAS et dont
+      #     Auth0 ne documente pas le balisage.
+      #
+      # Ce passage exerce le premier — le seul dont on connaisse le balisage.
+      # Le second n'est pas simulé : reproduire un écran jamais vu donnerait une
+      # fausse assurance. La commande le transforme en échec qui se nomme.
       #
       # Les deux chemins sont couverts, et aucun n'est un sous-ensemble de
-      # l'autre : sans confirmation, ce qui est prouvé est que la branche est
-      # correctement IGNORÉE.
-      - name: Cypress — flux Auth0, avec écran de confirmation
+      # l'autre : sans écran intermédiaire, ce qui est prouvé est que la branche
+      # est correctement IGNORÉE.
+      - name: Cypress — flux Auth0, avec écran de consentement
         env:
           LOCAL_OIDC_CONSENT: "true"
         run: |

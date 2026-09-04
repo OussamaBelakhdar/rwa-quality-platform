@@ -118,15 +118,22 @@ app.post("/authorize", (req: Request, res: Response) => {
   url.searchParams.set("code", code);
   url.searchParams.set("state", b.state);
 
-  // Écran de confirmation, sous drapeau (`LOCAL_OIDC_CONSENT=true`).
+  // Écran de CONSENTEMENT, sous drapeau (`LOCAL_OIDC_CONSENT=true`).
   //
-  // Ce n'est pas de la simulation gratuite : Auth0 interpose cet écran quand
-  // l'URI de rappel n'est pas vérifiable — `localhost` en est une — et sa
-  // documentation précise qu'il apparaît MÊME avec « Allow Skipping User
-  // Consent » activé. Sans ce mode, la branche qui le traite dans
-  // `cy.loginAuth0()` ne serait jamais exécutée, et une branche jamais
-  // exécutée ne prouve rien. Le drapeau la rend testable ici plutôt que le
-  // jour où un vrai tenant la déclenche.
+  // Précision qui a manqué à la première rédaction : Auth0 a DEUX écrans
+  // intermédiaires distincts. Celui-ci reproduit le **consentement**, dont le
+  // bouton porte `value=accept` — il n'apparaît pour une application
+  // first-party que si `prompt=consent` est demandé, et « Allow Skipping User
+  // Consent » le supprime.
+  //
+  // L'autre est la **confirmation de connexion**, qu'Auth0 affiche pour un
+  // callback non vérifiable comme `localhost` et que ce réglage ne supprime
+  // pas. Son balisage n'est pas documenté : il n'est donc PAS simulé ici.
+  // Reproduire un écran qu'on n'a jamais vu donnerait une fausse assurance —
+  // c'est exactement ce que l'ADR-010 s'engage à ne pas faire.
+  //
+  // Ce mode sert à exécuter la branche « accepter » de `cy.loginAuth0()` : une
+  // branche jamais exécutée ne prouve rien.
   if (process.env.LOCAL_OIDC_CONSENT === "true") {
     // `code` et `state` passent par des champs cachés, PAS par la query de
     // l'`action` : un formulaire `method="get"` remplace la query string de son
