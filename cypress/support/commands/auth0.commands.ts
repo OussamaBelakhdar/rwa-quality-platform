@@ -35,7 +35,43 @@ Cypress.Commands.add("loginAuth0", () => {
       cy.session(
         ["auth0", username],
         () => {
-          cy.visit("/");
+          // `timeout` BORNÉ, et c'est la leçon la plus chère de la semaine.
+          //
+          // Quand le tenant refuse la demande — audience inconnue, callback non
+          // autorisé — il renvoie vers l'application avec `?error=…`.
+          // `withAuthenticationRequired` retente aussitôt, et les deux se
+          // renvoient la balle : la page ne finit JAMAIS de charger. Sans borne,
+          // `cy.visit` attend indéfiniment et le run ne rend pas la main —
+          // constaté trois fois, dix minutes à chaque fois, sans une ligne de
+          // diagnostic.
+          //
+          // Trente secondes suffisent largement à un aller-retour honnête. Au
+          // delà, c'est une boucle, et un échec vaut mieux qu'une attente.
+          cy.visit("/", { timeout: 30000 });
+
+          // Un refus du tenant revient par l'URL, pas par une exception.
+          //
+          // Auth0 redirige vers l'application avec `?error=…&error_description=…`
+          // quand la demande est invalide — audience inconnue, callback non
+          // autorisé, client désactivé. `withAuthenticationRequired` retente
+          // alors, et le couple redirige en boucle : le test n'échoue pas, il
+          // ne REND JAMAIS LA MAIN. Constaté ici — dix minutes, aucune sortie,
+          // aucune cause.
+          //
+          // La cause était pourtant écrite dans l'URL. On la lit.
+          cy.location("search").then((query) => {
+            const params = new URLSearchParams(query);
+            const erreur = params.get("error");
+            if (!erreur) return;
+            throw new Error(
+              `Le tenant Auth0 a refusé la demande d'autorisation : ${erreur} — ` +
+                `${params.get("error_description") || "sans description"}. ` +
+                `« Service not found » signifie que \`VITE_AUTH0_AUDIENCE\` ne correspond à ` +
+                `aucune API du tenant : c'est l'IDENTIFIER de l'API qu'il faut, pas son nom ` +
+                `(Applications → APIs, colonne « API Audience »). Voir ADR-009, prérequis du tenant.`
+            );
+          });
+
           cy.origin(
             Cypress.expose("auth0_origin"),
             { args: { username, password } },
@@ -100,6 +136,29 @@ Cypress.Commands.add("loginAuth0", () => {
               // survient donc que si l'écran est RÉELLEMENT différent.
               cy.get("body", { timeout: 15000 }).should(($corps) => {
                 if ($corps.find("button[value=accept]").length > 0) return;
+
+                // Rester sur l'origine d'Auth0 ne veut PAS dire « écran
+                // intermédiaire ». Le cas le plus fréquent est le formulaire
+                // REAFFICHÉ avec une erreur — identifiants faux, compte bloqué.
+                // La première version concluait « confirmation de connexion »
+                // dans tous les cas, et envoyait chercher un réglage de tenant
+                // alors que le mot de passe était simplement mauvais. Un
+                // message sûr de lui qui se trompe coûte plus cher qu'un
+                // message vague.
+                const texte = $corps.text();
+                const erreurConnexion =
+                  /wrong email or password|identifiant|mot de passe incorrect/i;
+                if (erreurConnexion.test(texte) || $corps.find("input#password").length > 0) {
+                  throw new Error(
+                    "Auth0 a REFUSÉ les identifiants : le formulaire de connexion est toujours " +
+                      "affiché. Vérifier `AUTH0_USERNAME` et `AUTH0_PASSWORD` dans `.env.local` — " +
+                      "`AUTH0_USERNAME` doit être l'ADRESSE E-MAIL de l'utilisateur créé dans " +
+                      "User Management → Users, pas un identifiant de client ni un secret. " +
+                      "Vérifier aussi que cet utilisateur existe bien dans la connexion " +
+                      "`Username-Password-Authentication`."
+                  );
+                }
+
                 throw new Error(
                   "Auth0 a interposé un écran que `cy.loginAuth0()` ne sait pas franchir. " +
                     "Le bouton de CONSENTEMENT (`button[value=accept]`) est absent : c'est donc " +
