@@ -260,6 +260,44 @@ probable d'environnement et non de test, à re-regarder s'il réapparaît.
 
 ## Semaine 9 — Auth0 (2026-09-03)
 
+### Le flux, contre un vrai tenant (2026-09-04)
+
+Le fournisseur local avait tout validé ; le tenant réel a quand même livré
+**trois défauts de configuration**, et aucun ne se serait deviné.
+
+| Symptôme observé                                            | Cause réelle                                                                                                                                                 |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cy.visit("/")` ne rend jamais la main, dix minutes         | Auth0 refusait la demande (`Service not found`) et renvoyait `?error=…` ; `withAuthenticationRequired` retentait → boucle de redirection. **Aucun message.** |
+| `Service not found: AUTOMATIONDATACAMP`                     | `VITE_AUTH0_AUDIENCE` portait le NOM de l'API, pas son **Identifier**                                                                                        |
+| « Wrong email or password », champ e-mail rempli d'un jeton | `AUTH0_USERNAME`/`AUTH0_PASSWORD` contenaient un Client ID et un Client Secret, pas les identifiants d'un **utilisateur**                                    |
+
+La cause du premier a été obtenue en interrogeant `/authorize` **directement**,
+hors navigateur : Auth0 répond `302` vers `?error=access_denied&error_description=…`.
+Trois minutes de diagnostic là où le test en consommait dix sans rien dire.
+
+Le troisième a été lu sur la **capture d'échec de Cypress** : le formulaire
+d'Auth0 réaffiché avec son message d'erreur, et la valeur fautive visible dans
+le champ.
+
+| Mesure, contre le tenant | Valeur                                         |
+| ------------------------ | ---------------------------------------------- |
+| Tests                    | **2 passants**, 5 s                            |
+| `cy:burn`, 10 exécutions | **0,00 %** — seuil §6 à 2 %                    |
+| Vidéo                    | `artefacts/semaine-9-tenant-auth0.mp4`, 286 Ko |
+
+### Ce que les garde-fous ont appris
+
+Deux ont été écrits pendant ce diagnostic, et l'un des deux était **faux** :
+
+- la lecture de `?error=` après `cy.visit` ne s'exécute jamais, puisque
+  `cy.visit` est précisément ce qui bloque. Conservée pour le cas où le retour
+  aboutit, mais elle n'a pas sauvé cette session ;
+- le message « écran intermédiaire » concluait à une **confirmation de
+  connexion** dans tous les cas où l'on restait sur l'origine d'Auth0. Il
+  envoyait modifier un réglage de tenant alors que le mot de passe était
+  simplement faux. Il distingue désormais le formulaire réaffiché avec erreur.
+  **Un message sûr de lui qui se trompe coûte plus cher qu'un message vague.**
+
 ### Le flux s'exécute — fournisseur OIDC local (ADR-010)
 
 Le critère « Compte Auth0 gratuit » reste **non tenu** : il exige un compte

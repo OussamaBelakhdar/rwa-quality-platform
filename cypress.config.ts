@@ -33,6 +33,34 @@ try {
  */
 const apiUrl = `http://localhost:${process.env.VITE_BACKEND_PORT}`;
 
+/**
+ * Variables exigées par le chemin Auth0, et celles qui manquent.
+ *
+ * SOURCE UNIQUE. La liste était écrite deux fois — dans la tâche
+ * `getAuth0Credentials` et dans le drapeau `auth0_configured` — et c'est
+ * précisément le défaut que ce lot prétendait corriger : deux expressions pour
+ * une même règle finissent par diverger. Elles divergeaient déjà une fois
+ * (`CYPRESS_auth0_username` accepté par l'un, ignoré par l'autre).
+ *
+ * `config.env` d'abord : il porte `CYPRESS_*`, `--env` et `cypress.env.json`.
+ * `process.env` ensuite : c'est ce que `.env`/`.env.local` renseignent.
+ */
+const variablesAuth0 = (env: Record<string, unknown>) => {
+  const requis: Record<string, unknown> = {
+    AUTH0_USERNAME: env.auth0_username || process.env.AUTH0_USERNAME,
+    AUTH0_PASSWORD: env.auth0_password || process.env.AUTH0_PASSWORD,
+    VITE_AUTH0_DOMAIN: process.env.VITE_AUTH0_DOMAIN,
+    VITE_AUTH0_CLIENTID: process.env.VITE_AUTH0_CLIENTID,
+    VITE_AUTH0_AUDIENCE: process.env.VITE_AUTH0_AUDIENCE,
+  };
+  return {
+    requis,
+    manquantes: Object.entries(requis)
+      .filter(([, v]) => !v)
+      .map(([k]) => k),
+  };
+};
+
 export default defineConfig({
   /**
    * Retries — `runMode: 2`, `openMode: 0`. Les deux sont écrits, y compris
@@ -219,20 +247,7 @@ export default defineConfig({
           // Le chemin IMPLÉMENTÉ est `cy.origin` (ADR-009, révision) : il ne
           // demande PAS de client secret. `AUTH0_CLIENT_SECRET` reste documenté
           // dans `.env` pour la variante programmatique, mais n'est pas exigé.
-          // Mêmes sources que le drapeau `auth0_configured` ci-dessous. Deux
-          // expressions différentes produisaient un drapeau vrai et une tâche en
-          // échec — le défaut même que ce lot corrigeait, reparu un cran plus
-          // loin. Une seule règle, consultée aux deux endroits.
-          const requis = {
-            AUTH0_USERNAME: config.env.auth0_username || process.env.AUTH0_USERNAME,
-            AUTH0_PASSWORD: config.env.auth0_password || process.env.AUTH0_PASSWORD,
-            VITE_AUTH0_DOMAIN: process.env.VITE_AUTH0_DOMAIN,
-            VITE_AUTH0_CLIENTID: process.env.VITE_AUTH0_CLIENTID,
-            VITE_AUTH0_AUDIENCE: process.env.VITE_AUTH0_AUDIENCE,
-          };
-          const manquantes = Object.entries(requis)
-            .filter(([, v]) => !v)
-            .map(([k]) => k);
+          const { requis, manquantes } = variablesAuth0(config.env);
           if (manquantes.length) {
             throw new Error(
               `Login Auth0 impossible : ${manquantes.length} variable(s) absente(s) de .env.local — ` +
@@ -314,13 +329,15 @@ export default defineConfig({
       // Le drapeau exige l'ENSEMBLE des variables du chemin programmatique, pas
       // seulement le nom d'utilisateur : une configuration partielle produisait
       // un drapeau vrai puis un échec au premier appel, loin de sa cause.
-      config.expose.auth0_configured = [
-        config.env.auth0_username || process.env.AUTH0_USERNAME,
-        config.env.auth0_password || process.env.AUTH0_PASSWORD,
-        process.env.VITE_AUTH0_DOMAIN,
-        process.env.VITE_AUTH0_CLIENTID,
-        process.env.VITE_AUTH0_AUDIENCE,
-      ].every(Boolean);
+      const auth0 = variablesAuth0(config.env);
+      config.expose.auth0_configured = auth0.manquantes.length === 0;
+      // Publiées pour que la spec puisse NOMMER ce qui manque au lieu de se
+      // taire. Ce ne sont que des noms de variables, jamais leurs valeurs.
+      config.expose.auth0_manquantes = auth0.manquantes;
+      // « Auth0 est EXIGÉ ici » : sans ce drapeau, une configuration absente met
+      // la spec en attente et le run s'affiche vert — un job dédié passerait
+      // sans rien tester. Le job CI `auth0` le pose ; la suite générale non.
+      config.expose.auth0_required = Boolean(process.env.AUTH0_REQUIRED);
       config.expose.okta_configured = Boolean(config.env.okta_username);
       config.expose.cognito_configured = Boolean(config.env.cognito_username);
       // Google's gate is its public client id, which already lives in expose.

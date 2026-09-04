@@ -38,19 +38,42 @@ export interface NouvelleTransaction {
  * (.claude/rules/typescript.md). Sans lui, `cy.task` rend `any` et le typage
  * de la suite s'arrête à la frontière Node.
  */
+/** Identifiants d'un fournisseur SSO, rendus par une tâche Node. */
+export interface IdentifiantsSSO {
+  username: string;
+  password: string;
+}
+
 export interface TaskMap {
   "db:reset": { entree: SeedScenario; sortie: null };
   "db:createUser": { entree: NouvelUtilisateur; sortie: User };
   "db:createTransaction": { entree: NouvelleTransaction; sortie: Transaction };
+  /**
+   * Les tâches d'identifiants SSO entrent au contrat (ADR-009).
+   *
+   * Elles vivaient hors de `TaskMap`, enregistrées par un `on("task", …)` brut,
+   * et la commande retypait leur sortie à la main. C'est exactement la dérive
+   * déjà corrigée pour `db:seed` en semaine 4 : deux contrats coexistaient et
+   * le contributeur suivant en aurait choisi un au hasard. Une seule source.
+   */
+  getAuth0Credentials: { entree: void; sortie: IdentifiantsSSO };
 }
 
 /**
  * Handlers dérivés de `TaskMap`. Sans ce type, `on("task", …)` accepte
  * n'importe quelle signature et `TaskMap` reste décorative — ce qu'elle était
  * jusqu'à la revue de la semaine 4.
+ *
+ * `TachesDb` restreint la dérivation aux tâches de CE module. `TaskMap` est le
+ * contrat de toutes les tâches du projet, y compris celles enregistrées
+ * ailleurs (les identifiants SSO, dans `cypress.config.ts`) ; sans cette
+ * restriction, ce fichier devrait implémenter des tâches qui ne le concernent
+ * pas. Le contrat reste unique, sa mise en œuvre est répartie.
  */
+type TachesDb = Pick<TaskMap, "db:reset" | "db:createUser" | "db:createTransaction">;
+
 type Handlers = {
-  [K in keyof TaskMap]: (arg: TaskMap[K]["entree"]) => Promise<TaskMap[K]["sortie"]>;
+  [K in keyof TachesDb]: (arg: TachesDb[K]["entree"]) => Promise<TachesDb[K]["sortie"]>;
 };
 
 /**

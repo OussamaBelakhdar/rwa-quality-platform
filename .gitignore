@@ -70,3 +70,8 @@ allure-report/
 # artefacts de test — dont des hashs bcrypt — dans l historique.
 # La graine, elle, reste suivie : data/database-seed.json, data/empty-seed.json.
 data/database.json
+
+# Artefacts de démonstration (vidéos, captures) conserves HORS de
+# cypress/videos, que Cypress VIDE avant chaque run (trashAssetsBeforeRuns).
+# rules/git.md interdit de committer des videos : ce dossier reste ignore.
+artefacts/

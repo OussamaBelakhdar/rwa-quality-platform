@@ -117,6 +117,41 @@ app.post("/authorize", (req: Request, res: Response) => {
   const url = new URL(b.redirect_uri);
   url.searchParams.set("code", code);
   url.searchParams.set("state", b.state);
+
+  // Écran de CONSENTEMENT, sous drapeau (`LOCAL_OIDC_CONSENT=true`).
+  //
+  // Précision qui a manqué à la première rédaction : Auth0 a DEUX écrans
+  // intermédiaires distincts. Celui-ci reproduit le **consentement**, dont le
+  // bouton porte `value=accept` — il n'apparaît pour une application
+  // first-party que si `prompt=consent` est demandé, et « Allow Skipping User
+  // Consent » le supprime.
+  //
+  // L'autre est la **confirmation de connexion**, qu'Auth0 affiche pour un
+  // callback non vérifiable comme `localhost` et que ce réglage ne supprime
+  // pas. Son balisage n'est pas documenté : il n'est donc PAS simulé ici.
+  // Reproduire un écran qu'on n'a jamais vu donnerait une fausse assurance —
+  // c'est exactement ce que l'ADR-010 s'engage à ne pas faire.
+  //
+  // Ce mode sert à exécuter la branche « accepter » de `cy.loginAuth0()` : une
+  // branche jamais exécutée ne prouve rien.
+  if (process.env.LOCAL_OIDC_CONSENT === "true") {
+    // `code` et `state` passent par des champs cachés, PAS par la query de
+    // l'`action` : un formulaire `method="get"` remplace la query string de son
+    // action par ses propres champs. L'y laisser produirait une redirection
+    // sans `code`, et un échec dont la cause serait invisible.
+    const base = `${url.origin}${url.pathname}`;
+    res.type("html").send(`<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<title>Confirmer</title></head><body>
+<h1>Autoriser l'application ?</h1>
+<form method="get" action="${echapper(base)}">
+  <input type="hidden" name="code" value="${echapper(code)}">
+  <input type="hidden" name="state" value="${echapper(b.state)}">
+  <button type="submit" value="accept">Accept</button>
+</form>
+</body></html>`);
+    return;
+  }
+
   res.redirect(url.toString());
 });
 

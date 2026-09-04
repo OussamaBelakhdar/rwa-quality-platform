@@ -139,7 +139,18 @@ jobs:
       # quelque part — d'où le job `quarantine` ci-dessous. Un test quarantiné
       # qu'on cesse d'exécuter est un test supprimé sans le dire.
       - name: Cypress — shard ${{ matrix.shard }}
-        run: yarn cy:run --browser chrome --env grepTags=-@quarantine
+        # `grepOmitFiltered` est indispensable : sans lui, @cypress/grep ne
+        # RETIRE pas les tests filtrés, il les marque « en attente ». La suite
+        # affichait donc 2 pending en permanence, ce qui rendait impossible
+        # d'exiger « aucun test en attente » — et masquait un vrai skip parmi
+        # le bruit. Mesuré : 67 tests / 2 pending -> 65 tests / 0 pending.
+        #
+        # @sso est exclu ici parce qu'il a son propre job : le flux Auth0 exige
+        # une application construite en mode Auth0, incompatible avec les 20
+        # specs qui passent par Passport.
+        run: |
+          yarn cy:run --browser chrome --env grepTags=-@quarantine+-@sso,grepOmitFiltered=true
+          node scripts/check-executed.js
         env:
           SPLIT: ${{ env.SHARDS }}
           SPLIT_INDEX: ${{ matrix.shard }}
@@ -340,7 +351,9 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Cypress — composants
-        run: yarn cy:component
+        run: |
+          yarn cy:component
+          node scripts/check-executed.js
 
       - name: Artefacts de diagnostic
         if: failure()
@@ -379,6 +392,10 @@ jobs:
       VITE_AUTH_TOKEN_NAME: authAccessToken
       # Pas des secrets : identifiants du fournisseur LOCAL, définis par
       # ADR-010. Un vrai tenant les remplacerait par des secrets de dépôt.
+      # Ce job EXIGE Auth0 : sans ce drapeau, une variable mal orthographiée
+      # ci-dessus mettrait la spec en attente et le job passerait au vert sans
+      # rien tester. Le garde-fou doit echouer fermé.
+      AUTH0_REQUIRED: "true"
       AUTH0_USERNAME: test@rwa.local
       AUTH0_PASSWORD: s3cret1234$
 
@@ -418,8 +435,56 @@ jobs:
           echo "=== application ==="; tail -n 120 /tmp/app.log || true
           exit 1
 
-      - name: Cypress — flux Auth0
-        run: yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
+      # Le contrôle suit CHAQUE passage : `cypress run` sort 0 quand un test est
+      # mis en attente, donc ce job pourrait etre vert sans rien avoir execute.
+      # `AUTH0_REQUIRED` couvre deja le cas des variables absentes en le NOMMANT ;
+      # celui-ci est le filet generique — il ne dit pas pourquoi, il dit que.
+      - name: Cypress — flux Auth0, sans écran intermédiaire
+        run: |
+          yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
+          node scripts/check-executed.js
+
+      # Auth0 a DEUX écrans intermédiaires distincts, et les confondre mène à
+      # viser le mauvais bouton :
+      #   - le CONSENTEMENT (`button[value=accept]`), absent pour une
+      #     application first-party sauf `prompt=consent`, et supprimé par
+      #     « Allow Skipping User Consent » ;
+      #   - la CONFIRMATION DE CONNEXION, affichée pour un callback non
+      #     vérifiable comme `localhost`, que ce réglage ne supprime PAS et dont
+      #     Auth0 ne documente pas le balisage.
+      #
+      # Ce passage exerce le premier — le seul dont on connaisse le balisage.
+      # Le second n'est pas simulé : reproduire un écran jamais vu donnerait une
+      # fausse assurance. La commande le transforme en échec qui se nomme.
+      #
+      # Les deux chemins sont couverts, et aucun n'est un sous-ensemble de
+      # l'autre : sans écran intermédiaire, ce qui est prouvé est que la branche
+      # est correctement IGNORÉE.
+      - name: Cypress — flux Auth0, avec écran de consentement
+        env:
+          LOCAL_OIDC_CONSENT: "true"
+        run: |
+          rm -rf results/mochawesome
+          pkill -f "scripts/local-oidc" || true
+          yarn oidc:local > /tmp/oidc-consent.log 2>&1 &
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              for (let i = 1; i <= 60; i++) {
+                if ((await sonde("http://localhost:3100/.well-known/jwks.json")) === 200) process.exit(0);
+                await new Promise((r) => setTimeout(r, 500));
+              }
+              process.exit(1);
+            })();
+          '
+          yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
+          node scripts/check-executed.js
 
 
 
@@ -526,7 +591,7 @@ jobs:
           exit 1
 
       - name: Cypress — Firefox, suite entière
-        run: yarn cy:run --browser firefox
+        run: yarn cy:run --browser firefox --env grepTags=-@quarantine+-@sso,grepOmitFiltered=true
 
       # « issue auto si rouge » — sans cette étape, la gate §6 n'était qu'une
       # ligne de tableau. Un job non bloquant dont personne ne regarde le
