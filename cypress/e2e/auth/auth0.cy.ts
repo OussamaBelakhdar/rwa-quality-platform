@@ -33,7 +33,7 @@ function exigerOuIgnorer(contexte: Mocha.Context): void {
   );
 }
 
-describe("Auth — connexion via Auth0", { tags: ["@auth", "@smoke"] }, function () {
+describe("Auth — connexion via Auth0", { tags: ["@auth", "@smoke", "@sso"] }, function () {
   beforeEach(function () {
     exigerOuIgnorer(this);
     cy.seed("default");

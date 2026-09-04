@@ -139,7 +139,18 @@ jobs:
       # quelque part — d'où le job `quarantine` ci-dessous. Un test quarantiné
       # qu'on cesse d'exécuter est un test supprimé sans le dire.
       - name: Cypress — shard ${{ matrix.shard }}
-        run: yarn cy:run --browser chrome --env grepTags=-@quarantine
+        # `grepOmitFiltered` est indispensable : sans lui, @cypress/grep ne
+        # RETIRE pas les tests filtrés, il les marque « en attente ». La suite
+        # affichait donc 2 pending en permanence, ce qui rendait impossible
+        # d'exiger « aucun test en attente » — et masquait un vrai skip parmi
+        # le bruit. Mesuré : 67 tests / 2 pending -> 65 tests / 0 pending.
+        #
+        # @sso est exclu ici parce qu'il a son propre job : le flux Auth0 exige
+        # une application construite en mode Auth0, incompatible avec les 20
+        # specs qui passent par Passport.
+        run: |
+          yarn cy:run --browser chrome --env grepTags=-@quarantine+-@sso,grepOmitFiltered=true
+          node scripts/check-executed.js
         env:
           SPLIT: ${{ env.SHARDS }}
           SPLIT_INDEX: ${{ matrix.shard }}
@@ -340,7 +351,9 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Cypress — composants
-        run: yarn cy:component
+        run: |
+          yarn cy:component
+          node scripts/check-executed.js
 
       - name: Artefacts de diagnostic
         if: failure()
@@ -578,7 +591,7 @@ jobs:
           exit 1
 
       - name: Cypress — Firefox, suite entière
-        run: yarn cy:run --browser firefox
+        run: yarn cy:run --browser firefox --env grepTags=-@quarantine+-@sso,grepOmitFiltered=true
 
       # « issue auto si rouge » — sans cette étape, la gate §6 n'était qu'une
       # ligne de tableau. Un job non bloquant dont personne ne regarde le
