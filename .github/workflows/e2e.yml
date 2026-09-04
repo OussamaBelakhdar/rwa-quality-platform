@@ -379,6 +379,10 @@ jobs:
       VITE_AUTH_TOKEN_NAME: authAccessToken
       # Pas des secrets : identifiants du fournisseur LOCAL, définis par
       # ADR-010. Un vrai tenant les remplacerait par des secrets de dépôt.
+      # Ce job EXIGE Auth0 : sans ce drapeau, une variable mal orthographiée
+      # ci-dessus mettrait la spec en attente et le job passerait au vert sans
+      # rien tester. Le garde-fou doit echouer fermé.
+      AUTH0_REQUIRED: "true"
       AUTH0_USERNAME: test@rwa.local
       AUTH0_PASSWORD: s3cret1234$
 

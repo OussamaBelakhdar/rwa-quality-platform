@@ -4,14 +4,38 @@
 // navigateur, le second ne suit pas la redirection et ne déclenche donc jamais
 // `onRedirectCallback` (ADR-004 et ADR-009).
 
+/**
+ * Deux régimes, et c'est la distinction qui compte.
+ *
+ * Dans la suite générale, Auth0 n'est pas le sujet : sans configuration, la
+ * spec est mise EN ATTENTE. Un `describe.skip` littéral serait bloqué par le
+ * hook — à raison, il désactiverait la spec pour tout le monde alors que la
+ * condition est propre à l'environnement.
+ *
+ * Dans un run qui EXIGE Auth0 — le job CI dédié — se taire serait pire que
+ * tout : le job passerait au vert sans rien tester. Une variable mal
+ * orthographiée dans le workflow suffirait. Le drapeau `auth0_required`
+ * transforme alors l'attente en ÉCHEC, et l'échec nomme les variables
+ * absentes. C'est la même leçon que le hook `check-spec.sh` de la semaine 6,
+ * qui sortait 0 quand `jq` manquait : un garde-fou doit échouer FERMÉ.
+ */
+function exigerOuIgnorer(contexte: Mocha.Context): void {
+  if (Cypress.expose("auth0_configured")) return;
+  if (!Cypress.expose("auth0_required")) {
+    contexte.skip();
+    return;
+  }
+  const manquantes = Cypress.expose("auth0_manquantes");
+  throw new Error(
+    `Auth0 est exigé par ce run (AUTH0_REQUIRED) mais n'est pas configuré. ` +
+      `Variable(s) absente(s) : ${Array.isArray(manquantes) ? manquantes.join(", ") : "inconnues"}. ` +
+      `Sans ce garde-fou, ce run serait passé au VERT sans rien exécuter.`
+  );
+}
+
 describe("Auth — connexion via Auth0", { tags: ["@auth", "@smoke"] }, function () {
   beforeEach(function () {
-    // Sans tenant configuré, la spec est mise EN ATTENTE et non en échec :
-    // `auth0_configured` est calculé dans `cypress.config.ts` à partir des cinq
-    // variables requises. Un `describe.skip` littéral serait bloqué par le hook
-    // — et à raison : il désactiverait la spec pour tout le monde, alors que la
-    // condition est propre à l'environnement.
-    if (!Cypress.expose("auth0_configured")) this.skip();
+    exigerOuIgnorer(this);
     cy.seed("default");
     cy.loginAuth0();
   });
