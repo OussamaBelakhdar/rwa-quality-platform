@@ -124,12 +124,33 @@ Cypress.Commands.add("loginAuth0", () => {
         },
         {
           /**
-           * `authState` est écrit par `authMachine` une fois la machine passée
-           * en `authorized`. Sa présence prouve que le jeton a traversé le SDK
-           * ET la machine — pas seulement qu'Auth0 a répondu.
+           * Vérifie le CONTENU de `authState`, pas seulement sa présence.
+           *
+           * La première rédaction se contentait de `.should("exist")` en
+           * prétendant prouver « que le jeton a traversé le SDK ET la
+           * machine ». Faux : un état sérialisé `unauthorized` — après une
+           * déconnexion, ou une session expirée — existe tout autant, et le
+           * cache aurait été jugé valide à tort.
+           *
+           * `authMachine` persiste `JSON.stringify(state)` à chaque transition
+           * (`authMachine.ts:279`), et l'application rejoue cet état au
+           * démarrage via `resolveState` (`:270-273`). C'est donc exactement
+           * cette valeur qui décide si l'application est connectée : l'assertion
+           * porte enfin sur ce qui compte.
            */
           validate: () => {
-            cy.window().its("localStorage").invoke("getItem", "authState").should("exist");
+            cy.window()
+              .its("localStorage")
+              .invoke("getItem", "authState")
+              .should("be.a", "string")
+              .then((brut) => {
+                const etat: unknown = JSON.parse(String(brut));
+                const valeur =
+                  typeof etat === "object" && etat !== null
+                    ? (etat as { value?: unknown }).value
+                    : undefined;
+                expect(valeur, "état persisté d'authMachine").to.equal("authorized");
+              });
           },
           cacheAcrossSpecs: true,
         }
