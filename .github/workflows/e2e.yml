@@ -422,8 +422,14 @@ jobs:
           echo "=== application ==="; tail -n 120 /tmp/app.log || true
           exit 1
 
+      # Le contrôle suit CHAQUE passage : `cypress run` sort 0 quand un test est
+      # mis en attente, donc ce job pourrait etre vert sans rien avoir execute.
+      # `AUTH0_REQUIRED` couvre deja le cas des variables absentes en le NOMMANT ;
+      # celui-ci est le filet generique — il ne dit pas pourquoi, il dit que.
       - name: Cypress — flux Auth0, sans écran intermédiaire
-        run: yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
+        run: |
+          yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
+          node scripts/check-executed.js
 
       # Auth0 a DEUX écrans intermédiaires distincts, et les confondre mène à
       # viser le mauvais bouton :
@@ -445,6 +451,7 @@ jobs:
         env:
           LOCAL_OIDC_CONSENT: "true"
         run: |
+          rm -rf results/mochawesome
           pkill -f "scripts/local-oidc" || true
           yarn oidc:local > /tmp/oidc-consent.log 2>&1 &
           node -e '
@@ -464,6 +471,7 @@ jobs:
             })();
           '
           yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
+          node scripts/check-executed.js
 
 
 
