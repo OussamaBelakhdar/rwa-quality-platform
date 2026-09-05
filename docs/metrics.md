@@ -755,3 +755,70 @@ plus `grepFilterSpecs` activé pour le pré-filtrage des fichiers.
 | `/testData` injoignable en `NODE_ENV=production` | ✔ (4 routes en 404) | backend en `NODE_ENV=development` → **4 routes détectées** (200, 400, 400, 200) |
 
 Un `grep` du bundle aurait produit un faux positif permanent : `__services__` **est** présent dans le bundle par défaut, seule la garde est fausse à l'exécution. Le gate vérifie le comportement, pas le texte.
+
+---
+
+## Semaine 10 — Playwright, IA, gouvernance des gates
+
+### État de la suite, mesuré le 2026-09-05
+
+| Mesure                          | Valeur                                   | Comment                                                 |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------------- |
+| Specs E2E                       | **26** (+1 API, +10 composant)           | `cypress/e2e`, `cypress/api`, `src/**/*.cy.tsx`         |
+| Tests                           | **71 E2E** · 27 composant · 47 unitaires | `yarn cy:run`, `yarn cy:component`, `yarn test:unit:ci` |
+| Durée suite E2E, séquentielle   | **76 s**                                 | mesure locale, Electron, non shardée                    |
+| Durée tests de composant        | **20 s**                                 | idem                                                    |
+| Durée Playwright WebKit         | **9 s**                                  | 8 tests, `--project=webkit`                             |
+| Taux de flake E2E               | **0,00 %**                               | `cy:burn`, 10 exécutions, retries forcés à zéro         |
+| Taux de flake Playwright        | **0,00 %**                               | `--repeat-each=3`, 22/22                                |
+| Gates chaînées dans `yarn lint` | **12**                                   | dont `check-gates`, qui prouve les autres               |
+| Règles de gate prouvées         | **38**, 50 cas rejoués                   | `node scripts/check-gates.js`                           |
+| ADR acceptés ou proposés        | **12**                                   | `docs/adr/`                                             |
+
+### Coût d'une migration Cypress → Playwright, mesuré et non estimé
+
+| Couche canonique | Lignes | Survit ?                                             |
+| ---------------- | -----: | ---------------------------------------------------- |
+| L1 données & env |    752 | **211** (builders, TS pur) — `cypress.config.ts` non |
+| L2 capacités     |    895 | non                                                  |
+| L3 specs         |  2 006 | non                                                  |
+| L5 gouvernance   |      — | oui, intégral                                        |
+
+**3 442 lignes sur 3 653, soit 94 %.** `ARCHITECTURE.md` §10 annonçait « L1 intégral » : la ligne est corrigée avec ces chiffres (ADR-005).
+
+Et le module livré démontre un point que le chiffre seul manque : `playwright/support/socle.ts` **ne réutilise aucune de ces 211 lignes**. Il réimplémente contre les mêmes endpoints HTTP. Ce qui traverse un changement d'outil n'est pas du code, c'est un **contrat** — celui d'ADR-007, décidé six semaines plus tôt.
+
+### Ce que l'IA a produit, et ce qu'il a fallu en retirer
+
+| Mesure                                           | Valeur                                                                            |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Specs générées par un LLM sans contexte du dépôt | 6                                                                                 |
+| Bloquées par `check-spec.sh`                     | **6 sur 6**, 34 violations                                                        |
+| Défauts visibles seulement en revue humaine      | **11**                                                                            |
+| Specs retenues après correction                  | **4**                                                                             |
+| Specs écartées                                   | **2** — une pour niveau (ADR-004), une parce que **le comportement n'existe pas** |
+
+Un défaut sur quatre échappe à l'outillage, et ce sont les coûteux : une violation de règle se corrige en dix secondes, un test qui passe sans rien prouver survit des mois. Détail complet : `docs/ia-revue.md`.
+
+### Sept garde-fous qui ne gardaient rien
+
+Six trouvés cette semaine ou avant, un dans le code écrit pour les empêcher.
+
+| Garde-fou                   | Défaut                                               | Sens de l'échec |
+| --------------------------- | ---------------------------------------------------- | --------------- |
+| `check-spec.sh` (semaine 6) | `jq` absent de l'image CI → sortie 0                 | ouvert          |
+| serveur OIDC (semaine 9)    | `kill` visait le wrapper `npx` → 3 mutations vertes  | ouvert          |
+| `check-spec.sh`, 2 règles   | `$code` lu avant affectation sous `set -u`           | ouvert          |
+| `check-hook.js`             | couvrait 6 des 14 règles du hook                     | ouvert          |
+| `check-selectors.js`        | aveugle à `data-test={"clé"}` — 5 clés hors union    | ouvert          |
+| `auth0_configured`          | répondait à une autre question que celle posée       | **fermé**       |
+| `check-gates.js`            | détection de plantage aveuglée par les couleurs ANSI | ouvert          |
+
+Aucun n'a été trouvé par la CI : elle était verte à chaque fois, par construction. Ce que ces sept ont en commun est écrit dans ADR-012, et la réponse — `check-gates.js` — est la seule chose qui empêche le huitième.
+
+### Deux tests à moi qui ne testaient pas ce qu'ils annonçaient
+
+- **`playwright/tests/05-onboarding.spec.ts`** : héritait de la session de Heath93 et croyait connecter un utilisateur neuf. Sondé : `ATTENDU=probe_…`, `AFFICHÉ=@Heath93`. Il passait par une fenêtre de course du rendu de la modale. Corrigé, avec un contrôle négatif — sans lui, une modale affichée à tout le monde ferait passer le test principal.
+- **`cypress/e2e/bank-accounts/suppression.cy.ts`** : j'avais lu le backend (soft delete) et **supposé** le rendu. `BankAccountItem.tsx` garde la ligne et lui ajoute « (Deleted) ». Le test a échoué, et c'est le test qui avait tort.
+
+Le même défaut que celui reproché aux specs générées, commis deux fois par moi. La différence n'est pas la vigilance : c'est que ces deux-là ont été **exécutés**.
