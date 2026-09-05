@@ -64,49 +64,49 @@ code=$(awk '{ if ($0 ~ /^[[:space:]]*(\/\/|\*|\/\*)/) print ""; else print }' "$
 
 # ---- Règles communes specs + couches (L1/L2) ----
 if grep -nE "require\(.*lowdb|from ['\"]lowdb|data/database\.json" <<< "$code"; then
-  echo "P1/L1 violé : aucune écriture ni lecture directe de lowdb depuis cypress/ — passer par les endpoints /testData (cy.seed / cy.task)." >&2; fail=1
+  echo "P1/L1 violé : aucune écriture ni lecture directe de lowdb depuis cypress/ — passer par les endpoints /testData (cy.seed / cy.task)." >&2; fail=1 # RÈGLE: acces-lowdb
 fi
 if grep -nE "['\"]s3cret['\"]" <<< "$code"; then
-  echo "Mot de passe en dur — utiliser cy.env(['defaultPassword']) (rules/testing.md #3, ADR-001)." >&2; fail=1
+  echo "Mot de passe en dur — utiliser cy.env(['defaultPassword']) (rules/testing.md #3, ADR-001)." >&2; fail=1 # RÈGLE: mot-de-passe-en-dur
 fi
 if grep -nE '@ts-ignore' "$file"; then
-  echo "@ts-ignore interdit — utiliser @ts-expect-error commenté, ou corriger le type (rules/typescript.md)." >&2; fail=1
+  echo "@ts-ignore interdit — utiliser @ts-expect-error commenté, ou corriger le type (rules/typescript.md)." >&2; fail=1 # RÈGLE: ts-ignore
 fi
 
 if grep -nE '(:|as|<)[[:space:]]*any\b' <<< "$code"; then
-  echo "'any' interdit — utiliser unknown + narrowing (rules/typescript.md)." >&2; fail=1
+  echo "'any' interdit — utiliser unknown + narrowing (rules/typescript.md)." >&2; fail=1 # RÈGLE: type-any
 fi
 
 # ---- Règles propres aux specs (L3) ----
 if [[ $is_spec -eq 1 ]]; then
   if grep -nE 'cy\.wait\(\s*[0-9]+' <<< "$code"; then
-    echo "P4 violé : cy.wait(ms) interdit — utiliser cy.wait('@alias') ou une assertion avec retry." >&2; fail=1
+    echo "P4 violé : cy.wait(ms) interdit — utiliser cy.wait('@alias') ou une assertion avec retry." >&2; fail=1 # RÈGLE: attente-fixe
   fi
   if grep -nE "cy\.get\(['\"](#|\.)" <<< "$code"; then
-    echo "Sélecteur fragile (#id / .class) — utiliser cy.getBySel ou cy.findByRole." >&2; fail=1
+    echo "Sélecteur fragile (#id / .class) — utiliser cy.getBySel ou cy.findByRole." >&2; fail=1 # RÈGLE: selecteur-fragile
   fi
   # data-test écrit en dur : cy.getBySel existe et sa clé est typée. Sans cette
   # règle, `cy.get('[data-test="transacton-list"]')` compile, passe le lint, et
   # échoue au bout de 4 s de retry — exactement ce que le typage devait éviter.
   # cy.get('@alias') reste autorisé : c'est la lecture d'un alias, pas un sélecteur.
   if grep -nE "cy\.get\([^)]*data-test" <<< "$code"; then
-    echo "data-test écrit en dur — utiliser cy.getBySel(key) : la clé est typée, la faute de frappe devient une erreur de compilation (rules/testing.md #9)." >&2; fail=1
+    echo "data-test écrit en dur — utiliser cy.getBySel(key) : la clé est typée, la faute de frappe devient une erreur de compilation (rules/testing.md #9)." >&2; fail=1 # RÈGLE: data-test-en-dur
   fi
   if grep -nE 'it\.skip|describe\.skip|it\.only|describe\.only' <<< "$code"; then
-    echo "skip/only interdits — utiliser le tag @quarantine avec ticket (voir rules/testing.md)." >&2; fail=1
+    echo "skip/only interdits — utiliser le tag @quarantine avec ticket (voir rules/testing.md)." >&2; fail=1 # RÈGLE: skip-ou-only
   fi
   if [[ $est_suite -eq 1 ]] && grep -nE "cy\.window\(" <<< "$code"; then
-    echo "Accès window inline — passer par une app action de support/app-actions/ (rules/testing.md #12)." >&2; fail=1
+    echo "Accès window inline — passer par une app action de support/app-actions/ (rules/testing.md #12)." >&2; fail=1 # RÈGLE: window-inline
   fi
   if grep -nE "cy\.visit\(['\"]/signin" <<< "$code" && [[ "$file" != *auth/* ]]; then
-    echo "P2 violé : login UI hors du domaine auth/ — utiliser cy.login()." >&2; fail=1
+    echo "P2 violé : login UI hors du domaine auth/ — utiliser cy.login()." >&2; fail=1 # RÈGLE: login-ui-hors-auth
   fi
 
   # cy.task brut : les surcharges natives de Cypress sont permissives, donc le
   # nom de tâche et l'entrée ne sont vérifiés par personne. Les commandes typées
   # (cy.seed, cy.createUser, cy.createTransaction) le sont, elles.
   if grep -nE "cy\.task\(" <<< "$code"; then
-    echo "cy.task brut dans une spec — utiliser cy.seed / cy.createUser / cy.createTransaction, qui sont typées (cy.task ne l'est pas, voir support/typage.contract.ts)." >&2; fail=1
+    echo "cy.task brut dans une spec — utiliser cy.seed / cy.createUser / cy.createTransaction, qui sont typées (cy.task ne l'est pas, voir support/typage.contract.ts)." >&2; fail=1 # RÈGLE: cy-task-brut
   fi
 
   # Règle #1 : la base est remise dans un état connu AVANT CHAQUE TEST.
@@ -119,7 +119,7 @@ if [[ $is_spec -eq 1 ]]; then
   # bien pire qu'un faux positif : la règle laisserait passer ce qu'elle existe
   # pour bloquer.
   if [[ $est_suite -eq 1 ]] && ! awk '/beforeEach\(/,/^\s*\}\);/' <<< "$code" | grep -qE 'cy\.seed\('; then
-    echo "Règle #1 : aucun cy.seed dans le beforeEach — un test qui hérite de l'état laissé par le précédent n'est pas isolé (P1)." >&2; fail=1
+    echo "Règle #1 : aucun cy.seed dans le beforeEach — un test qui hérite de l'état laissé par le précédent n'est pas isolé (P1)." >&2; fail=1 # RÈGLE: seed-dans-before-each
   fi
 
   # Règle #6 : un tag de domaine ET un tag de niveau sur chaque describe.
@@ -130,9 +130,9 @@ if [[ $is_spec -eq 1 ]]; then
       # Même raison : un `tags:` en commentaire ne doit pas satisfaire la règle.
       if grep -qE '^describe\(' <<< "$code" || grep -qE '^\s*describe\(' <<< "$code"; then
         if ! grep -qE 'tags:\s*\[' <<< "$code"; then
-          echo "Règle #6 : aucun tag sur le describe — un domaine (@auth, @transactions, @foundations…) ET un niveau (@smoke ou @regression)." >&2; fail=1
+          echo "Règle #6 : aucun tag sur le describe — un domaine (@auth, @transactions, @foundations…) ET un niveau (@smoke ou @regression)." >&2; fail=1 # RÈGLE: tags-absents
         elif ! grep -qE '@(smoke|regression|quarantine)' <<< "$code"; then
-          echo "Règle #6 : tag de niveau manquant — @smoke, @regression ou @quarantine." >&2; fail=1
+          echo "Règle #6 : tag de niveau manquant — @smoke, @regression ou @quarantine." >&2; fail=1 # RÈGLE: niveau-absent
         fi
       fi
       ;;

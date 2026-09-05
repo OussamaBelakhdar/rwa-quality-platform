@@ -52,7 +52,11 @@ const SOUS_CONTRAT = ["check-cloud", "check-ai-review", "check-selectors"];
  * dette masquée ; ici elle est écrite et relisible.
  */
 const EXEMPTEES = {
-  "check-hook": "prouvée par son propre banc — 28 cas d'interdiction, 3 de présence.",
+  "check-hook":
+    "prouvée par son propre banc, qui vérifie LUI-MÊME sa couverture : il découvre les " +
+    "règles dans la source du hook (`# RÈGLE:`) et échoue si l'une n'a aucun cas. " +
+    "L'exemption disait d'abord « prouvée par son propre banc — 28 cas » : un compteur, " +
+    "pas une couverture. Le banc en couvrait alors 6 sur 14.",
   "check-gates": "c'est cette gate ; elle se prouve par les cas qu'elle exécute.",
   "check-executed": "lit des rapports mochawesome produits par un run CI, pas l'arbre.",
   "check-secrets": "interroge l'historique git ; un arbre de test n'a pas d'historique.",
