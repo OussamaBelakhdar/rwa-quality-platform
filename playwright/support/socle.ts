@@ -33,6 +33,39 @@ export async function semer(
         `L'application tourne-t-elle avec \`yarn dev:test\` ?`
     );
   }
+
+  // ── ATTENDRE QUE L'ÉCRITURE SOIT STABILISÉE ──────────────────────────────
+  //
+  // La route rend 200 dès qu'elle a lancé l'écriture, pas quand lowdb a fini de
+  // la poser sur disque. Naviguer aussitôt fait tomber la première requête de
+  // l'application dans cette fenêtre : elle échoue, et l'écran affiche
+  // « Network Error » au lieu du formulaire attendu.
+  //
+  // Ce n'est pas une supposition. L'amont documente la même course dans
+  // `vite.config.ts` — « #1666: Run tests sequentially to avoid race conditions
+  // with shared database.json file » — et impose `fileParallelism: false` pour
+  // la même raison. Mesuré ici : 2 échecs sur 3 exécutions de la suite, jamais
+  // en lançant la spec seule.
+  //
+  // Une temporisation fixe serait la mauvaise réponse — la règle #3 l'interdit
+  // côté Cypress et rien ne justifie de l'autoriser ici. On interroge donc
+  // l'état jusqu'à ce qu'il soit lisible.
+  await attendreLisible(api);
+}
+
+/** Interroge la base jusqu'à ce qu'elle réponde une collection non vide. */
+async function attendreLisible(api: APIRequestContext, msMax = 5000): Promise<void> {
+  const debut = Date.now();
+  for (;;) {
+    const r = await api.get(`${API}/testData/users`);
+    if (r.ok()) {
+      const corps = (await r.json()) as { results?: unknown[] };
+      if ((corps.results?.length ?? 0) > 0) return;
+    }
+    if (Date.now() - debut > msMax) {
+      throw new Error(`Le seed n'est pas devenu lisible en ${msMax} ms.`);
+    }
+  }
 }
 
 /** Une entité du seed, lue par l'API de test. Sert à choisir un utilisateur réel. */

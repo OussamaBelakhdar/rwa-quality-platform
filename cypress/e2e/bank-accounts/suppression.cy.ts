@@ -28,26 +28,25 @@ describe(
     });
 
     it("marque le compte supprimé sans le retirer, et l'état survit au rechargement", () => {
-      cy.getBySelLike("bankaccount-list-item")
-        .first()
-        .invoke("attr", "data-test")
-        .then((cle) => {
-          const id = String(cle).replace("bankaccount-list-item-", "");
+      cy.premierIdDe("bankaccount-list-item").then((id) => {
+        cy.getBySel("bankaccount-delete").first().click();
 
-          cy.getBySel("bankaccount-delete").first().click();
-
-          // Sur l'IDENTITÉ du compte, pas sur un compteur : une assertion de
-          // longueur passerait aussi si c'était un autre compte qui avait
-          // changé d'état.
-          cy.getBySelWithId("bankaccount-list-item", id).should("contain", "(Deleted)");
-          // Le bouton disparaît : c'est ce qui empêche une seconde suppression.
-          cy.getBySelWithId("bankaccount-list-item", id)
-            .find("[data-test=bankaccount-delete]")
-            .should("not.exist");
-
-          cy.reload();
-          cy.getBySelWithId("bankaccount-list-item", id).should("contain", "(Deleted)");
+        // Sur l'IDENTITÉ du compte, pas sur un compteur : une assertion de
+        // longueur passerait aussi si c'était un autre compte qui avait
+        // changé d'état.
+        cy.getBySelWithId("bankaccount-list-item", id).should("contain", "(Deleted)");
+        // Le bouton disparaît : c'est ce qui empêche une seconde suppression.
+        // `within` + `cy.getBySel`, JAMAIS un `data-test` écrit à la main
+        // dans un `.find()`. La première rédaction le faisait et le hook ne
+        // l'a pas vu : sa règle ne couvrait que `cy.get(`. Elle a été élargie
+        // — le défaut était dans la garde autant que dans la spec.
+        cy.getBySelWithId("bankaccount-list-item", id).within(() => {
+          cy.getBySel("bankaccount-delete").should("not.exist");
         });
+
+        cy.reload();
+        cy.getBySelWithId("bankaccount-list-item", id).should("contain", "(Deleted)");
+      });
     });
   }
 );

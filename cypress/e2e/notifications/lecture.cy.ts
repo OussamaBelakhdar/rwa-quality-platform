@@ -7,6 +7,18 @@
 // Corrigée depuis `docs/ia/brut/2-notifications-compteur.cy.ts.txt`. La version
 // générée asserted `not.equal` : elle passait aussi si le compteur MONTAIT, ce
 // qui serait précisément le bug. Voir docs/ia-revue.md §2.
+//
+// ── Deux points appris en l'écrivant, gardés ici plutôt que dans le corps ──
+//
+// 1. Le badge est rendu AVANT que la machine n'ait reçu les notifications. Le
+//    lire à ce moment donne `''`, et `Number("")` vaut 0 : le test a échoué sur
+//    `expected '-1'`. La valeur n'était pas fausse par hasard, elle était lue
+//    trop tôt. D'où l'attente sur la LISTE avant toute lecture du compteur.
+//
+// 2. L'extraction de l'identifiant est descendue en L2 (`cy.premierIdDe`,
+//    règle #4). Dupliquée dans deux specs, elle poussait ce `it` à 37 lignes —
+//    au-delà des 25 de la règle #5, qui existe parce qu'un `it` long mélange la
+//    préparation et le comportement. C'était exactement le cas.
 import { interceptNotificationLue } from "@support/intercepts/domaines.intercepts";
 
 describe("Notifications — lecture", { tags: ["@notifications", "@smoke", "@ai-generated"] }, () => {
@@ -18,41 +30,25 @@ describe("Notifications — lecture", { tags: ["@notifications", "@smoke", "@ai-
 
   it("retire la notification lue de la liste et décrémente le compteur", () => {
     const lue = interceptNotificationLue();
-
-    // GARDE-FOU D'ABORD, LECTURE ENSUITE. Sans cette ligne le test a échoué
-    // avec `expected '-1'` : le badge est rendu AVANT que la machine n'ait reçu
-    // les notifications, son texte est alors vide, et `Number("")` vaut 0. La
-    // valeur capturée n'était pas fausse par hasard — elle était capturée trop
-    // tôt. `.should()` sur la liste attend le chargement réel, et c'est ce
-    // chargement qui garantit que le badge porte un nombre.
     cy.getBySelLike("notification-list-item").should("have.length.greaterThan", 0);
 
     cy.getBySel("nav-top-notifications-count")
       .invoke("text")
       .then((texte) => {
-        // Valeur PASSÉE, capturée avant l'action : la comparer plus tard est
-        // légitime. Ce qui ne l'est pas, c'est de figer un état qu'on
-        // attendra ensuite — c'est le défaut de la spec 4 générée.
         const avant = Number(texte.trim());
 
-        cy.getBySelLike("notification-list-item")
-          .first()
-          .invoke("attr", "data-test")
-          .then((cle) => {
-            const id = String(cle).replace("notification-list-item-", "");
+        cy.premierIdDe("notification-list-item").then((id) => {
+          cy.getBySelWithId("notification-mark-read", id).click();
+          cy.wait(lue).its("response.statusCode").should("eq", 204);
+          cy.getBySelWithId("notification-list-item", id).should("not.exist");
+        });
 
-            cy.getBySelWithId("notification-mark-read", id).click();
-            cy.wait(lue).its("response.statusCode").should("eq", 204);
-
-            cy.getBySelWithId("notification-list-item", id).should("not.exist");
-            // Égalité EXACTE et décroissante. `GET /notifications` ne rend que
-            // les non-lues (`backend/database.ts:732`), donc le compteur doit
-            // valoir exactement un de moins — pas « autre chose ».
-            cy.getBySel("nav-top-notifications-count")
-              .invoke("text")
-              .invoke("trim")
-              .should("eq", String(avant - 1));
-          });
+        // Égalité EXACTE et décroissante : `GET /notifications` ne rend que
+        // les non-lues (`backend/database.ts:732`), donc un de moins.
+        cy.getBySel("nav-top-notifications-count")
+          .invoke("text")
+          .invoke("trim")
+          .should("eq", String(avant - 1));
       });
   });
 });

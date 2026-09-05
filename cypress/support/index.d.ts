@@ -49,6 +49,8 @@ declare global {
         id: string,
         options?: Partial<Loggable & Timeoutable>
       ): Chainable<JQuery>;
+      /** Rend l'identifiant du premier élément d'une liste à `data-test` préfixé. */
+      premierIdDe(prefix: DataTestPrefix): Chainable<string>;
       /** Remet la base dans son état seedé via la tâche `db:seed` (L1). */
       seed(scenario?: SeedScenario): Chainable<null>;
       /** Crée un utilisateur ; `withBankAccount: false` déclenche l'onboarding. */

@@ -6,13 +6,11 @@
  * expérimental côté Cypress. Le jour où il ne l'est plus, ce dossier disparaît.
  */
 import { defineConfig, devices } from "@playwright/test";
-import path from "path";
 
 const APP = process.env.PW_BASE_URL ?? "http://localhost:3000";
 
 export default defineConfig({
-  testDir: ".",
-  testMatch: ["tests/**/*.spec.ts", "support/auth.setup.ts"],
+  testDir: "./tests",
   // Cohérent avec la suite Cypress : l'isolation est garantie à l'ÉCRITURE
   // (chaque test sème son état), pas par l'ordre d'exécution.
   fullyParallel: false,
@@ -36,22 +34,9 @@ export default defineConfig({
     video: "off",
   },
   projects: [
-    // La connexion a lieu UNE fois, dans son propre projet, et son résultat est
-    // un fichier d'état. C'est l'équivalent Playwright de `cy.session` — même
-    // besoin, mécanique entièrement différente, et c'est précisément le coût
-    // que chiffre ADR-005 pour la couche L2.
-    { name: "setup", testMatch: /support\/auth\.setup\.ts/, use: { ...devices["Desktop Safari"] } },
-    {
-      name: "webkit",
-      // Le projet n'exécute QUE les specs : sans cette borne, il rejouerait
-      // aussi `auth.setup.ts` — cette fois avec un état déjà authentifié, donc
-      // sur une page qui redirige et ne montre aucun formulaire.
-      testMatch: /tests\/.*\.spec\.ts/,
-      dependencies: ["setup"],
-      use: {
-        ...devices["Desktop Safari"],
-        storageState: path.join(__dirname, ".auth", "utilisateur.json"),
-      },
-    },
+    // UN SEUL projet, et plus de `setup` : l'état de session partagé ne
+    // survivait pas au reseed (voir support/session.ts). Chaque test se
+    // connecte, ce qui coûte environ une seconde et achète l'isolation.
+    { name: "webkit", use: { ...devices["Desktop Safari"], testIdAttribute: "data-test" } },
   ],
 });

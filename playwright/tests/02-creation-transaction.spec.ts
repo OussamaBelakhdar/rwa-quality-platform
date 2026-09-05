@@ -3,16 +3,13 @@
 // texte. WebKit gère différemment la position du curseur et les événements de
 // composition — c'est le parcours où une divergence de moteur se voit d'abord.
 import { expect, test } from "@playwright/test";
+import { connecter } from "../support/session";
 import { semer } from "../support/socle";
 
 test.describe("Création de transaction", () => {
-  // La session vient du projet `setup` (voir playwright.config.ts) : elle est
-  // établie une fois pour toute la suite. Ici on ne remet que la BASE dans un
-  // état connu — l'équivalent strict du `cy.seed` du `beforeEach` côté Cypress.
-  // Le seed est un fichier figé, donc les identifiants d'utilisateurs sont
-  // stables : la session survit au reseed.
-  test.beforeEach(async ({ request }) => {
+  test.beforeEach(async ({ page, request }) => {
     await semer(request);
+    await connecter(page, "Heath93");
   });
 
   test("crée un paiement et l'affiche dans l'historique personnel", async ({ page }) => {

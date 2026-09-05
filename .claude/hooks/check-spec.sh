@@ -89,7 +89,12 @@ if [[ $is_spec -eq 1 ]]; then
   # règle, `cy.get('[data-test="transacton-list"]')` compile, passe le lint, et
   # échoue au bout de 4 s de retry — exactement ce que le typage devait éviter.
   # cy.get('@alias') reste autorisé : c'est la lecture d'un alias, pas un sélecteur.
-  if grep -nE "cy\.get\([^)]*data-test" <<< "$code"; then
+  # Le motif couvre `cy.get(` MAIS AUSSI `.find(`, `.filter(`, `.closest(`…
+  # La version précédente ne voyait que `cy.get(`, et un `data-test` écrit en
+  # dur dans un `.find()` est passé au vert en semaine 10 — relevé par
+  # `test-reviewer`, pas par cette garde. Une règle qui ne couvre qu'UNE des
+  # écritures d'un même geste ne garde pas ce geste : elle garde une syntaxe.
+  if grep -nE "(cy\.get|\.(find|filter|closest|siblings|parents|children|not))\([^)]*data-test" <<< "$code"; then
     echo "data-test écrit en dur — utiliser cy.getBySel(key) : la clé est typée, la faute de frappe devient une erreur de compilation (rules/testing.md #9)." >&2; fail=1 # RÈGLE: data-test-en-dur
   fi
   if grep -nE 'it\.skip|describe\.skip|it\.only|describe\.only' <<< "$code"; then

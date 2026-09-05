@@ -67,6 +67,21 @@ const CAS = [
   ["code : @ts-ignore (règle qui lit le fichier entier)", "// @ts-ignore", true, "ts-ignore"],
   ["code : data-test écrit en dur", "cy.get('[data-test=sidenav]');", true, "data-test-en-dur"],
   ["commentaire citant un data-test en dur", "// cy.get('[data-test=x]') est interdit", false],
+  // Ajouté après qu'un `data-test` en dur dans un `.find()` soit passé au vert :
+  // la règle ne couvrait que `cy.get(`. Un cas par écriture, sinon la couverture
+  // ment de nouveau.
+  [
+    "code : data-test en dur dans un .find()",
+    "cy.getBySel('x').find('[data-test=y]');",
+    true,
+    "data-test-en-dur",
+  ],
+  [
+    "code : data-test en dur dans un .filter()",
+    "cy.get('@a').filter('[data-test=y]');",
+    true,
+    "data-test-en-dur",
+  ],
   ["code : cy.task brut", 'cy.task("db:reset", "default");', true, "cy-task-brut"],
   ["commentaire citant cy.task", '// cy.task("db:reset") n\'est pas typé', false],
   ["code : sélecteur #id", "cy.get('#username');", true, "selecteur-fragile"],

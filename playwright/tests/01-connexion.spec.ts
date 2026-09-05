@@ -5,15 +5,6 @@
 import { expect, test } from "@playwright/test";
 import { MOT_DE_PASSE, semer } from "../support/socle";
 
-// LA SEULE SPEC QUI PART DÉCONNECTÉE, et c'est structurel : elle a pour objet
-// le formulaire de connexion. L'état partagé du projet `setup` la ferait
-// atterrir sur le tableau de bord, où il n'y a pas de formulaire à remplir.
-//
-// C'est l'équivalent Playwright de la règle #2 du projet — le login par l'UI
-// n'est testé QUE là où il est le sujet. Ailleurs il est une précondition, et
-// une précondition ne se rejoue pas par l'interface.
-test.use({ storageState: { cookies: [], origins: [] } });
-
 test.describe("Connexion", () => {
   test.beforeEach(async ({ request }) => {
     await semer(request);

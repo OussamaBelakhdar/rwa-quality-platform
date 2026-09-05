@@ -46,6 +46,11 @@ describe(
       // valeur relue pourrait n'avoir jamais quitté le navigateur.
       cy.reload();
       cy.getBySel("user-settings-firstName-input").should("have.value", prenom);
+      // LES DEUX champs modifiés sont vérifiés, et c'est une correction. Le
+      // titre annonce « les modifications » au pluriel ; seul le prénom était
+      // prouvé. Une régression sur le nom de famille serait passée au vert —
+      // une action sans preuve, le défaut même reproché aux specs générées.
+      cy.getBySel("user-settings-lastName-input").should("have.value", "Belakhdar");
       cy.getBySel("sidenav-user-full-name").should("contain", prenom);
     });
   }

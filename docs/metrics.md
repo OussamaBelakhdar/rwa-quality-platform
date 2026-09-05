@@ -822,3 +822,41 @@ Aucun n'a été trouvé par la CI : elle était verte à chaque fois, par constr
 - **`cypress/e2e/bank-accounts/suppression.cy.ts`** : j'avais lu le backend (soft delete) et **supposé** le rendu. `BankAccountItem.tsx` garde la ligne et lui ajoute « (Deleted) ». Le test a échoué, et c'est le test qui avait tort.
 
 Le même défaut que celui reproché aux specs générées, commis deux fois par moi. La différence n'est pas la vigilance : c'est que ces deux-là ont été **exécutés**.
+
+### Module Playwright — ce qui est stable et ce qui ne l'est pas
+
+Écrit tel que mesuré, sans arrondir.
+
+| Mesure                                      | Valeur                                      |
+| ------------------------------------------- | ------------------------------------------- |
+| Tests                                       | 7, sur 5 specs                              |
+| Durée                                       | 8 à 13 s                                    |
+| **Stabilité sur 5 exécutions consécutives** | **5 à 7 tests verts sur 7** — non stabilisé |
+
+**Le job CI est non bloquant, et il doit le rester tant que ce chiffre n'est pas 7/7.** ADR-005 fixe le seuil de bascule : 20 exécutions consécutives.
+
+#### Une divergence de moteur confirmée
+
+Isolée par sonde, pas déduite — deux tests identiques ne différant que par la présence d'un PATCH :
+
+| Parcours                                                | Résultat                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------- |
+| Rechargement **sans** mise à jour du profil, WebKit     | passe                                                         |
+| Rechargement **après** `PATCH /users/:id` (204), WebKit | **échoue** — retour à l'écran de connexion, « Network Error » |
+| Le **même parcours** dans la suite Cypress (Electron)   | passe                                                         |
+
+Le PATCH répond bien 204 ; c'est le rechargement qui suit qui perd la session, et seulement sur WebKit. `playwright/tests/04-parametres.spec.ts` le déclare par `test.fail()` : le test reste exécuté, et **il échouera le jour où l'application sera corrigée**. Le défaut ne peut pas être oublié en silence.
+
+C'est la première découverte du module, le jour de son entrée, et c'est précisément ce qu'ADR-005 annonçait chercher : ce que Chromium cache.
+
+#### Ce qui n'est pas résolu, et qui reste ouvert
+
+Une instabilité résiduelle subsiste sur les autres specs, non caractérisée. Trois hypothèses ont été testées et **écartées par la mesure** :
+
+1. la session ne survivrait pas au reseed → **faux**, `/checkAuth` rend 200 après un reseed ;
+2. l'écriture lowdb ne serait pas stabilisée quand la route rend 200 → une attente de lisibilité n'a rien changé ;
+3. le serveur de développement se dégraderait dans la durée → le redémarrer donne deux exécutions vertes, puis la dérive reprend.
+
+Retirer le reseed pour préserver la session a **empiré** les choses : les données s'accumulent d'un test à l'autre. La conception retenue — reseed **et** connexion à chaque test — est la plus correcte des trois essayées, et elle ne suffit pas encore.
+
+C'est écrit ici parce qu'un module livré à moitié stable et présenté comme vert serait exactement le défaut que ce dépôt passe son temps à corriger.

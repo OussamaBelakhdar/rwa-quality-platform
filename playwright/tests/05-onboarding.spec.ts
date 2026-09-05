@@ -5,20 +5,6 @@
 import { expect, test } from "@playwright/test";
 import { MOT_DE_PASSE, semer } from "../support/socle";
 
-// ÉTAT VIERGE OBLIGATOIRE, et ce n'est pas un détail de configuration.
-//
-// La première rédaction héritait de l'état du projet `setup` — donc de la
-// session de Heath93 — puis créait un utilisateur et croyait le connecter. La
-// page restait connectée en Heath93, qui A un compte bancaire. Le test passait
-// quand même : la `Dialog` MUI est montée à `open=false` puis rendue le temps
-// que la machine des comptes réponde, et `toBeVisible()` attrapait cette
-// fenêtre de course.
-//
-// Un test vert qui n'observe pas ce qu'il annonce — exactement le premier
-// défaut relevé dans docs/ia-revue.md, commis ici par moi. Trouvé en sondant
-// l'utilisateur réellement affiché, pas en relisant le code.
-test.use({ storageState: { cookies: [], origins: [] } });
-
 interface UtilisateurSeed {
   id: string;
   username: string;
