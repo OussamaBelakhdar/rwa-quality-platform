@@ -1,8 +1,12 @@
 # ADR-011 — Cypress Cloud pour `cy.prompt` : une démonstration manuelle, jamais une dépendance
 
-**Statut** : proposé — **une vérification empirique conditionne l'acceptation, voir « Avant d'accepter »**
-**Date** : 2026-09-05
-**Semaine du plan** : 10
+**Statut** : proposé — la décision est **vérifiée**, sa mise en œuvre ne l'est pas encore
+
+> La vérification empirique qui bloquait l'acceptation A ÉTÉ FAITE : la connexion à Cypress Cloud écrit bien un `projectId`, la borne 2 a tenu, `check-cloud.js` l'a refusé. Voir « Vérification empirique ».
+>
+> Ce qui reste est l'**exécution** de la démonstration : tant que `cy.prompt` n'a pas produit une sortie relue et versée à `docs/ia-revue.md`, cet ADR décrit une décision fondée mais non consommée.
+> **Date** : 2026-09-05
+> **Semaine du plan** : 10
 
 ## Contexte
 

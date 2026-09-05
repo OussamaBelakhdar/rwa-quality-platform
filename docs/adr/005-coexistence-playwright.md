@@ -1,8 +1,14 @@
 # ADR-005 — Coexistence Playwright, bornée par une seule raison : WebKit
 
-**Statut** : proposé
+**Statut** : **accepté** — revue `adr-challenger` passée, quatre objections bloquantes traitées
 **Date** : 2026-09-05
 **Semaine du plan** : 10
+
+## Revue
+
+`adr-challenger` a soulevé quatre objections bloquantes. Trois étaient fondées et ont été corrigées dans le texte : la renumérotation des couches, la contradiction entre la prose et le code livré sur le partage du socle, et l'absence de toute gate sur `playwright/` — fermée par `scripts/check-playwright.js`, 7 règles, sous contrat d'ADR-012.
+
+La quatrième est **réfutée sur pièce** : le challenger recomptait la couche L2 à 13 fichiers / 674 lignes. Le décompte réel des quatre dossiers nommés est 7+1+5+1 = **14 fichiers** et 393+107+292+103 = **895 lignes**. Le chiffre de l'ADR était exact.
 
 ## Contexte
 
