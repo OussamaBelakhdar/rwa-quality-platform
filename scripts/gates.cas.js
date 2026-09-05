@@ -530,4 +530,24 @@ module.exports = [
     },
     attendu: "acceptation",
   },
+  {
+    gate: "check-playwright",
+    regle: "quarantaine-sans-ticket",
+    intitule: "un test mis de côté sans ticket ni date",
+    arbre: {
+      "playwright/tests/x.spec.ts":
+        "// WebKit change le résultat : justifié.\ntest.fixme();\ntest('x', async () => {});\n",
+    },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-playwright",
+    intitule: "un test mis de côté AVEC son ticket et sa date",
+    arbre: {
+      "playwright/tests/x.spec.ts":
+        "// WebKit change le résultat : justifié.\n// QUARANTINE: #123 2026-09-05\ntest.fixme();\ntest('x', async () => {});\n",
+      "playwright/playwright.config.ts": 'export default { projects: [{ name: "webkit" }] };\n',
+    },
+    attendu: "acceptation",
+  },
 ];

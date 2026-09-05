@@ -90,6 +90,20 @@ for (const fichier of specs) {
     );
   }
 
+  // Même exigence que `check-quarantine.js` côté Cypress : un test mis de côté
+  // sans ticket ni date est un test oublié. `fixme` et `skip` sont les deux
+  // formes que Playwright offre ; les deux doivent se justifier.
+  if (
+    /test\.(fixme|skip)\(\s*\)/.test(code) &&
+    !/QUARANTINE:\s*#\S+\s+\d{4}-\d{2}-\d{2}/.test(brut)
+  ) {
+    // RÈGLE: quarantaine-sans-ticket
+    erreurs.push(
+      `${relatif} — \`test.fixme()\` ou \`test.skip()\` sans « // QUARANTINE: #<issue> <AAAA-MM-JJ> ».\n` +
+        `    Un test mis de côté sans ticket ni date est un test oublié.`
+    );
+  }
+
   if (/from\s+["'][^"']*\.\.\/\.\.\/cypress/.test(code)) {
     // RÈGLE: import-depuis-cypress
     erreurs.push(

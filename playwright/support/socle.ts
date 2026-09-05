@@ -75,3 +75,45 @@ export async function lire<T>(api: APIRequestContext, entite: string): Promise<T
   const corps = (await reponse.json()) as { results?: T[] } & Record<string, T[]>;
   return corps.results ?? corps[entite] ?? [];
 }
+
+/**
+ * Attend qu'une écriture soit RELUE par le serveur avant de continuer.
+ *
+ * ── Pourquoi c'est nécessaire, et pourquoi ce n'est pas une temporisation ──
+ * `PATCH /users/:id` répond 204 dès qu'il a lancé l'écriture dans lowdb. La
+ * requête SUIVANTE — celle que fait l'application au chargement de page — peut
+ * tomber pendant la réécriture du fichier. Passport ne retrouve alors pas
+ * l'utilisateur, invalide la session, et l'application repart sur l'écran de
+ * connexion.
+ *
+ * Mesuré : `GET /checkAuth` n'est pas refusé, il est ANNULÉ. Ni 401, ni erreur
+ * serveur — la requête n'aboutit pas. Trois échecs sur quatre essais sur WebKit,
+ * jamais dans la suite Cypress, qui laisse plus de temps entre les deux gestes.
+ *
+ * L'amont connaît cette course et la contourne ailleurs : `vite.config.ts` porte
+ * « #1666: Run tests sequentially to avoid race conditions with shared
+ * database.json file ». Le défaut est dans l'application, pas dans le test.
+ *
+ * On n'attend donc pas UNE DURÉE, on attend un FAIT : que le serveur relise ce
+ * qu'il vient d'écrire. Une temporisation fixe masquerait la course sans la
+ * supprimer, et la règle #3 l'interdit côté Cypress — rien ne justifie de
+ * l'autoriser ici.
+ */
+export async function attendreEcritureRelue(
+  api: APIRequestContext,
+  entite: string,
+  predicat: (ligne: Record<string, unknown>) => boolean,
+  msMax = 5000
+): Promise<void> {
+  const debut = Date.now();
+  for (;;) {
+    const r = await api.get(`${API}/testData/${entite}`);
+    if (r.ok()) {
+      const corps = (await r.json()) as { results?: Record<string, unknown>[] };
+      if ((corps.results ?? []).some(predicat)) return;
+    }
+    if (Date.now() - debut > msMax) {
+      throw new Error(`L'écriture sur « ${entite} » n'était pas relisible en ${msMax} ms.`);
+    }
+  }
+}
