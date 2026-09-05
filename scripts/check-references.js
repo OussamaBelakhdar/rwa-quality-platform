@@ -18,7 +18,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const RACINE = path.join(__dirname, "..");
+// Racine SURCHARGEABLE. `check-gates.js` fait tourner cette gate contre un
+// arbre de test pour prouver que chacune de ses règles rejette encore ce
+// qu'elle existe pour rejeter. Sans ce point d'entrée, prouver une gate
+// obligerait à muter le vrai dépôt — ce que j'ai fait à la main, dans le
+// terminal, et dont il ne restait rien le lendemain.
+const RACINE = process.env.GATE_ROOT
+  ? path.resolve(process.env.GATE_ROOT)
+  : path.join(__dirname, "..");
 const SOURCES = ["docs", "cypress", "README.md"];
 const CITATION = /`((?:[\w./-]+\/)?[\w.-]+\.(?:ts|tsx|js|json))(?::(\d+)(?:-(\d+))?)`/g;
 

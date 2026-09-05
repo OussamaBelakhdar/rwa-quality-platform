@@ -18,10 +18,18 @@
 const fs = require("fs");
 const path = require("path");
 
-const RACINE = path.join(__dirname, "..");
+// Racine SURCHARGEABLE. `check-gates.js` fait tourner cette gate contre un
+// arbre de test pour prouver que chacune de ses règles rejette encore ce
+// qu'elle existe pour rejeter. Sans ce point d'entrée, prouver une gate
+// obligerait à muter le vrai dépôt — ce que j'ai fait à la main, dans le
+// terminal, et dont il ne restait rien le lendemain.
+const RACINE = process.env.GATE_ROOT
+  ? path.resolve(process.env.GATE_ROOT)
+  : path.join(__dirname, "..");
 const REVUE = path.join(RACINE, "docs", "ia-revue.md");
 
 if (!fs.existsSync(REVUE)) {
+  // RÈGLE: revue-absente
   console.error("\n✖ check-ai-review : docs/ia-revue.md est absent.\n");
   process.exit(1);
 }
@@ -53,6 +61,7 @@ for (const fichier of specs) {
 
   const relatif = path.relative(RACINE, fichier);
   if (!revue.includes(relatif)) {
+    // RÈGLE: tag-sans-revue
     erreurs.push(
       `${relatif} — taguée @ai-generated, absente de docs/ia-revue.md.\n` +
         `    Une spec générée non relue par écrit est une spec dont personne ne répond.`

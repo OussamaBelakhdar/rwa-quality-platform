@@ -17,7 +17,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const RACINE = path.join(__dirname, "..");
+// Racine SURCHARGEABLE. `check-gates.js` fait tourner cette gate contre un
+// arbre de test pour prouver que chacune de ses règles rejette encore ce
+// qu'elle existe pour rejeter. Sans ce point d'entrée, prouver une gate
+// obligerait à muter le vrai dépôt — ce que j'ai fait à la main, dans le
+// terminal, et dont il ne restait rien le lendemain.
+const RACINE = process.env.GATE_ROOT
+  ? path.resolve(process.env.GATE_ROOT)
+  : path.join(__dirname, "..");
 const erreurs = [];
 
 /** Fichiers versionnés d'une arborescence, sans node_modules ni artefacts. */
@@ -45,6 +52,7 @@ for (const f of fichiers(path.join(RACINE, ".github"), (f) => /\.ya?ml$/.test(f)
   lignes.forEach((ligne, i) => {
     if (/^\s*#/.test(ligne)) return; // un commentaire qui NOMME l'interdit est légitime
     if (/record:\s*true|CYPRESS_RECORD_KEY\s*:|--record\b/.test(ligne)) {
+      // RÈGLE: enregistrement-ci
       erreurs.push(
         `${relatif(f)}:${i + 1} — enregistrement Cypress Cloud dans la CI.\n` +
           `    P6 exige que la suite tourne sans compte tiers (ADR-003, ADR-011).`
@@ -62,6 +70,7 @@ fs.readFileSync(config, "utf8")
   .forEach((ligne, i) => {
     if (/^\s*(\/\/|\*)/.test(ligne)) return;
     if (/\bprojectId\s*:/.test(ligne)) {
+      // RÈGLE: project-id
       erreurs.push(
         `cypress.config.ts:${i + 1} — \`projectId\` réintroduit.\n` +
           `    ADR-001 §C l'a retiré : il rattache chaque run à un projet Cloud.`
@@ -83,6 +92,7 @@ for (const f of suite) {
   lignes.forEach((ligne, i) => {
     if (/^\s*(\/\/|\*)/.test(ligne)) return;
     if (/\bcy\.prompt\s*\(/.test(ligne)) {
+      // RÈGLE: cy-prompt-dans-la-suite
       erreurs.push(
         `${relatif(f)}:${i + 1} — \`cy.prompt\` dans la suite automatisée.\n` +
           `    ADR-011 borne 1 : la démonstration vit dans cypress/manual/, hors specPattern.\n` +
@@ -98,6 +108,7 @@ for (const f of suite) {
 const texteConfig = fs.readFileSync(config, "utf8");
 for (const [, motif] of texteConfig.matchAll(/specPattern:\s*["'`]([^"'`]+)["'`]/g)) {
   if (motif.includes("manual") || /cypress\/\*\*/.test(motif)) {
+    // RÈGLE: spec-pattern-trop-large
     erreurs.push(
       `cypress.config.ts — un specPattern (\`${motif}\`) engloberait cypress/manual/.\n` +
         `    La démonstration Cloud serait alors jouée par \`yarn cy:run\` et en CI.`
