@@ -101,9 +101,30 @@ C'était la seule affirmation dont la fausseté aurait changé la décision, et 
 
 La leçon est plus large que cet ADR : **une borne doit porter sur ce qu'on contrôle.** Je ne contrôle pas le comportement de l'assistant Cloud ; je contrôle le contenu d'un commit, et une gate le vérifie.
 
-### Ce qui reste ouvert
+### Le prérequis réel : un PROJET, pas un compte
 
-L'exécution de la démonstration elle-même. Le compte existe, la connexion fonctionne, le code et la commande sont en place. Tant que `cy.prompt` n'a pas produit une sortie relue et versée à `docs/ia-revue.md`, cet ADR reste **proposé** — la décision est fondée, sa mise en œuvre n'est pas terminée.
+La première rédaction de cet ADR supposait qu'une connexion à Cypress Cloud suffirait. **Elle avait tort**, et l'exécution l'a dit sans ambiguïté :
+
+```
+cy.prompt requires a valid projectId.
+We were unable to find an existing projectId set in your Cypress config file.
+```
+
+`cy.prompt` exige un **projet connecté**, donc un `projectId`. Or l'assistant Cloud écrit ce `projectId` dans `cypress.config.ts`, et `check-cloud.js` le refuse — à raison, puisque P6 exige que le dépôt tourne sans compte tiers.
+
+Le conflit était donc frontal : l'outil réclame dans le dépôt exactement ce que le principe en bannit.
+
+### La sortie, vérifiée et non supposée
+
+`CYPRESS_PROJECT_ID` est lu depuis l'environnement, et **il suffit**. Mesuré par sonde : `Cypress.config("projectId")` rend `muc8vu` alors que le fichier de configuration n'en contient aucune trace.
+
+**La borne 2 tient donc telle qu'écrite, sans amendement** — « rien qui rattache le dépôt à un compte n'est commité ». Un identifiant propre à un opérateur appartient à son environnement, pas au dépôt de tout le monde. P6 est intact : un inconnu clone, lance `yarn cy:run`, et ne voit jamais ce `projectId`.
+
+`scripts/demo-prompt.js` refuse de démarrer sans la variable, et son message dit où trouver l'identifiant **et pourquoi il ne doit pas entrer dans la configuration**. Un garde-fou qui explique se contourne moins qu'un garde-fou qui bloque.
+
+> Ce que cet épisode confirme dépasse `cy.prompt` : une borne formulée sur **ce que l'outil exige** aurait cédé. Formulée sur **ce qui entre dans un commit**, elle a tenu deux fois — d'abord contre l'assistant qui écrivait le `projectId`, ensuite contre la tentation de l'y laisser pour faire marcher la démonstration.
+
+### Ce qui reste ouvert
 
 ## Conséquences
 

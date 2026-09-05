@@ -14,11 +14,24 @@
 // La deuxième raison est la vraie. Même avec un compte gratuit pour tous,
 // `cy.prompt` n'aurait pas sa place dans un gate.
 //
-//     yarn cy:demo:prompt        (Chrome ou Edge — Chromium obligatoire)
+//     CYPRESS_PROJECT_ID=<votre id> yarn cy:demo:prompt
 //
-// Prérequis : être connecté à Cypress Cloud dans l'interface de Cypress. Aucun
-// `projectId`, aucune clé d'enregistrement, rien dans le dépôt — la gate
-// `check-cloud.js` le vérifie à chaque `yarn lint`.
+// ── Le prérequis réel, découvert à l'exécution ──
+// `cy.prompt` n'exige pas seulement un COMPTE Cypress Cloud, il exige un PROJET
+// CONNECTÉ : « cy.prompt requires a valid projectId. We were unable to find an
+// existing projectId set in your Cypress config file. » La première rédaction
+// d'ADR-011 supposait qu'une connexion suffisait. Elle avait tort.
+//
+// L'assistant Cloud, lui, écrit ce `projectId` directement dans
+// `cypress.config.ts` — et `check-cloud.js` le refuse, à raison.
+//
+// La sortie tient en une variable d'environnement, vérifiée et non supposée :
+// `CYPRESS_PROJECT_ID` suffit, `Cypress.config("projectId")` rend bien la
+// valeur alors que le fichier de configuration n'en contient AUCUNE.
+//
+// La borne 2 d'ADR-011 tient donc telle qu'écrite — « rien qui rattache le
+// dépôt à un compte n'est commité ». Un identifiant propre à un opérateur
+// appartient à son environnement, pas au dépôt de tout le monde.
 
 describe("Démonstration — cy.prompt", { tags: ["@manual", "@ai-generated"] }, () => {
   it("traduit un parcours décrit en langage naturel en commandes Cypress", () => {
