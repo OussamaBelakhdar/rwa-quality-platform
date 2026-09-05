@@ -1,8 +1,6 @@
 import path from "path";
-import _ from "lodash";
 import axios from "axios";
 import dotenv from "dotenv";
-import Promise from "bluebird";
 import codeCoverageTask from "@cypress/code-coverage/task";
 import { defineConfig } from "cypress";
 import viteConfig from "./vite.cypress.config.ts";
@@ -212,15 +210,6 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       const testDataApiEndpoint = `${config.expose.apiUrl}/testData`;
 
-      const queryDatabase = ({ entity, query }, callback) => {
-        const fetchData = async (attrs) => {
-          const { data } = await axios.get(`${testDataApiEndpoint}/${entity}`);
-          return callback(data, attrs);
-        };
-
-        return Array.isArray(query) ? Promise.map(query, fetchData) : fetchData(query);
-      };
-
       // Tâches L1 du projet : proxy HTTP typé vers /testData
       // (cypress/plugins/). Le backend reste le seul écrivain lowdb.
       //
@@ -244,13 +233,19 @@ export default defineConfig({
       });
 
       on("task", {
-        // fetch test data from a database (MySQL, PostgreSQL, etc...)
-        "filter:database"(queryPayload) {
-          return queryDatabase(queryPayload, (data, attrs) => _.filter(data.results, attrs));
-        },
-        "find:database"(queryPayload) {
-          return queryDatabase(queryPayload, (data, attrs) => _.find(data.results, attrs));
-        },
+        // `filter:database` et `find:database` de l'amont sont RETIRÉES.
+        //
+        // Elles n'étaient appelées par aucune spec — la suite qui les utilisait
+        // a été supprimée en semaine 0 — et elles portaient les huit `any`
+        // implicites que l'IDE signalait. Les typer aurait été typer du code
+        // mort ; deux dépendances les accompagnaient (`lodash`, `bluebird`),
+        // dont c'était le seul usage dans ce fichier.
+        //
+        // Elles doublonnaient de toute façon `enregistrerTachesDb` : même
+        // endpoint `/testData`, mais sans contrat `TaskMap`. C'est le défaut
+        // déjà corrigé pour `db:seed` en semaine 4 — deux contrats de seeding
+        // qui coexistent, et le prochain contributeur qui en choisit un au
+        // hasard.
         /**
          * Identifiants SECRETS du login programmatique Auth0 (ADR-009).
          *
