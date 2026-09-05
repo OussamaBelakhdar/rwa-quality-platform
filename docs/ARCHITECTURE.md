@@ -109,7 +109,8 @@ rwa-quality-platform/
 │   │   ├── 008-factories-d-intercept-nommees-par-intention.md
 │   │   ├── 009-login-auth0-programmatique-vs-cy-origin.md
 │   │   ├── 010-fournisseur-oidc-local-pour-le-flux-auth0.md
-│   │   └── 011-cypress-cloud-pour-cy-prompt.md
+│   │   ├── 011-cypress-cloud-pour-cy-prompt.md
+│   │   └── 012-prouver-les-gates-par-mutation.md
 │   ├── flakiness-report.md
 │   └── metrics.md                   # chiffres suivis (cf. §8)
 ├── cypress.config.ts
