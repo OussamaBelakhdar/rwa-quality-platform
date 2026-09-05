@@ -79,13 +79,27 @@ L'option qu'un recruteur proposerait spontanément est **C** — « mets-le dans
 
 **Correction de `docs/ARCHITECTURE.md`** : la ligne « Test Replay utilisé une fois en démonstration » est remplacée par ce qui s'est réellement passé.
 
-## Avant d'accepter
+## Vérification empirique — faite le 2026-09-05
 
-Cet ADR reste **proposé** tant que la borne 2 n'est pas vérifiée sur pièce. C'est la seule affirmation technique dont la fausseté changerait la décision, et elle ne peut pas l'être par la lecture.
+C'était la seule affirmation dont la fausseté aurait changé la décision, et elle ne pouvait pas être vérifiée par la lecture. Elle l'a été sur pièce.
 
-- [ ] Exécuter `yarn cy:demo:prompt` une fois, puis relever ce que la connexion à Cloud a modifié dans l'arbre de travail (`git status`).
-- [ ] Si un `projectId` a été écrit dans `cypress.config.ts` : le retirer avant tout commit, et le consigner ici comme comportement attendu de l'outil.
-- [ ] `node scripts/check-cloud.js` doit être vert **après** la démonstration, pas seulement avant.
+- [x] **La connexion à Cypress Cloud écrit-elle un `projectId` ?** — **OUI.** Relevé dans `cypress.config.ts` : `projectId: 'muc8vu'`, inséré par l'assistant au moment de connecter le projet. La documentation Cypress l'annonce d'ailleurs : « Cypress inserts a unique `projectId` into your Cypress configuration file ».
+- [x] **La borne 2 a-t-elle tenu ?** — **OUI.** `check-cloud.js` a refusé le fichier à la première exécution :
+
+  ```
+  ✖ check-cloud : 1 violation(s) de P6 / ADR-011
+    cypress.config.ts:85 — `projectId` réintroduit.
+  ```
+
+  La ligne a été retirée avant tout commit ; `git log` ne la contient nulle part.
+
+**La première rédaction de cet ADR affirmait « `cy.prompt` n'exige aucun `projectId` ». Elle aurait été démentie par les faits.** C'est `adr-challenger` qui a exigé qu'elle soit reformulée — et la formulation défensive, qui porte sur _ce qui entre dans un commit_ plutôt que sur _ce que l'outil demande_, est exactement ce qui a tenu.
+
+La leçon est plus large que cet ADR : **une borne doit porter sur ce qu'on contrôle.** Je ne contrôle pas le comportement de l'assistant Cloud ; je contrôle le contenu d'un commit, et une gate le vérifie.
+
+### Ce qui reste ouvert
+
+L'exécution de la démonstration elle-même. Le compte existe, la connexion fonctionne, le code et la commande sont en place. Tant que `cy.prompt` n'a pas produit une sortie relue et versée à `docs/ia-revue.md`, cet ADR reste **proposé** — la décision est fondée, sa mise en œuvre n'est pas terminée.
 
 ## Conséquences
 
