@@ -550,4 +550,44 @@ module.exports = [
     },
     attendu: "acceptation",
   },
+
+  // ── check-typage ──────────────────────────────────────────────────────────
+  {
+    gate: "check-typage",
+    regle: "fichier-hors-tsconfig",
+    intitule: "un fichier .ts qu'aucun tsconfig ne lit",
+    arbre: {
+      "tsconfig.json": '{ "include": ["src/**/*.ts"] }',
+      "cypress/tsconfig.json": '{ "include": ["./**/*.ts"] }',
+      "src/couvert.ts": "export const a = 1;\n",
+      "orphelin.ts": "export const b = 2;\n",
+    },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-typage",
+    regle: "fichier-hors-tsconfig",
+    // Le VRAI défaut de la semaine 10 : `include` de TypeScript ne développe
+    // pas les accolades. Le motif ne matchait rien, et les 27 tests de
+    // composant n'étaient lus par personne.
+    intitule: "un motif à accolades, qui ne matche rien",
+    arbre: {
+      "tsconfig.json": '{ "include": ["src/**/*.cy.{ts,tsx}"] }',
+      "cypress/tsconfig.json": '{ "include": ["./**/*.ts"] }',
+      "src/composant.cy.ts": "export const a = 1;\n",
+    },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-typage",
+    intitule: "tous les fichiers sont lus par un tsconfig",
+    arbre: {
+      "tsconfig.json": '{ "include": ["src/**/*.ts", "*.ts"] }',
+      "cypress/tsconfig.json": '{ "include": ["./**/*.ts"] }',
+      "src/a.ts": "export const a = 1;\n",
+      "racine.ts": "export const b = 2;\n",
+      "cypress/support/c.ts": "export const c = 3;\n",
+    },
+    attendu: "acceptation",
+  },
 ];

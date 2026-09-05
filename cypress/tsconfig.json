@@ -14,7 +14,14 @@
   //
   // Le fichier porte la frontière `expose` / `env` d'ADR-001, les variables
   // Auth0 et l'enregistrement des tâches L1. Il devait être le PREMIER couvert.
-  "include": ["./**/*.ts", "../cypress.d.ts", "../cypress.config.ts", "../types/**/*.d.ts"],
+  "include": ["./**/*.ts", "../cypress.d.ts", "../cypress.config.ts",
+    // La configuration de la gate de surface (check-test-surface) et les deux
+    // configurations Vite : elles étaient atteintes par IMPORT depuis
+    // cypress.config.ts, donc typées sans être déclarées. Les nommer rend la
+    // couverture vérifiable au lieu d'accidentelle.
+    "../cypress.gate.config.ts",
+    "../vite.config.ts",
+    "../vite.cypress.config.ts", "../types/**/*.d.ts"],
   "exclude": [],
   "compilerOptions": {
     // @percy/cypress retiré avec la suite héritée (ARCHITECTURE §11).
