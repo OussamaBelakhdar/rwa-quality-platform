@@ -42,7 +42,12 @@ for (const f of fichiersSource(SRC)) {
   // extraction-ci était restée en arrière.
   // Les formes dynamiques (backtick) restent exclues ici : elles relèvent du
   // contrôle de préfixes plus bas.
-  for (const m of contenu.matchAll(/data-test["']?\s*[:=]\s*["']([^"'${}`]+)["']/g))
+  // `\{?` : la forme JSX `data-test={"cle"}` était INVISIBLE au motif, qui
+  // exigeait un guillemet immédiatement après le `=`. Trois clés de
+  // `BankAccountForm.tsx` vivaient donc dans src/ sans être dans l'union, et
+  // la gate ne signalait rien — elle ne peut pas réclamer une clé qu'elle ne
+  // voit pas. Quatrième garde de ce projet à échouer OUVERT.
+  for (const m of contenu.matchAll(/data-test["']?\s*[:=]\s*\{?\s*["']([^"'${}`]+)["']/g))
     dansSrc.add(m[1]);
 }
 

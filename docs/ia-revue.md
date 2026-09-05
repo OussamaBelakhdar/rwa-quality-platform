@@ -221,3 +221,30 @@ figure littéralement ci-dessous. Un tag sans ligne ici fait échouer `yarn lint
 - `cypress/manual/prompt-demo.cy.ts` — démonstration `cy.prompt` (ADR-011).
   Hors `specPattern` : elle n'entre pas dans la suite, et ce qu'elle produit
   passe par cette même revue avant tout usage.
+
+### Retenues et corrigées — 4 sur 6
+
+- `cypress/e2e/notifications/lecture.cy.ts` — issue de la spec 2. `not.equal`
+  remplacé par une égalité exacte et décroissante.
+- `cypress/e2e/bank-accounts/creation.cy.ts` — issue de la spec 3. Le stub
+  GraphQL est retiré : le test traverse le vrai serveur.
+- `cypress/e2e/bank-accounts/suppression.cy.ts` — issue de la spec 4.
+  L'assertion porte sur l'identité du compte supprimé, pas sur une longueur, et
+  le _soft delete_ est nommé.
+- `cypress/e2e/user-settings/mise-a-jour.cy.ts` — issue de la spec 5, dont la
+  bonne idée (le rechargement) est devenue le motif des quatre.
+
+### Écartées — 2 sur 6
+
+- **Spec 1 (like → notification)** : écartée parce que **le comportement
+  n'existe pas**. `POST /notifications/bulk` existe côté serveur mais n'est
+  appelé nulle part dans le front — vérifié. Un like ne produit aucune
+  notification dans cette application. La spec générée testait donc une
+  fonctionnalité imaginaire, et passait quand même, portée par les 8
+  notifications du seed. C'est l'illustration la plus nette de tout l'exercice :
+  **un test peut être vert, syntaxiquement parfait, et porter sur du vide.**
+- **Spec 6 (validation)** : écartée par la grille ADR-004 — déjà couverte par
+  cinq tests de composant dans `src/components/UserSettingsForm.cy.tsx`.
+
+Deux specs sur six ne devaient donc pas exister. Aucune gate ne pouvait le dire :
+la première demandait de lire le front, la seconde de connaître la couverture.

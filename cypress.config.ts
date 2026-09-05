@@ -47,6 +47,26 @@ const apiUrl = `http://localhost:${process.env.VITE_BACKEND_PORT}`;
  */
 const variablesAuth0 = (env: Record<string, unknown>) => {
   const requis: Record<string, unknown> = {
+    // `VITE_AUTH0` EST UNE VARIABLE REQUISE, ET C'EST UNE CORRECTION.
+    //
+    // La semaine 9 dérivait `auth0_configured` des seuls identifiants. Le
+    // drapeau répondait donc à « ai-je de quoi me connecter ? » alors que la
+    // spec pose une autre question : « l'application tourne-t-elle en mode
+    // Auth0 ? ». Les deux coïncidaient en CI et divergeaient en local : dès
+    // qu'un `.env.local` était rempli, `yarn cy:run` lançait la spec contre une
+    // application démarrée par `yarn dev:test`, qui ne redirige pas vers le
+    // tenant. `cy.origin` échouait alors sur « expected to run against origin
+    // … but the application is at origin http://localhost:3000 ».
+    //
+    // Trouvé par `yarn cy:random` en semaine 10, pas par la CI — laquelle ne
+    // pouvait pas le voir, puisqu'elle fixe `VITE_AUTH0=true` au niveau du job.
+    // C'est le symétrique des gardes qui échouent ouvert : celle-ci échouait
+    // FERMÉ, en exécutant un test qu'elle aurait dû ignorer.
+    //
+    // `VITE_AUTH0` est le bon signal : c'est la même variable qui fait charger
+    // `src/index.auth0.tsx`. La question posée et la condition vérifiée sont
+    // enfin la même.
+    VITE_AUTH0: process.env.VITE_AUTH0,
     AUTH0_USERNAME: env.auth0_username || process.env.AUTH0_USERNAME,
     AUTH0_PASSWORD: env.auth0_password || process.env.AUTH0_PASSWORD,
     VITE_AUTH0_DOMAIN: process.env.VITE_AUTH0_DOMAIN,
