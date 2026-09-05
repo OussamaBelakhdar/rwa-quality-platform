@@ -1,0 +1,14 @@
+// Généré par un LLM externe. Prompt : « Test Cypress : supprimer un compte
+// bancaire et vérifier qu'il disparaît de la liste. »
+
+describe('Delete bank account', () => {
+  it('removes the account from the list', () => {
+    cy.login('Heath93', 's3cret');
+    cy.visit('/bankaccounts');
+    cy.get('[data-test=bankaccount-list]').find('li').its('length').then((n) => {
+      cy.get('[data-test=bankaccount-delete]').first().click();
+      cy.wait(2000);
+      cy.get('[data-test=bankaccount-list]').find('li').should('have.length', n - 1);
+    });
+  });
+});

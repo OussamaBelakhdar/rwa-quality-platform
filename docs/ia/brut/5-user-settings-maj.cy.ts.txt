@@ -1,0 +1,21 @@
+// Généré par un LLM externe. Prompt : « Test Cypress qui met à jour le profil
+// utilisateur et vérifie que les changements sont sauvegardés. »
+
+describe('User Settings', () => {
+  beforeEach(() => {
+    cy.login('Heath93', 's3cret');
+    cy.visit('/user/settings');
+  });
+
+  it('updates the user profile', () => {
+    cy.get('[data-test=user-settings-firstName-input]').clear().type('Nouveau');
+    cy.get('[data-test=user-settings-lastName-input]').clear().type('Nom');
+    cy.get('[data-test=user-settings-email-input]').clear().type('nouveau@exemple.com');
+    cy.get('[data-test=user-settings-phoneNumber-input]').clear().type('6155551212');
+    cy.get('[data-test=user-settings-submit]').click();
+    cy.wait(1000);
+    cy.get('[data-test=user-settings-form]').should('exist');
+    cy.reload();
+    cy.get('[data-test=user-settings-firstName-input]').should('have.value', 'Nouveau');
+  });
+});

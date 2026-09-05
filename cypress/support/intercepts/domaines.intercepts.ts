@@ -1,4 +1,4 @@
-import { api, retarder, simuler } from "@support/intercepts/factories";
+import { api, espionner, retarder, simuler } from "@support/intercepts/factories";
 import type { InterceptAlias } from "@support/types";
 
 /**
@@ -34,3 +34,11 @@ export const stubTransactionDetailEnErreur = (statusCode = 500): InterceptAlias 
  */
 export const delayTransactionDetail = (ms: number): InterceptAlias =>
   retarder(api("/transactions/*"), "transactionDetailRetarde", ms);
+
+/** PATCH d'une notification : c'est lui qui la marque lue (`isRead: true`). */
+export const interceptNotificationLue = (): InterceptAlias =>
+  espionner(api("/notifications/*"), "notificationLue", "PATCH");
+
+/** `PATCH /users/:id` — l'enregistrement du profil depuis les paramètres. */
+export const interceptProfilEnregistre = (): InterceptAlias =>
+  espionner(api("/users/*"), "profilEnregistre", "PATCH");

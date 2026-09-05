@@ -148,7 +148,8 @@
   },
   "resolutions": {
     "@types/express": "4.17.21",
-    "@types/connect-history-api-fallback/@types/express-serve-static-core": "4.19.6"
+    "@types/connect-history-api-fallback/@types/express-serve-static-core": "4.19.6",
+    "@types/react": "18.3.17"
   },
   "scripts": {
     "build": "vite build",
@@ -182,7 +183,7 @@
     "dev:google": "cross-env VITE_GOOGLE=true NODE_ENV=development concurrently yarn:start:react yarn:start:api:watch",
     "dev:okta": "cross-env VITE_OKTA=true NODE_ENV=development concurrently yarn:start:react yarn:start:api:watch",
     "dev:test": "cross-env NODE_ENV=development concurrently yarn:start:react:test yarn:start:api:watch",
-    "lint": "eslint && prettier --check \"**/**.{ts,js,tsx}\" \"*.{json,md,yml}\" && node scripts/check-selectors.js && node scripts/check-hook.js && node scripts/check-references.js && node scripts/check-quarantine.js && node scripts/check-levels.js && node scripts/check-autocompletion.js && node scripts/check-seed-contract.js && node scripts/check-secrets.js",
+    "lint": "eslint && prettier --check \"**/**.{ts,js,tsx}\" \"*.{json,md,yml}\" && node scripts/check-selectors.js && node scripts/check-hook.js && node scripts/check-references.js && node scripts/check-quarantine.js && node scripts/check-levels.js && node scripts/check-autocompletion.js && node scripts/check-seed-contract.js && node scripts/check-secrets.js && node scripts/check-cloud.js && node scripts/check-ai-review.js && node scripts/check-playwright.js && node scripts/check-typage.js && node scripts/check-gates.js",
     "list:dev:users": "cat data/database.json | json -a users | json -a id username",
     "postdb:seed": "yarn db:seed:dev",
     "postinstall": "husky install && patch-package",
@@ -224,7 +225,10 @@
     "dev:coverage:test": "cross-env NODE_ENV=development CYPRESS_COVERAGE=true concurrently yarn:start:react:test yarn:start:api:watch",
     "oidc:local": "yarn tsnode scripts/local-oidc.ts",
     "dev:auth0:local": "cross-env VITE_AUTH0=true VITE_AUTH0_DOMAIN=http://localhost:3100 VITE_AUTH0_CLIENTID=client-local VITE_AUTH0_AUDIENCE=http://localhost:3001 VITE_AUTH0_SCOPE=\"openid profile email\" VITE_AUTH_TOKEN_NAME=authAccessToken AUTH0_USERNAME=test@rwa.local AUTH0_PASSWORD=s3cret1234$ NODE_ENV=development concurrently yarn:oidc:local yarn:start:react:test yarn:start:api:watch",
-    "auth0:tenant": "node scripts/auth0-tenant.js"
+    "auth0:tenant": "node scripts/auth0-tenant.js",
+    "cy:demo:prompt": "node scripts/demo-prompt.js",
+    "ia:mesure": "node scripts/ia-mesure.js",
+    "pw:test": "cd playwright && yarn test"
   },
   "engines": {
     "node": "^22.0.0 || ^24.0.0"

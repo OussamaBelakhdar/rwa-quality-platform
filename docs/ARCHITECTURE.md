@@ -103,11 +103,14 @@ rwa-quality-platform/
 │   │   ├── 002-typer-et-durcir-les-app-actions.md
 │   │   ├── 003-parallelisation-sans-cypress-cloud.md
 │   │   ├── 004-grille-composant-api-e2e.md
-│   │   ├── 005-coexistence-playwright.md          # semaine 10, à venir
+│   │   ├── 005-coexistence-playwright.md
 │   │   ├── 006-exposition-xstate-aux-tests.md
 │   │   ├── 007-endpoints-de-test-dans-le-backend.md
 │   │   ├── 008-factories-d-intercept-nommees-par-intention.md
-│   │   └── 009-login-auth0-programmatique-vs-cy-origin.md
+│   │   ├── 009-login-auth0-programmatique-vs-cy-origin.md
+│   │   ├── 010-fournisseur-oidc-local-pour-le-flux-auth0.md
+│   │   ├── 011-cypress-cloud-pour-cy-prompt.md
+│   │   └── 012-prouver-les-gates-par-mutation.md
 │   ├── flakiness-report.md
 │   └── metrics.md                   # chiffres suivis (cf. §8)
 ├── cypress.config.ts
@@ -273,15 +276,15 @@ Publiées dans `docs/metrics.md`, mises à jour à chaque semaine du plan.
 
 ## 10. Extension et migration
 
-| Scénario                           | Ce qui change                                                                              | Ce qui ne change pas                              |
-| ---------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------- |
-| Passage de lowdb à Postgres        | `backend/test-data.routes.ts` uniquement (`db.task.ts` est un proxy HTTP, il ne bouge pas) | Specs, commandes, builders, tâches                |
-| 30 → 500 specs                     | Nombre de shards, durée historique pour `cypress-split`                                    | Structure, gates, principes                       |
-| Ajout de Playwright sur un domaine | Dossier `playwright/tests/<domaine>`                                                       | Builders (partagés via `shared/`), seed via API   |
-| Migration complète vers Playwright | L2 réécrit (fixtures Playwright ≈ commands), L3 réécrit                                    | L1 intégral, L4 quasi intégral, L5 intégral       |
-| Ajout de l'IA (`cy.prompt`, LLM)   | Nouveau gate : revue humaine obligatoire des specs générées, tag `@ai-generated`           | Tous les autres gates s'appliquent sans exception |
+| Scénario                           | Ce qui change                                                                                                                        | Ce qui ne change pas                                                |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| Passage de lowdb à Postgres        | `backend/test-data.routes.ts` uniquement (`db.task.ts` est un proxy HTTP, il ne bouge pas)                                           | Specs, commandes, builders, tâches                                  |
+| 30 → 500 specs                     | Nombre de shards, durée historique pour `cypress-split`                                                                              | Structure, gates, principes                                         |
+| Ajout de Playwright sur un domaine | Dossier `playwright/tests/<domaine>`                                                                                                 | Builders (partagés via `shared/`), seed via API                     |
+| Migration complète vers Playwright | L2 réécrit (895 l.), L3 réécrit (2 006 l.), **L1 réécrit aux deux tiers** — `cypress.config.ts` fait 369 des 752 lignes de la couche | **211 lignes** de builders (TS pur), L4 quasi intégral, L5 intégral |
+| Ajout de l'IA (`cy.prompt`, LLM)   | Nouveau gate : revue humaine obligatoire des specs générées, tag `@ai-generated`                                                     | Tous les autres gates s'appliquent sans exception                   |
 
-Le coût d'une migration Cypress → Playwright est ainsi borné à L2 + L3 — c'est l'argument central d'ADR-005 et ce qu'un client paie réellement quand il demande "combien coûte le changement d'outil".
+Le coût d'une migration Cypress → Playwright a été MESURÉ en semaine 10 (ADR-005) : **3 442 lignes sur 3 653, soit 94 %**. La borne annoncée ici — L2 + L3 — était optimiste d'une couche : L1 ne survit pas « intégral », `cypress.config.ts` étant écrit contre Cypress de bout en bout. C'est ce chiffre-là, et non la borne, qui c'est l'argument central d'ADR-005 et ce qu'un client paie réellement quand il demande "combien coûte le changement d'outil".
 
 ---
 
@@ -289,7 +292,13 @@ Le coût d'une migration Cypress → Playwright est ainsi borné à L2 + L3 — 
 
 - Pas de couche BDD/Gherkin : coût de maintenance élevé, valeur nulle sans partie prenante non technique.
 - Pas de Page Objects : redondants avec App Actions + sélecteurs typés sur cette app.
-- Pas de Cypress Cloud en dépendance dure : le projet doit tourner sans compte tiers (P6). Test Replay utilisé une fois en démonstration.
+- Pas de Cypress Cloud en dépendance dure : le projet doit tourner sans compte tiers (P6).
+  La démonstration Test Replay prévue en semaine 7 a été **annulée**, pas réalisée — cette
+  ligne affirmait le contraire jusqu'en semaine 10. Sa valeur (post-mortem d'un échec CI)
+  était remplaçable sans compte, et elle l'a été : artefacts sur échec, rapport HTML agrégé,
+  annotations `::error::`, `cy:burn` (`docs/metrics.md`). Seule exception ouverte, et bornée
+  à un fichier hors `specPattern` : la démonstration `cy.prompt` d'ADR-011, tenue par la gate
+  `check-cloud.js`.
 - Pas de visual regression : `@percy/cypress` et `cy.visualSnapshot` sont **présents dans l'upstream et retirés ici** — le calcul coût/valeur est écrit, ce n'est pas un oubli.
 - Pas d'installation avec `--ignore-scripts` : `patch-package` s'exécute en postinstall (patches MUI v5). Le durcissement passe par le SHA-pin des actions et des `permissions:` minimales.
 - Pas de framework maison au-dessus de Cypress : les abstractions s'arrêtent à L2.

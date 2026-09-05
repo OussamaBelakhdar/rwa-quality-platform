@@ -16,7 +16,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const RACINE = path.join(__dirname, "..");
+// Racine SURCHARGEABLE. `check-gates.js` fait tourner cette gate contre un
+// arbre de test pour prouver que chacune de ses règles rejette encore ce
+// qu'elle existe pour rejeter. Sans ce point d'entrée, prouver une gate
+// obligerait à muter le vrai dépôt — ce que j'ai fait à la main, dans le
+// terminal, et dont il ne restait rien le lendemain.
+const RACINE = process.env.GATE_ROOT
+  ? path.resolve(process.env.GATE_ROOT)
+  : path.join(__dirname, "..");
 const SRC = path.join(RACINE, "src");
 const UNION = path.join(RACINE, "cypress", "support", "selectors", "data-test.ts");
 
@@ -42,7 +49,12 @@ for (const f of fichiersSource(SRC)) {
   // extraction-ci était restée en arrière.
   // Les formes dynamiques (backtick) restent exclues ici : elles relèvent du
   // contrôle de préfixes plus bas.
-  for (const m of contenu.matchAll(/data-test["']?\s*[:=]\s*["']([^"'${}`]+)["']/g))
+  // `\{?` : la forme JSX `data-test={"cle"}` était INVISIBLE au motif, qui
+  // exigeait un guillemet immédiatement après le `=`. Trois clés de
+  // `BankAccountForm.tsx` vivaient donc dans src/ sans être dans l'union, et
+  // la gate ne signalait rien — elle ne peut pas réclamer une clé qu'elle ne
+  // voit pas. Quatrième garde de ce projet à échouer OUVERT.
+  for (const m of contenu.matchAll(/data-test["']?\s*[:=]\s*\{?\s*["']([^"'${}`]+)["']/g))
     dansSrc.add(m[1]);
 }
 
@@ -81,14 +93,17 @@ if (manquantes.length === 0 && fantomes.length === 0 && prefixesOrphelins.length
 }
 
 if (manquantes.length) {
+  // RÈGLE: cle-manquante-dans-union
   console.error(`\n${manquantes.length} clé(s) présentes dans src/ mais absentes de l'union :`);
   manquantes.forEach((k) => console.error(`  + ${k}`));
 }
 if (fantomes.length) {
+  // RÈGLE: cle-fantome-dans-union
   console.error(`\n${fantomes.length} clé(s) dans l'union mais disparues de src/ :`);
   fantomes.forEach((k) => console.error(`  - ${k}`));
 }
 if (prefixesOrphelins.length) {
+  // RÈGLE: prefixe-orphelin
   console.error(
     `\n${prefixesOrphelins.length} préfixe(s) DataTestPrefix sans correspondance dans src/ :`
   );

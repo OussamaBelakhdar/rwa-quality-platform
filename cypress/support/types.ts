@@ -32,7 +32,8 @@ export type DataTestPrefix =
   | "transaction-like-count"
   | "user-list-item"
   | "bankaccount-list-item"
-  | "notification-list-item";
+  | "notification-list-item"
+  | "notification-mark-read";
 
 /**
  * Forme minimale d'un service XState v4 telle que la couche L2 l'utilise.

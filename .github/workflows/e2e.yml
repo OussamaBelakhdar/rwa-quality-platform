@@ -486,8 +486,6 @@ jobs:
           yarn cy:run --browser chrome --spec "cypress/e2e/auth/auth0.cy.ts"
           node scripts/check-executed.js
 
-
-
   # Quarantaine — gate §6 : « ≤ 5 tests, chacun avec ticket daté < 14 j »,
   # job séparé et NON BLOQUANT.
   #
@@ -545,6 +543,80 @@ jobs:
   # si rouge ». Les trois parties sont maintenant implémentées. Jusqu'ici le
   # job n'avait JAMAIS tourné et « Chrome + Firefox » était une affirmation
   # sans preuve — premier run réel : Firefox 144, 58 tests, 1 min 02, vert.
+  # ── Playwright sur WebKit — ADR-005 ────────────────────────────────────────
+  #
+  # NON BLOQUANT, et la raison est écrite plutôt que sous-entendue : ce module
+  # couvre le seul moteur que Cypress ne couvre pas, mais il vient d'entrer.
+  # Le rendre bloquant avant d'avoir mesuré sa stabilité en CI transformerait
+  # une capacité nouvelle en source d'interruptions — ce que la semaine 7 a
+  # déjà payé une fois.
+  #
+  # Il devient bloquant dès que le module tient 20 exécutions consécutives.
+  # Ce seuil est ici pour que « non bloquant » ne devienne pas définitif.
+  playwright:
+    name: Playwright WebKit (non bloquant)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Node
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version-file: .node-version
+
+      - name: Installer les dépendances de l'application
+        run: yarn install --frozen-lockfile
+
+      - name: Construire l'application de test
+        run: yarn build:test
+
+      - name: Démarrer l'application
+        run: |
+          yarn start:ci > /tmp/app.log 2>&1 &
+          node -e '
+            const http = require("http");
+            const sonde = (url) =>
+              new Promise((res) => {
+                const r = http.get(url, (x) => { x.resume(); res(x.statusCode); });
+                r.on("error", () => res(0));
+                r.setTimeout(2000, () => { r.destroy(); res(0); });
+              });
+            (async () => {
+              for (let i = 1; i <= 120; i++) {
+                if ((await sonde("http://localhost:3001/testData/seed/scenarios")) === 200) process.exit(0);
+                await new Promise((r) => setTimeout(r, 1000));
+              }
+              process.exit(1);
+            })();
+          ' && exit 0
+          tail -n 150 /tmp/app.log || true
+          exit 1
+
+      # `node_modules` séparé : c'est la borne 1 d'ADR-005, et elle a un coût
+      # visible ici — une installation de plus, et l'exception à P6 que l'ADR
+      # assume dans ses conséquences négatives.
+      - name: Installer le module Playwright
+        working-directory: playwright
+        run: |
+          yarn install --frozen-lockfile
+          yarn install:browsers
+
+      - name: Playwright — WebKit, 5 parcours critiques
+        working-directory: playwright
+        run: yarn test
+
+      - name: Publier le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: playwright-report
+          path: playwright/playwright-report
+          retention-days: 7
+
   firefox:
     name: Firefox (non bloquant)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'

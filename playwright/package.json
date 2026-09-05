@@ -1,0 +1,15 @@
+{
+  "name": "rwa-playwright",
+  "private": true,
+  "description": "Module Playwright — WebKit sur les 5 parcours critiques (ADR-005). Séparé de la suite Cypress par conception : aucun code partagé, aucun node_modules commun.",
+  "scripts": {
+    "test": "playwright test",
+    "test:webkit": "playwright test --project=webkit",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install webkit --with-deps"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "typescript": "5.9.3"
+  }
+}

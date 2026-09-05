@@ -114,6 +114,9 @@ const StyledDrawer = styled(Drawer)(({ theme }) => ({
 const drawerWidth = 240;
 
 export const mainListItems = (
+  // Le type dit « prend un événement et peut être absent » ; les quatre appels
+  // l'ignoraient et l'invoquaient sans garde. Personne ne le voyait : ce fichier
+  // n'était typé par aucun tsconfig avant la semaine 10.
   toggleDrawer: ((event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void) | undefined,
   showTemporaryDrawer: Boolean
 ) => (
@@ -123,7 +126,7 @@ export const mainListItems = (
   <>
     <ListItem disablePadding>
       <ListItemButton
-        onClick={() => showTemporaryDrawer && toggleDrawer()}
+        onClick={(event) => showTemporaryDrawer && toggleDrawer?.(event)}
         component={RouterLink}
         to="/"
         data-test="sidenav-home"
@@ -136,7 +139,7 @@ export const mainListItems = (
     </ListItem>
     <ListItem disablePadding>
       <ListItemButton
-        onClick={() => showTemporaryDrawer && toggleDrawer()}
+        onClick={(event) => showTemporaryDrawer && toggleDrawer?.(event)}
         component={RouterLink}
         to="/user/settings"
         data-test="sidenav-user-settings"
@@ -149,7 +152,7 @@ export const mainListItems = (
     </ListItem>
     <ListItem disablePadding>
       <ListItemButton
-        onClick={() => showTemporaryDrawer && toggleDrawer()}
+        onClick={(event) => showTemporaryDrawer && toggleDrawer?.(event)}
         component={RouterLink}
         to="/bankaccounts"
         data-test="sidenav-bankaccounts"
@@ -162,7 +165,7 @@ export const mainListItems = (
     </ListItem>
     <ListItem disablePadding>
       <ListItemButton
-        onClick={() => showTemporaryDrawer && toggleDrawer()}
+        onClick={(event) => showTemporaryDrawer && toggleDrawer?.(event)}
         component={RouterLink}
         to="/notifications"
         data-test="sidenav-notifications"

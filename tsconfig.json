@@ -1,6 +1,20 @@
 {
   "compilerOptions": {
+    // `baseUrl` reste "src" — c'est lui qui fait résoudre les imports de
+    // l'application. Une première rédaction ajoutait un second `baseUrl: "."`
+    // juste au-dessus : JSON garde la DERNIÈRE clé, les alias se résolvaient
+    // donc depuis `src/` et échouaient tous. Les chemins sont écrits relatifs à
+    // `src`, comme le veut cette base.
     "baseUrl": "src",
+    // Alias partagés avec `cypress/tsconfig.json`. Les tests de composant
+    // importent des builders par `@fixtures/*` ; sans ces chemins, la racine ne
+    // les résolvait pas et les 27 tests restaient hors typage.
+    "paths": {
+      "@support/*": ["../cypress/support/*"],
+      "@plugins/*": ["../cypress/plugins/*"],
+      "@fixtures/*": ["../cypress/fixtures/*"],
+      "@models/*": ["models/*"]
+    },
     "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -19,7 +33,26 @@
     "types": ["cypress"]
   },
   "include": [
-    "src/**/*.cy.{js,ts,jsx,tsx}",
+    // LES ACCOLADES NE SONT PAS SUPPORTÉES par `include` de TypeScript.
+    // `src/**/*.cy.{js,ts,jsx,tsx}` ne matchait donc RIEN : les 27 tests de
+    // composant n'étaient typés par personne, et `yarn types` passait au vert
+    // sans les lire. Vérifié par `ts.parseJsonConfigFileContent` : 0 fichier
+    // `*.cy.tsx` retenu. `include` n'accepte que `*`, `?` et `**/`.
+    // TOUTE l'application est désormais typée. Elle ne l'était par personne :
+    // `tsconfig.json` ne retenait que `src/__tests__` et deux utilitaires, et
+    // `cypress/tsconfig.json` s'arrête à `cypress/`. Vite construit sans
+    // vérifier les types — 89 fichiers sur 198 échappaient donc à tout contrôle.
+    //
+    // L'inclure a révélé 13 erreurs réelles, toutes corrigées : quatre appels
+    // de `toggleDrawer` sans argument sur une fonction qui en attend un et peut
+    // être absente, un `children` de `RouteProps` qui accepte aussi une
+    // fonction, et deux accès à un état Okta possiblement nul.
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.cy.tsx",
+    // Les commandes personnalisées y sont déclarées. Sans cette ligne, les
+    // tests de composant produisaient 50 erreurs « getBySel does not exist ».
+    "cypress/support/index.d.ts",
     "scripts",
     "backend",
     "src/__tests__",
