@@ -21,6 +21,62 @@ const unionAvecCle = `export const DATA_TEST_KEYS = [\n  "ma-cle",\n] as const;\
 // qu'il teste. Un cas de test mal construit accuse la gate à tort.
 const typesVides = `export type DataTestPrefix = never;\n`;
 
+/**
+ * Seed VALIDE de référence, réduit au minimum : une ligne par collection, toutes
+ * conformes au contrat. Chaque cas de `check-seed-contract` en part et casse UN
+ * champ.
+ *
+ * Pourquoi un seed complet plutôt qu'un objet à un champ : la gate signale
+ * « collection absente ou vide » pour chaque collection manquante. Un fixture
+ * partiel déclencherait donc sept ruptures en plus de celle qu'on veut isoler —
+ * et le cas passerait pour la mauvaise raison. C'est l'erreur qu'un premier
+ * fixture faisait, et elle rendait la mutation de `motif-uuid` indétectable.
+ */
+const seedValide = () => {
+  const dates = { createdAt: "2026-01-01T00:00:00.000Z", modifiedAt: "2026-01-01T00:00:00.000Z" };
+  const uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+  const base = { ...dates, uuid };
+  return {
+    users: [
+      {
+        ...base,
+        email: "a@b.co",
+        phoneNumber: "123-456-7890",
+        avatar: "https://exemple.test/a.png",
+        firstName: "A",
+        lastName: "B",
+        username: "ab",
+        balance: 100,
+      },
+    ],
+    contacts: [{ ...base }],
+    bankaccounts: [
+      { ...base, accountNumber: "0123456789", routingNumber: "012345678", bankName: "Banque" },
+    ],
+    transactions: [{ ...base, description: "d", amount: 10, balanceAtCompletion: 20 }],
+    likes: [{ ...base }],
+    comments: [{ ...base, content: "c" }],
+    notifications: [{ ...base }],
+    banktransfers: [{ ...base, amount: 5 }],
+  };
+};
+
+/** Un seed valide dont un seul champ est cassé, sérialisé pour l'arbre de test. */
+const seedCasse = (mutation) => {
+  const s = seedValide();
+  mutation(s);
+  return JSON.stringify(s);
+};
+
+/** Cas de `check-seed-contract` : une règle, un champ cassé, rien d'autre. */
+const casSeed = (regle, intitule, mutation) => ({
+  gate: "check-seed-contract",
+  regle,
+  intitule,
+  arbre: { "data/database-seed.json": seedCasse(mutation) },
+  attendu: "rejet",
+});
+
 module.exports = [
   // ── check-cloud ───────────────────────────────────────────────────────────
   {
@@ -301,12 +357,41 @@ module.exports = [
     arbre: { "README.md": "arbre sans data/database-seed.json\n" },
     attendu: "rejet",
   },
+  casSeed("collection-absente", "une collection du contrat est vide", (s) => {
+    s.likes = [];
+  }),
+  casSeed("champ-non-entier", "un montant en centimes fractionnaires", (s) => {
+    s.transactions[0].amount = 10.5;
+  }),
+  casSeed("motif-uuid", "un uuid qui n'en est pas un", (s) => {
+    s.users[0].uuid = "pas-un-uuid";
+  }),
+  casSeed("motif-telephone", "un téléphone hors format", (s) => {
+    s.users[0].phoneNumber = "0612345678";
+  }),
+  casSeed("motif-chiffres10", "un numéro de compte qui n'a pas 10 chiffres", (s) => {
+    s.bankaccounts[0].accountNumber = "123";
+  }),
+  casSeed("motif-chiffres9", "un numéro de routage qui n'a pas 9 chiffres", (s) => {
+    s.bankaccounts[0].routingNumber = "12345678901";
+  }),
+  casSeed("motif-email", "une adresse sans arobase", (s) => {
+    s.users[0].email = "pas-un-email";
+  }),
+  casSeed("motif-httpsUrl", "un avatar servi en clair", (s) => {
+    s.users[0].avatar = "http://exemple.test/a.png";
+  }),
+  casSeed("motif-dateISO", "une date qui n'est pas ISO", (s) => {
+    s.comments[0].createdAt = "01/01/2026";
+  }),
+  casSeed("motif-nonVide", "un champ obligatoire vide", (s) => {
+    s.users[0].firstName = "   ";
+  }),
   {
     gate: "check-seed-contract",
-    regle: "rupture-de-contrat",
-    intitule: "un uuid qui n'est pas un uuid",
-    arbre: { "data/database-seed.json": '{ "users": [{ "uuid": "pas-un-uuid" }] }' },
-    attendu: "rejet",
+    intitule: "un seed conforme au contrat",
+    arbre: { "data/database-seed.json": JSON.stringify(seedValide()) },
+    attendu: "acceptation",
   },
   {
     gate: "check-quarantine",

@@ -95,8 +95,33 @@ for (const gate of gates) {
 }
 
 // ── 2 et 3. Règles et cas se correspondent ──────────────────────────────────
+/**
+ * Règles d'une gate. Deux sources, dans cet ordre :
+ *
+ *   1. `module.exports.REGLES`, quand la gate DÉCLARE ses règles. C'est le cas
+ *      des gates pilotées par une table : `check-seed-contract` fait passer 39
+ *      invariants par un seul `ruptures.push`, et un marqueur unique y serait un
+ *      mensonge de granularité — il annoncerait une règle prouvée là où 38 ne le
+ *      sont pas ;
+ *   2. les marqueurs `// RÈGLE: <id>` dans la source, pour les gates dont les
+ *      règles sont des branches de code.
+ *
+ * Requérir la gate est sans effet de bord : celles qui exportent `REGLES` ne
+ * s'exécutent que sous `require.main === module`.
+ */
 const reglesDe = (gate) => {
-  const source = fs.readFileSync(path.join(RACINE, "scripts", `${gate}.js`), "utf8");
+  const chemin = path.join(RACINE, "scripts", `${gate}.js`);
+  const source = fs.readFileSync(chemin, "utf8");
+
+  // La SOURCE décide, pas un `try/require` : requérir une gate l'EXÉCUTE, et
+  // trois d'entre elles se sont lancées pendant la découverte avant ce garde.
+  // Une gate qui appellerait `process.exit` y aurait tué check-gates lui-même.
+  // On ne requiert donc que ce qui s'annonce comme déclaratif — et le contrat
+  // `require.main !== module` du côté de la gate ferme la boucle.
+  if (/module\.exports\s*=\s*\{\s*REGLES/.test(source)) {
+    const declare = require(chemin);
+    if (Array.isArray(declare?.REGLES) && declare.REGLES.length) return declare.REGLES;
+  }
   return [...source.matchAll(/\/\/\s*RÈGLE:\s*([a-z0-9-]+)/g)].map((m) => m[1]);
 };
 
