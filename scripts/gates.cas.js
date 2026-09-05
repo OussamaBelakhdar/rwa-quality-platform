@@ -456,4 +456,78 @@ module.exports = [
     },
     attendu: "acceptation",
   },
+
+  // ── check-playwright ──────────────────────────────────────────────────────
+  // Chaque cas porte un en-tête VALIDE sauf celui qui teste l'en-tête : sans
+  // ça, tous déclencheraient `justification-webkit` en plus de leur propre
+  // règle, et passeraient pour la mauvaise raison. Même leçon que les fixtures
+  // de seed.
+  {
+    gate: "check-playwright",
+    regle: "justification-webkit",
+    intitule: "une spec sans justification WebKit dans son en-tête",
+    arbre: { "playwright/tests/x.spec.ts": 'test("x", async () => {});\n' },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-playwright",
+    regle: "mot-de-passe-en-dur",
+    intitule: "un mot de passe en dur dans une spec Playwright",
+    arbre: {
+      "playwright/tests/x.spec.ts":
+        '// WebKit change le résultat : justifié.\nconst p = "s3cret";\n',
+    },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-playwright",
+    regle: "attente-fixe",
+    intitule: "waitForTimeout, l'équivalent de cy.wait(<nombre>)",
+    arbre: {
+      "playwright/tests/x.spec.ts":
+        "// WebKit change le résultat : justifié.\nawait page.waitForTimeout(500);\n",
+    },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-playwright",
+    regle: "selecteur-fragile",
+    intitule: "un sélecteur #id dans une spec Playwright",
+    arbre: {
+      "playwright/tests/x.spec.ts":
+        '// WebKit change le résultat : justifié.\nawait page.locator("#username").click();\n',
+    },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-playwright",
+    regle: "import-depuis-cypress",
+    intitule: "le module Playwright importe du code de cypress/",
+    arbre: {
+      "playwright/tests/x.spec.ts":
+        '// WebKit change le résultat : justifié.\nimport { u } from "../../cypress/fixtures/builders/user.builder";\n',
+    },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-playwright",
+    regle: "navigateur-hors-webkit",
+    intitule: "un projet Chromium, qui dupliquerait la couverture Cypress",
+    arbre: {
+      "playwright/playwright.config.ts": 'export default { projects: [{ name: "chromium" }] };\n',
+    },
+    attendu: "rejet",
+  },
+  {
+    gate: "check-playwright",
+    intitule: "une spec conforme à la frontière, et un commentaire citant les interdits",
+    arbre: {
+      "playwright/tests/x.spec.ts":
+        "// WebKit change le résultat : justifié.\n" +
+        '// Ne jamais écrire page.waitForTimeout(500) ni page.locator("#id").\n' +
+        'await page.getByTestId("sidenav-username").click();\n',
+      "playwright/playwright.config.ts": 'export default { projects: [{ name: "webkit" }] };\n',
+    },
+    attendu: "acceptation",
+  },
 ];

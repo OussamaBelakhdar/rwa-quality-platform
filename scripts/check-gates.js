@@ -54,6 +54,7 @@ const SOUS_CONTRAT = [
   "check-levels",
   "check-seed-contract",
   "check-autocompletion",
+  "check-playwright",
 ];
 
 /**

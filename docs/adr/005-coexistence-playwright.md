@@ -44,13 +44,13 @@ L'argument économique de la coexistence n'est pas « on réutilise 211 lignes �
 
 ### Ce qu'une migration achèterait
 
-| Critère               | Cypress 15.21.1 (ici)                                                  | Playwright 1.63                                                  |
-| --------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| **WebKit**            | `experimentalWebKitSupport` — expérimental, absent de la CI            | **moteur de première classe**                                    |
-| **Parallélisation**   | exige `cypress-split` (ADR-003) — un paquet tiers pour éviter le Cloud | `--shard=i/n` **natif**                                          |
-| **Component testing** | mature, 27 tests ici                                                   | `mount()` **intégré** (`playwright/types/test.d.ts:8088`, v1.63) |
-| **Diagnostic**        | time-travel dans le runner, `cy:burn` maison                           | trace viewer, `--repeat-each` natif                              |
-| **Équipe**            | une personne, 11 gates écrites autour de Cypress                       | tout serait à réoutiller                                         |
+| Critère               | Cypress 15.21.1 (ici)                                                  | Playwright 1.63                                                                                                            |
+| --------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **WebKit**            | `experimentalWebKitSupport` — expérimental, absent de la CI            | **moteur de première classe**                                                                                              |
+| **Parallélisation**   | exige `cypress-split` (ADR-003) — un paquet tiers pour éviter le Cloud | `--shard=i/n` **natif**                                                                                                    |
+| **Component testing** | mature, 27 tests ici                                                   | `mount()` **intégré** en 1.63 — vérifiable : `grep -c "fixtures.mount" playwright/node_modules/playwright/types/test.d.ts` |
+| **Diagnostic**        | time-travel dans le runner, `cy:burn` maison                           | trace viewer, `--repeat-each` natif                                                                                        |
+| **Équipe**            | une personne, 11 gates écrites autour de Cypress                       | tout serait à réoutiller                                                                                                   |
 
 Deux constats désagréables pour Cypress, qu'il faut écrire : **ADR-003 n'existe que parce que Cypress rend la parallélisation sans Cloud difficile.** Et le component testing de Playwright vient de perdre son étiquette expérimentale — le paquet `@playwright/experimental-ct-react` s'arrête à 1.62.1 quand le cœur passe à 1.63.0, ce que `npm view` confirme et que la présence de `fixtures.mount()` dans les types installés vérifie localement.
 
