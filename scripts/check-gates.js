@@ -45,7 +45,16 @@ const CAS = require("./gates.cas.js");
  * `scripts/` sans être ici fait échouer le contrôle. Le retard éventuel est
  * ainsi VISIBLE au lieu d'être tacite.
  */
-const SOUS_CONTRAT = ["check-cloud", "check-ai-review", "check-selectors"];
+const SOUS_CONTRAT = [
+  "check-cloud",
+  "check-ai-review",
+  "check-selectors",
+  "check-references",
+  "check-quarantine",
+  "check-levels",
+  "check-seed-contract",
+  "check-autocompletion",
+];
 
 /**
  * Exemptions, chacune avec sa raison. Une exemption sans raison est une
@@ -58,14 +67,14 @@ const EXEMPTEES = {
     "L'exemption disait d'abord « prouvée par son propre banc — 28 cas » : un compteur, " +
     "pas une couverture. Le banc en couvrait alors 6 sur 14.",
   "check-gates": "c'est cette gate ; elle se prouve par les cas qu'elle exécute.",
+  "check-test-surface":
+    "STRUCTURELLE, et non une dette. Elle ne lit aucun fichier : elle construit " +
+    "l'application, la sert et interroge les ports — c'est un contrôle de " +
+    "COMPORTEMENT à l'exécution, qu'un arbre de fichiers ne représente pas. " +
+    "Elle portait « semaine 11 » jusqu'à ce que la tentative de la mettre sous " +
+    "contrat démente ce report.",
   "check-executed": "lit des rapports mochawesome produits par un run CI, pas l'arbre.",
   "check-secrets": "interroge l'historique git ; un arbre de test n'a pas d'historique.",
-  "check-references": "à mettre sous contrat — semaine 11.",
-  "check-quarantine": "à mettre sous contrat — semaine 11.",
-  "check-levels": "à mettre sous contrat — semaine 11.",
-  "check-autocompletion": "à mettre sous contrat — semaine 11.",
-  "check-seed-contract": "à mettre sous contrat — semaine 11.",
-  "check-test-surface": "à mettre sous contrat — semaine 11.",
 };
 
 const erreurs = [];
@@ -133,6 +142,26 @@ for (const cas of CAS) {
       encoding: "utf8",
     });
     joues += 1;
+
+    // UN PLANTAGE N'EST PAS UN REJET, et confondre les deux rouvrirait la porte
+    // que cette gate ferme : une gate cassée sort en non-zéro comme une gate qui
+    // refuse, donc elle passerait tous ses propres cas de rejet. La trace Node
+    // sur stderr est le signal qui les sépare.
+    // Les couleurs sont RETIRÉES avant l'examen : Node enrobe chaque ligne de
+    // trace dans des codes ANSI, si bien qu'un motif ancré sur `^\s+at ` ne
+    // voyait jamais rien. Le contrôle existait et ne contrôlait rien — la
+    // septième occurrence de ce défaut dans ce dépôt, dans le code même écrit
+    // pour l'empêcher.
+    const sortie = `${r.stderr || ""}${r.stdout || ""}`.replace(/\u001b\[[0-9;]*m/g, "");
+    if (r.error || /^\s+at .+:\d+:\d+\)?\s*$/m.test(sortie)) {
+      erreurs.push(
+        `${cas.gate}${cas.regle ? ` / ${cas.regle}` : ""} — « ${cas.intitule} »\n` +
+          `    la gate a PLANTÉ au lieu de statuer. Un plantage ressemble à un rejet ` +
+          `et ferait passer ce cas à tort.\n` +
+          `    ${(r.stderr || String(r.error)).trim().split("\n").slice(0, 2).join("\n    ")}`
+      );
+      continue;
+    }
 
     const rejete = r.status !== 0;
     const attenduRejet = cas.attendu === "rejet";

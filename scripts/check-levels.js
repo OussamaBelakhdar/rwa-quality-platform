@@ -60,6 +60,7 @@ for (const { racine, attendu } of ZONES) {
     const enTete = fs.readFileSync(fichier, "utf8").split("\n").slice(0, EN_TETE).join("\n");
     const trouve = NIVEAU.exec(enTete);
     if (!trouve) {
+      // RÈGLE: niveau-non-declare
       problemes.push(
         `${relatif} — aucune ligne « // Niveau <COMPOSANT|API|E2E> : … » dans les ${EN_TETE} premières lignes`
       );
@@ -67,6 +68,7 @@ for (const { racine, attendu } of ZONES) {
     }
     const declare = trouve[1].toUpperCase();
     if (declare !== attendu) {
+      // RÈGLE: niveau-incoherent
       problemes.push(
         `${relatif} — déclare « ${declare} » mais vit sous ${racine}/, donc ${attendu}`
       );
@@ -94,6 +96,7 @@ if (fs.existsSync(WORKFLOW)) {
       if (!/@sso/.test(fs.readFileSync(fichier, "utf8"))) continue;
       const relatif = path.relative(RACINE, fichier);
       if (!ci.includes(relatif)) {
+        // RÈGLE: spec-sso-orpheline
         problemes.push(
           `${relatif} est taguée @sso — donc exclue des shards — mais aucun job de ` +
             `.github/workflows/e2e.yml ne la nomme. Elle ne s'exécuterait nulle part.`

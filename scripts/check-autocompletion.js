@@ -68,10 +68,12 @@ const attendues = [...union.matchAll(/^\s+"([^"]+)",$/gm)].map((m) => m[1]);
 const manquantes = attendues.filter((k) => !proposees.includes(k));
 
 if (proposees.length === 0) {
+  // RÈGLE: aucune-completion
   console.error("Aucune complétion proposée — le service de langage n'a rien rendu.");
   process.exit(1);
 }
 if (manquantes.length) {
+  // RÈGLE: cle-non-proposee
   console.error(`\n${manquantes.length} clé(s) attendues mais non proposées :`);
   manquantes.slice(0, 10).forEach((k) => console.error(`  - ${k}`));
   console.error("\nLe typage de cy.getBySel s'est relâché (DataTestKey élargi ?).");

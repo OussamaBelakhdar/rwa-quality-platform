@@ -67,6 +67,7 @@ for (const source of SOURCES) {
         );
         const ou = `${path.relative(RACINE, fichier)}:${i + 1}`;
         if (!candidats.length) {
+          // RÈGLE: fichier-introuvable
           problemes.push(`${ou} → \`${cite}\` : fichier introuvable`);
           continue;
         }
@@ -74,10 +75,12 @@ for (const source of SOURCES) {
         const contenu = fs.readFileSync(candidats[0], "utf8").split("\n");
         const derniere = Number(fin || debut);
         if (derniere > contenu.length) {
+          // RÈGLE: ligne-hors-fichier
           problemes.push(
             `${ou} → \`${cite}:${debut}${fin ? `-${fin}` : ""}\` : le fichier n'a que ${contenu.length} lignes`
           );
         } else if (!contenu[Number(debut) - 1].trim()) {
+          // RÈGLE: ligne-vide
           problemes.push(`${ou} → \`${cite}:${debut}\` : la ligne citée est vide`);
         }
       }

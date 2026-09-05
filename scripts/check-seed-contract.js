@@ -21,9 +21,15 @@ const path = require("path");
 
 // Un chemin peut être passé en argument : c'est ainsi qu'on contrôle un seed
 // FRAÎCHEMENT généré avant de le committer, sans écrire dans `data/`.
+// `GATE_ROOT` s'ajoute à l'argument positionnel : le premier sert à contrôler
+// un seed fraîchement généré, le second à faire tourner cette gate contre un
+// arbre de test (`check-gates.js`, ADR-012). L'argument reste prioritaire.
+const RACINE = process.env.GATE_ROOT
+  ? path.resolve(process.env.GATE_ROOT)
+  : path.join(__dirname, "..");
 const SEED = process.argv[2]
   ? path.resolve(process.argv[2])
-  : path.join(__dirname, "..", "data", "database-seed.json");
+  : path.join(RACINE, "data", "database-seed.json");
 
 const MOTIFS = {
   uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
@@ -75,6 +81,7 @@ const ENTIERS = {
 };
 
 if (!fs.existsSync(SEED)) {
+  // RÈGLE: seed-introuvable
   console.error(`seed: ${path.relative(process.cwd(), SEED)} introuvable.`);
   process.exit(1);
 }
@@ -120,6 +127,7 @@ if (ruptures.length === 0) {
   process.exit(0);
 }
 
+// RÈGLE: rupture-de-contrat
 console.error(`\n${ruptures.length} rupture(s) du contrat de seed :`);
 ruptures.forEach((r) => console.error(`  ✖ ${r}`));
 console.error(

@@ -46,6 +46,7 @@ L'option qu'un lecteur proposerait spontanément est **D**. Elle perd parce qu'e
 2. **Aucune règle sans preuve.** Chaque site d'échec porte un marqueur `// RÈGLE: <id>` ; une règle sans cas de rejet fait échouer le lint. **C'est le contrôle qui manquait** : il aurait nommé les huit règles non couvertes de `check-hook.js` — 6 sur 14 l'étaient.
 3. **Aucun cas orphelin.** Un cas qui vise une règle disparue donne une assurance fausse ; il est refusé.
 4. **Chaque cas est rejoué.** La gate tourne contre un arbre de test (`GATE_ROOT`) et doit rejeter ce qui doit l'être — et **accepter** les contrôles négatifs, parce qu'une gate qui rejette tout apprend à être contournée.
+5. **Un plantage n'est pas un rejet.** Une gate cassée sort en non-zéro exactement comme une gate qui refuse : sans ce contrôle, elle passerait tous ses propres cas. La trace Node les sépare — après avoir retiré les couleurs, car le premier motif, ancré sur `^\s+at `, ne voyait jamais les lignes qu'ANSI enrobe. **Un contrôle qui existait et ne contrôlait rien : la septième occurrence du défaut, dans le code écrit pour l'empêcher.**
 
 Les preuves faites à la main entrent dans `scripts/gates.cas.js` et cessent d'être des souvenirs.
 
@@ -53,8 +54,9 @@ Les preuves faites à la main entrent dans `scripts/gates.cas.js` et cessent d'�
 
 - **Positives** : la panne de `check-selectors` est rejouée à chaque lint — vérifié en la réintroduisant. Le retard de couverture est chiffré et visible. Ajouter une règle sans la prouver devient impossible.
 - **Négatives assumées** :
-  - **Trois gates sur treize sont sous contrat.** Les dix autres sont exemptées, chacune avec sa raison. Six portent la mention « semaine 11 » : c'est une dette, elle est écrite, et elle est bornée par le fait qu'aucune nouvelle gate ne peut échapper au contrôle 1.
-  - Deux exemptions sont structurelles et le resteront : `check-secrets` interroge l'historique git, `check-executed` lit des rapports de run. Un arbre de fichiers ne les représente pas.
+  - **Huit gates sur treize sont sous contrat** — 23 règles, 33 cas rejoués à chaque `yarn lint`. Aucune exemption n'est plus un report : les cinq restantes sont structurelles, et leur raison est écrite dans le fichier.
+  - `check-secrets` interroge l'historique git, `check-executed` lit des rapports de run, `check-test-surface` construit l'application et interroge des ports. Ces trois-là observent autre chose qu'un arbre de fichiers ; `GATE_ROOT` ne les représente pas. `check-test-surface` portait « semaine 11 » jusqu'à ce que la tentative de la mettre sous contrat démente ce report — l'exemption est désormais motivée, pas différée.
+  - `check-hook` et `check-gates` se prouvent eux-mêmes : le premier découvre les 14 règles du hook dans sa source et échoue si l'une n'a aucun cas ; le second est cette gate.
   - Les marqueurs `// RÈGLE:` sont une convention maison. Elle est visible dans la source de chaque gate, ce qui vaut mieux qu'un registre séparé qui dériverait.
 - **Surveillé via** : `node scripts/check-gates.js`, chaîné dans `yarn lint`.
 

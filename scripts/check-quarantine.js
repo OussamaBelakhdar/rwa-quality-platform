@@ -65,13 +65,16 @@ for (const fichier of SUITE.flatMap(specs)) {
     blocs.push({ relatif, surDescribe });
 
     if (!ticket) {
+      // RÈGLE: ticket-absent
       problemes.push(`${relatif} — @quarantine sans « // QUARANTINE: #<issue> <AAAA-MM-JJ> »`);
       return;
     }
     const jours = Math.floor((Date.now() - Date.parse(ticket[2])) / 86400000);
     if (Number.isNaN(jours)) {
+      // RÈGLE: date-illisible
       problemes.push(`${relatif} — date illisible : ${ticket[2]}`);
     } else if (jours > JOURS_MAX) {
+      // RÈGLE: quarantaine-perimee
       problemes.push(
         `${relatif} — ticket #${ticket[1]} daté du ${ticket[2]}, soit ${jours} jours : au-delà de ${JOURS_MAX}`
       );
@@ -80,6 +83,7 @@ for (const fichier of SUITE.flatMap(specs)) {
 }
 
 if (blocs.length > PLAFOND) {
+  // RÈGLE: plafond-depasse
   problemes.push(`${blocs.length} blocs en quarantaine, plafond §6 : ${PLAFOND}`);
 }
 
