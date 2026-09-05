@@ -29,6 +29,14 @@ const { spawnSync } = require("child_process");
 const path = require("path");
 
 const RACINE = path.join(__dirname, "..");
+
+// `.env.local` est LU, comme le fait déjà `scripts/auth0-tenant.js`. Ce fichier
+// est ignoré par git et sert précisément aux valeurs propres à un opérateur —
+// les identifiants Auth0 y vivent depuis la semaine 9. Y mettre une ligne de
+// plus évite d'avoir à se souvenir d'une variable à chaque lancement, ce qui
+// est la meilleure façon de faire contourner un garde-fou.
+require("dotenv").config({ path: path.join(RACINE, ".env.local") });
+
 const id = process.env.CYPRESS_PROJECT_ID;
 
 if (!id) {
@@ -38,7 +46,10 @@ if (!id) {
       `  compte. Sans projectId, elle refuse de s'exécuter.\n\n` +
       `  Où trouver l'identifiant : cloud.cypress.io → votre projet → Settings →\n` +
       `  Project ID. Six caractères.\n\n` +
-      `      CYPRESS_PROJECT_ID=xxxxxx yarn cy:demo:prompt\n\n` +
+      `  Deux façons, au choix :\n\n` +
+      `      echo 'CYPRESS_PROJECT_ID=xxxxxx' >> .env.local   # une fois pour toutes\n` +
+      `      CYPRESS_PROJECT_ID=xxxxxx yarn cy:demo:prompt    # ponctuel\n\n` +
+      `  \`.env.local\` est ignoré par git et porte déjà vos identifiants Auth0.\n\n` +
       `  NE LE METTEZ PAS dans cypress.config.ts : \`check-cloud.js\` le refuse,\n` +
       `  et c'est voulu — P6 exige que le dépôt tourne sans compte tiers.\n` +
       `  L'environnement est le bon endroit pour un identifiant d'opérateur.\n`
