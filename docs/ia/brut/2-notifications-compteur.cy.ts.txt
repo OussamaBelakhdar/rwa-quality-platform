@@ -1,0 +1,17 @@
+// Généré par un LLM externe. Prompt : « Test Cypress : le badge de compteur de
+// notifications diminue quand on lit une notification. »
+
+describe('Notification counter', () => {
+  before(() => {
+    cy.login('Heath93', 's3cret');
+  });
+
+  it.only('decrements the badge after reading a notification', () => {
+    cy.visit('/notifications');
+    cy.get('[data-test=nav-top-notifications-count]').invoke('text').then((before) => {
+      cy.get('.MuiListItem-root').first().click();
+      cy.wait(3000);
+      cy.get('[data-test=nav-top-notifications-count]').invoke('text').should('not.equal', before);
+    });
+  });
+});

@@ -1,0 +1,21 @@
+// Généré par un LLM externe. Prompt : « Écris un test Cypress en TypeScript qui
+// vérifie qu'un utilisateur reçoit une notification quand quelqu'un aime sa
+// transaction. L'app tourne sur http://localhost:3000. »
+// Aucun contexte du dépôt n'a été fourni : ni CLAUDE.md, ni les règles, ni les ADR.
+
+describe('Notifications', () => {
+  beforeEach(() => {
+    cy.visit('http://localhost:3000/signin');
+    cy.get('#username').type('Heath93');
+    cy.get('#password').type('s3cret');
+    cy.get('.MuiButtonBase-root').contains('Sign In').click();
+    cy.wait(2000);
+  });
+
+  it('should display a notification when someone likes your transaction', () => {
+    cy.get('[data-test=sidenav-notifications]').click();
+    cy.wait(1000);
+    cy.get('[data-test=notifications-list]').should('exist');
+    cy.get('.MuiListItem-root').first().should('be.visible');
+  });
+});
