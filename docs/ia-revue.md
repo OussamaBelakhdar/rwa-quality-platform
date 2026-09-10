@@ -248,3 +248,54 @@ figure littéralement ci-dessous. Un tag sans ligne ici fait échouer `yarn lint
 
 Deux specs sur six ne devaient donc pas exister. Aucune gate ne pouvait le dire :
 la première demandait de lire le front, la seconde de connaître la couverture.
+
+## 7. Démonstration `cy.prompt` — ce que le Command Log a montré
+
+Exécution de `cypress/manual/prompt-demo.cy.ts` (ADR-011), `CYPRESS_PROJECT_ID`
+fourni par l'environnement. Ce qui suit corrige une première lecture du même
+log qui attribuait deux éléments à `cy.prompt` alors qu'ils n'en viennent pas —
+l'erreur est laissée visible plutôt qu'effacée, dans le même esprit que le
+défaut de `check-spec.sh` en §1.
+
+- **Test : passed.** Sans intérêt en soi — voir §4.
+- **`cy.prompt` a planifié 5 étapes**, une par ligne du tableau de langage
+  naturel, chacune apparue comme un `Prompt Step` distinct dans le log. La
+  découpe en étapes atomiques a fonctionné.
+- **Sessions (1)**, `["Heath93","session-v1"]` : ne vient **pas** de
+  `cy.prompt`. Elle vient de `cy.login("Heath93")`, appelé avant le prompt et
+  explicitement hors délégation (voir le commentaire du fichier : « ce qui
+  n'est pas délégué »). Le log place les deux dans la même chronologie ; ce
+  n'est pas une raison de leur donner le même auteur.
+- **Routes (2) / XHR** — `GET /transactions/public`, `GET /notifications`,
+  `POST /graphql`, marqués « req modified, no alias ». Lu à tort comme une
+  violation de la règle #8 (intercepts hors factory). Il n'y a **aucun
+  `cy.intercept` dans ce fichier** — vérifié en relisant le fichier ligne à
+  ligne. Sans intercept, la règle #8 ne s'applique pas : ces trois requêtes
+  sont le trafic réel de l'application pendant que les commandes générées
+  s'exécutaient contre le vrai backend. « no alias » ne signale pas un
+  intercept mal écrit ; il signale qu'il n'y en a pas.
+
+### Ce qui manque encore à cette revue
+
+`git status` est resté vide et l'horodatage de `prompt-demo.cy.ts` précède
+l'exécution : le fichier sur disque n'a pas changé. Cypress affiche les
+commandes générées dans le Command Log et propose de les recopier (« Open in
+IDE »), mais tant que personne ne clique, elles restent éphémères. Il n'existe
+donc **encore aucun code généré à relire** au sens où ce document l'exige pour
+les six specs de §2 : pas de sélecteur à juger, pas d'assertion à mettre à
+l'épreuve. La revue de fond ne peut commencer qu'après capture de ces
+commandes.
+
+Cette capture est un geste manuel, pas un script : personne d'autre que
+l'opérateur devant le Test Runner ne peut cliquer « Open in IDE ». Pour la
+reproduire :
+
+```
+CYPRESS_PROJECT_ID=<id> yarn cy:demo:prompt
+```
+
+puis, une fois les 5 `Prompt Step` déroulés dans le Command Log, cliquer
+« Open in IDE » (ou copier le panneau de commandes généré) et coller le
+résultat dans un nouveau fichier `docs/ia/brut/7-prompt-demo.cy.ts.txt`, au
+même format que les six specs LLM externe. Cette revue restera incomplète tant
+que ce fichier n'existe pas, et ADR-011 tant que cette section l'affirme.
