@@ -1,8 +1,10 @@
 # ADR-012 — Les gates sont prouvées par mutation, ou elles ne comptent pas
 
-**Statut** : proposé
-**Date** : 2026-09-05
+**Statut** : accepté
+**Date** : 2026-09-05, accepté le 2026-09-11
 **Semaine du plan** : 10
+
+> `check-gates.js` est implémenté, chaîné en 11ᵉ étape de `yarn lint`, et tourne avec succès depuis plusieurs commits. Cet ADR est resté au statut « proposé » après coup — même défaut de dérive documentaire que payaient ADR-005 et ADR-011 avant leur clôture cette semaine, et que cet ADR existe justement pour nommer. Les chiffres de « Conséquences » ci-dessous, périmés depuis l'ajout de `check-cloud` et `check-ai-review`, sont corrigés sur la sortie réelle de `node scripts/check-gates.js` au 2026-09-11.
 
 ## Contexte
 
@@ -55,7 +57,7 @@ Les preuves faites à la main entrent dans `scripts/gates.cas.js` et cessent d'�
 
 - **Positives** : la panne de `check-selectors` est rejouée à chaque lint — vérifié en la réintroduisant. Le retard de couverture est chiffré et visible. Ajouter une règle sans la prouver devient impossible.
 - **Négatives assumées** :
-  - **Huit gates sur treize sont sous contrat** — 32 règles, 43 cas rejoués à chaque `yarn lint`. Aucune exemption n'est plus un report : les cinq restantes sont structurelles, et leur raison est écrite dans le fichier.
+  - **Dix gates sur quinze sont sous contrat** — 40 règles, 55 cas rejoués à chaque `yarn lint` (mesuré le 2026-09-11 ; la décision citait 8/13, 32 règles, 43 cas au moment de l'écriture — deux gates de plus, `check-cloud` et `check-ai-review`, sont entrées sous contrat depuis). Aucune exemption n'est plus un report : les cinq restantes sont structurelles, et leur raison est écrite dans le fichier.
   - `check-secrets` interroge l'historique git, `check-executed` lit des rapports de run, `check-test-surface` construit l'application et interroge des ports. Ces trois-là observent autre chose qu'un arbre de fichiers ; `GATE_ROOT` ne les représente pas. `check-test-surface` portait « semaine 11 » jusqu'à ce que la tentative de la mettre sous contrat démente ce report — l'exemption est désormais motivée, pas différée.
   - `check-hook` et `check-gates` se prouvent eux-mêmes : le premier découvre les 14 règles du hook dans sa source et échoue si l'une n'a aucun cas ; le second est cette gate.
   - Les marqueurs `// RÈGLE:` sont une convention maison. Elle est visible dans la source de chaque gate, ce qui vaut mieux qu'un registre séparé qui dériverait.

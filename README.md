@@ -12,8 +12,8 @@
 | Durée · Duration                     | 76 s (E2E séquentiel) · 20 s (composant) · 9 s (WebKit)                    |
 | Flake                                | **0,00 %** — `cy:burn`, 10 exécutions, retries forcés à zéro               |
 | Couverture · Coverage                | 80,25 % statements · 57,33 % branches                                      |
-| Quality gates                        | **12**, dont une qui prouve les onze autres                                |
-| Règles de gate prouvées par mutation | **38**, 50 cas rejoués à chaque `yarn lint`                                |
+| Quality gates                        | **15**, dont une qui prouve les dix autres sous contrat                    |
+| Règles de gate prouvées par mutation | **40**, 55 cas rejoués à chaque `yarn lint`                                |
 | ADR                                  | **12**                                                                     |
 
 Tout est reproductible : [`docs/metrics.md`](docs/metrics.md) donne la commande derrière chaque chiffre.
