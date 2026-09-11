@@ -92,10 +92,12 @@ rwa-quality-platform/
 │   ├── fixtures/
 │   └── playwright.config.ts
 ├── .github/workflows/
-│   ├── e2e.yml                      # matrice 4 shards, Chrome + Firefox
-│   ├── component.yml
-│   ├── quarantine.yml               # non bloquant, tests @quarantine
-│   └── report.yml                   # Allure → GitHub Pages
+│   └── e2e.yml                      # un seul fichier : qualite, e2e (4 shards), component,
+│                                     # auth0, report, pages, quarantine, playwright, firefox,
+│                                     # notifier — pas de scission par job (ADR-013 §Contexte
+│                                     # note la dérive : cette section annonçait longtemps 4
+│                                     # fichiers séparés et un reporting Allure, ni l'un ni
+│                                     # l'autre livrés)
 ├── docs/
 │   ├── ARCHITECTURE.md              # ce document
 │   ├── adr/
@@ -110,7 +112,8 @@ rwa-quality-platform/
 │   │   ├── 009-login-auth0-programmatique-vs-cy-origin.md
 │   │   ├── 010-fournisseur-oidc-local-pour-le-flux-auth0.md
 │   │   ├── 011-cypress-cloud-pour-cy-prompt.md
-│   │   └── 012-prouver-les-gates-par-mutation.md
+│   │   ├── 012-prouver-les-gates-par-mutation.md
+│   │   └── 013-notification-echec-ci.md
 │   ├── flakiness-report.md
 │   └── metrics.md                   # chiffres suivis (cf. §8)
 ├── cypress.config.ts
@@ -307,13 +310,18 @@ Le coût d'une migration Cypress → Playwright a été MESURÉ en semaine 10 (A
 
 ## Index des ADR
 
-| ADR | Décision                                                                                   | Semaine |
-| --- | ------------------------------------------------------------------------------------------ | ------- |
-| 001 | `Cypress.expose()` comme frontière config/secret, et conventions de specs                  | 0       |
-| 002 | Typer et durcir les App Actions héritées de l'upstream                                     | 3       |
-| 003 | Paralléliser par `cypress-split` sans Cloud, et retirer les workflows hérités qui échouent | 6       |
-| 004 | Grille de décision composant / API / E2E                                                   | 8       |
-| 005 | Coexistence et critères de migration Playwright                                            | 10      |
-| 006 | Exposition des services XState aux tests (`VITE_TEST_HOOKS`)                               | 3       |
-| 007 | Endpoints d'écriture dans le backend pour le seeding des tests                             | 4       |
-| 008 | Factories d'intercept nommées par intention, pas paramétrées                               | 5       |
+| ADR | Décision                                                                                     | Semaine   |
+| --- | -------------------------------------------------------------------------------------------- | --------- |
+| 001 | `Cypress.expose()` comme frontière config/secret, et conventions de specs                    | 0         |
+| 002 | Typer et durcir les App Actions héritées de l'upstream                                       | 3         |
+| 003 | Paralléliser par `cypress-split` sans Cloud, et retirer les workflows hérités qui échouent   | 6         |
+| 004 | Grille de décision composant / API / E2E                                                     | 8         |
+| 005 | Coexistence et critères de migration Playwright                                              | 10        |
+| 006 | Exposition des services XState aux tests (`VITE_TEST_HOOKS`)                                 | 3         |
+| 007 | Endpoints d'écriture dans le backend pour le seeding des tests                               | 4         |
+| 008 | Factories d'intercept nommées par intention, pas paramétrées                                 | 5         |
+| 009 | Login Auth0 : programmatique par défaut, `cy.origin` pour une seule spec                     | 9         |
+| 010 | Fournisseur OIDC local par défaut, tenant Auth0 réel par variable d'environnement            | 9         |
+| 011 | Cypress Cloud pour `cy.prompt` : une démonstration manuelle, jamais une dépendance           | 10        |
+| 012 | Les gates sont prouvées par mutation, ou elles ne comptent pas                               | 10        |
+| 013 | Notification d'échec CI : issue GitHub assignée par défaut, email SMTP en couche optionnelle | hors plan |

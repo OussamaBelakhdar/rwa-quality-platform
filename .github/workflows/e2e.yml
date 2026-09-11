@@ -684,3 +684,121 @@ jobs:
           Firefox est non bloquant (gate §6) : la suite Chrome reste la
           référence. Cette issue existe pour que l'écart entre navigateurs soit
           traité, et non découvert six semaines plus tard."
+
+  # Notification d'échec — ADR-013.
+  #
+  # Ne dépend QUE des 4 jobs BLOQUANTS (qualite, e2e, component, auth0) : c'est
+  # leur signal qui compte, pas celui de quarantine/playwright/firefox — déjà
+  # non bloquants et déjà munis de leur propre traitement.
+  #
+  # `continue-on-error: true` au niveau du JOB, comme `firefox`/`quarantine`/
+  # `playwright` : un job de notification qui échoue (droits insuffisants sur
+  # une PR de fork externe, `gh` indisponible…) ne doit jamais faire rougir la
+  # CI d'un contributeur pour une raison qui n'est pas la sienne — c'est le
+  # signal des 4 jobs requis qui gouverne le merge, pas celui-ci.
+  #
+  # Label DISTINCT de celui du job `firefox` (`ci`) : adr-challenger a montré
+  # qu'un label partagé fait lire/fermer par ce job une issue ouverte par
+  # `firefox`, et inversement — deux flux différents (bloquant vs. hebdo non
+  # bloquant) qui se marchaient dessus sans jamais se corriger l'un l'autre.
+  # `ci-bloquant` est scopé à CE job seul.
+  #
+  # Deux couches, jamais confondues :
+  #   1. Issue GitHub assignée — ZÉRO secret, c'est l'assignation qui déclenche
+  #      la notification native de GitHub. C'est ce qu'obtient un inconnu qui
+  #      clone le dépôt : P6 intact pour le cas "je pousse sur mon propre
+  #      dépôt". PAS pour une PR venant d'un FORK externe : GitHub y force
+  #      `GITHUB_TOKEN` en lecture seule quel que soit `permissions:`, et
+  #      `--assignee OussamaBelakhdar` échoue si ce compte n'est pas
+  #      collaborateur du fork — d'où la garde `est_meme_depot` ci-dessous et
+  #      le `continue-on-error` du job : la conséquence de l'échec est absorbée,
+  #      jamais propagée à un contributeur externe.
+  #   2. Email SMTP personnalisé — actif UNIQUEMENT si les secrets
+  #      `SMTP_USERNAME`/`SMTP_PASSWORD` existent. Absent chez un inconnu, donc
+  #      l'étape ne s'exécute jamais pour lui : ni erreur, ni trace. NON EXERCÉ
+  #      avec de vrais secrets au moment d'écrire ceci (aucun n'existe encore
+  #      sur ce dépôt) — seule la syntaxe YAML et les entrées de l'action sont
+  #      vérifiées, pas l'envoi réel. Assumé et écrit, pas caché (ADR-013).
+  notifier:
+    name: Notifier l'échec (issue + email optionnel)
+    needs: [qualite, e2e, component, auth0]
+    if: always()
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      # Faux pour une PR dont la branche source vit dans un FORK : c'est
+      # précisément le cas où `issues: write` ne peut rien, quoi que ce bloc
+      # déclare (droits forcés en lecture seule par GitHub lui-même).
+      est_meme_depot: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - name: Ouvrir ou mettre à jour l'issue de suivi
+        if: contains(needs.*.result, 'failure') && env.est_meme_depot == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RESUME="qualite=${{ needs.qualite.result }} · e2e=${{ needs.e2e.result }} · component=${{ needs.component.result }} · auth0=${{ needs.auth0.result }}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          EXISTANTE=$(gh issue list --label ci-bloquant --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTANTE" ]; then
+            gh issue comment "$EXISTANTE" --body "Toujours rouge sur \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA:0:7}\`) — $RESUME
+
+          Run : $RUN_URL"
+          else
+            gh issue create \
+              --title "CI rouge — $(date -u +%Y-%m-%d)" \
+              --label ci-bloquant \
+              --assignee OussamaBelakhdar \
+              --body "Un job bloquant a échoué sur \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA:0:7}\`).
+
+          $RESUME
+
+          Run : $RUN_URL
+          Rapport agrégé : artefact \`rapport-html\` du job \`report\` (ou la page publiée si activée).
+
+          Cette issue reste ouverte tant que le prochain run n'est pas vert."
+          fi
+
+      - name: Fermer l'issue de suivi si tout est redevenu vert
+        if: "!contains(needs.*.result, 'failure') && env.est_meme_depot == 'true'"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTANTE=$(gh issue list --label ci-bloquant --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTANTE" ]; then
+            gh issue comment "$EXISTANTE" --body "Redevenu vert : ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            gh issue close "$EXISTANTE"
+          fi
+
+      # Couche optionnelle — voir l'en-tête du job. `secrets.SMTP_USERNAME` est
+      # une chaîne vide, jamais une erreur, quand le secret n'existe pas : la
+      # condition suffit à neutraliser l'étape pour quiconque n'a pas configuré
+      # les deux secrets. Pas de garde `est_meme_depot` ici : les secrets d'un
+      # fork externe ne sont de toute façon jamais exposés à une PR entrante
+      # (comportement GitHub, pas une garde à nous), la condition sur le secret
+      # suffit déjà à neutraliser l'étape dans ce cas.
+      - name: Email personnalisé (seulement si SMTP_USERNAME/SMTP_PASSWORD existent)
+        if: contains(needs.*.result, 'failure') && secrets.SMTP_USERNAME != ''
+        uses: dawidd6/action-send-mail@03a02a49409134de07636216fb379a026c52991e # v21
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "CI rouge — RWA Quality Platform (${{ github.ref_name }})"
+          to: oussamabelakhdar@gmail.com
+          from: RWA Quality Platform CI <${{ secrets.SMTP_USERNAME }}>
+          convert_markdown: true
+          body: |
+            Un job bloquant a échoué sur **${{ github.ref_name }}** (`${{ github.sha }}`).
+
+            - qualite : ${{ needs.qualite.result }}
+            - e2e (4 shards) : ${{ needs.e2e.result }}
+            - component : ${{ needs.component.result }}
+            - auth0 : ${{ needs.auth0.result }}
+
+            Run : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Rapport agrégé : artefact `rapport-html` du job `report` sur ce run.
