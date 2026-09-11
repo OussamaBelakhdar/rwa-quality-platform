@@ -178,6 +178,45 @@ for (const [description, contenu, doitBloquer] of CAS_PRESENCE) {
 
 fs.rmSync(dossier, { recursive: true, force: true });
 
+// ── Exemption `cypress/manual/` / `cypress/build-gate/` (est_exempte) ───────
+//
+// Trouvée en défaut le 2026-09-11 par l'agent `test-reviewer` : le hook
+// bloquait `cypress/manual/prompt-demo.cy.ts` en exit 2 (sélecteur `#id`,
+// `data-test` écrit en dur — le code brut généré par `cy.prompt`, conservé
+// tel quel pour la revue d'ADR-011), alors que son propre commentaire
+// affirmait ce dossier hors périmètre. Deux règles sur neuf portaient déjà un
+// filtre de périmètre ; les sept autres n'en avaient aucun.
+//
+// `est_exempte` corrige ça. Ces deux cas prouvent qu'elle tient — ET qu'elle
+// ne déborde PAS sur les tests de composant (`src/**/*.cy.tsx`), qui
+// partagent avec `cypress/manual/` le même `est_suite == 0` et doivent
+// pourtant rester couverts.
+const dossierExemption = fs.mkdtempSync(path.join(os.tmpdir(), "check-hook-exempte-"));
+const manuel = path.join(dossierExemption, "cypress", "manual");
+const composant = path.join(dossierExemption, "src");
+fs.mkdirSync(manuel, { recursive: true });
+fs.mkdirSync(composant, { recursive: true });
+const contenuInterdit = 'cy.get("#id-quelconque");\n';
+
+const fichierManuel = path.join(manuel, "demo.cy.ts");
+fs.writeFileSync(fichierManuel, contenuInterdit);
+if (estBloque(fichierManuel)) {
+  console.error(
+    "hook: cypress/manual/ devrait être exempté des règles L3 (est_exempte) — un sélecteur #id y est bloqué."
+  );
+  echecs += 1;
+}
+
+const fichierComposant = path.join(composant, "X.cy.tsx");
+fs.writeFileSync(fichierComposant, contenuInterdit);
+if (!estBloque(fichierComposant)) {
+  console.error(
+    "hook: un test de composant (src/**/*.cy.tsx) doit rester couvert par selecteur-fragile — l'exemption a débordé dessus."
+  );
+  echecs += 1;
+}
+fs.rmSync(dossierExemption, { recursive: true, force: true });
+
 // ── COUVERTURE : chaque règle du hook a-t-elle au moins un cas ? ────────────
 //
 // C'est le contrôle qui manquait, et son absence est la CAUSE des deux règles
@@ -217,5 +256,6 @@ for (const regle of reglesCouvertes) {
 if (echecs) process.exit(1);
 console.log(
   `hook: ${reglesDuHook.size} règles du hook, TOUTES couvertes — ` +
-    `${CAS.length} cas d'interdiction et ${CAS_PRESENCE.length} de présence rejoués.`
+    `${CAS.length} cas d'interdiction et ${CAS_PRESENCE.length} de présence rejoués, ` +
+    `exemption cypress/manual/ prouvée sans déborder sur les composants.`
 );

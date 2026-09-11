@@ -23,12 +23,35 @@ case "$file" in
 esac
 [[ $is_spec -eq 0 && $is_layer -eq 0 ]] && exit 0
 
-# Périmètre : les règles L3 ne s'appliquent qu'aux specs de la SUITE.
-# cypress/manual/ (démonstrations) et cypress/build-gate/ (gate de production)
-# sont hors specPattern par conception.
+# `est_suite` distingue e2e/api du reste (composants inclus) pour les trois
+# règles qui parlent de STRUCTURE de suite : tags, seed dans beforeEach,
+# accès window. Les tests de composant restent couverts par tout le reste —
+# ce n'est PAS l'axe qui exempte cypress/manual/.
 case "$file" in
   cypress/e2e/*|cypress/api/*|*/cypress/e2e/*|*/cypress/api/*) est_suite=1 ;;
   *) est_suite=0 ;;
+esac
+
+# Périmètre RÉEL des règles L3 (ci-dessous) : « cypress/manual/ (…) est hors
+# specPattern par conception » l'affirmait déjà pour les tags (rules/testing.md
+# #6) — mais `est_suite`, computé ci-dessus, vaut aussi 0 pour un test de
+# COMPOSANT (`src/**/*.cy.tsx`), que ces règles doivent au contraire continuer
+# de garder. Gater tout le bloc L3 sur `est_suite` aurait donc silencieusement
+# désarmé selecteur-fragile/data-test-en-dur/etc. sur chaque test de composant
+# du dépôt. `est_exempte` cible exactement les deux dossiers nommés par ce
+# commentaire, jamais `src/`.
+#
+# Trouvé le 2026-09-11 par `test-reviewer` sur `cypress/manual/prompt-demo.cy.ts` :
+# vérifié à la main que le hook bloquait bien en exit 2 sur ce fichier
+# (sélecteur `#id` et `data-test` écrit en dur, tous deux issus de `cy.prompt`,
+# conservés tels quels pour la revue d'ADR-011) alors que ce même fichier est
+# censé être hors de portée. Deux règles sur neuf portaient déjà `est_suite`
+# (window-inline, seed-dans-before-each) ; les sept autres n'avaient AUCUN
+# filtre de périmètre, malgré ce commentaire.
+case "$file" in
+  cypress/manual/*|*/cypress/manual/*|cypress/build-gate/*|*/cypress/build-gate/*)
+    est_exempte=1 ;;
+  *) est_exempte=0 ;;
 esac
 
 fail=0
@@ -78,7 +101,7 @@ if grep -nE '(:|as|<)[[:space:]]*any\b' <<< "$code"; then
 fi
 
 # ---- Règles propres aux specs (L3) ----
-if [[ $is_spec -eq 1 ]]; then
+if [[ $is_spec -eq 1 && $est_exempte -eq 0 ]]; then
   if grep -nE 'cy\.wait\(\s*[0-9]+' <<< "$code"; then
     echo "P4 violé : cy.wait(ms) interdit — utiliser cy.wait('@alias') ou une assertion avec retry." >&2; fail=1 # RÈGLE: attente-fixe
   fi
