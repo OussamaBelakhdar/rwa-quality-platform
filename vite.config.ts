@@ -39,7 +39,14 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: "jsdom",
       setupFiles: "./src/setup-tests.js",
-      exclude: ["node_modules", "cypress", "dist"],
+      // `playwright` EXCLU, et c'est plus qu'un réglage : la CI vient de
+      // démontrer qu'un module « séparé » ne l'est que si chaque lanceur le
+      // sait. Vitest ramasse `**/*.spec.ts` ; les 5 specs Playwright y sont
+      // entrées d'un coup, ont tenté d'importer `@playwright/test` — absent du
+      // node_modules racine par conception (ADR-005, borne 1) — et ont fait
+      // échouer le job des tests unitaires. La séparation se déclare autant de
+      // fois qu'il y a d'outils qui balaient le dépôt.
+      exclude: ["node_modules", "cypress", "dist", "playwright"],
       fileParallelism: false, // #1666: Run tests sequentially to avoid race conditions with shared database.json file.
     },
   };

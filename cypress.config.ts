@@ -1,8 +1,6 @@
 import path from "path";
-import _ from "lodash";
 import axios from "axios";
 import dotenv from "dotenv";
-import Promise from "bluebird";
 import codeCoverageTask from "@cypress/code-coverage/task";
 import { defineConfig } from "cypress";
 import viteConfig from "./vite.cypress.config.ts";
@@ -47,6 +45,26 @@ const apiUrl = `http://localhost:${process.env.VITE_BACKEND_PORT}`;
  */
 const variablesAuth0 = (env: Record<string, unknown>) => {
   const requis: Record<string, unknown> = {
+    // `VITE_AUTH0` EST UNE VARIABLE REQUISE, ET C'EST UNE CORRECTION.
+    //
+    // La semaine 9 dérivait `auth0_configured` des seuls identifiants. Le
+    // drapeau répondait donc à « ai-je de quoi me connecter ? » alors que la
+    // spec pose une autre question : « l'application tourne-t-elle en mode
+    // Auth0 ? ». Les deux coïncidaient en CI et divergeaient en local : dès
+    // qu'un `.env.local` était rempli, `yarn cy:run` lançait la spec contre une
+    // application démarrée par `yarn dev:test`, qui ne redirige pas vers le
+    // tenant. `cy.origin` échouait alors sur « expected to run against origin
+    // … but the application is at origin http://localhost:3000 ».
+    //
+    // Trouvé par `yarn cy:random` en semaine 10, pas par la CI — laquelle ne
+    // pouvait pas le voir, puisqu'elle fixe `VITE_AUTH0=true` au niveau du job.
+    // C'est le symétrique des gardes qui échouent ouvert : celle-ci échouait
+    // FERMÉ, en exécutant un test qu'elle aurait dû ignorer.
+    //
+    // `VITE_AUTH0` est le bon signal : c'est la même variable qui fait charger
+    // `src/index.auth0.tsx`. La question posée et la condition vérifiée sont
+    // enfin la même.
+    VITE_AUTH0: process.env.VITE_AUTH0,
     AUTH0_USERNAME: env.auth0_username || process.env.AUTH0_USERNAME,
     AUTH0_PASSWORD: env.auth0_password || process.env.AUTH0_PASSWORD,
     VITE_AUTH0_DOMAIN: process.env.VITE_AUTH0_DOMAIN,
@@ -192,15 +210,6 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       const testDataApiEndpoint = `${config.expose.apiUrl}/testData`;
 
-      const queryDatabase = ({ entity, query }, callback) => {
-        const fetchData = async (attrs) => {
-          const { data } = await axios.get(`${testDataApiEndpoint}/${entity}`);
-          return callback(data, attrs);
-        };
-
-        return Array.isArray(query) ? Promise.map(query, fetchData) : fetchData(query);
-      };
-
       // Tâches L1 du projet : proxy HTTP typé vers /testData
       // (cypress/plugins/). Le backend reste le seul écrivain lowdb.
       //
@@ -224,13 +233,19 @@ export default defineConfig({
       });
 
       on("task", {
-        // fetch test data from a database (MySQL, PostgreSQL, etc...)
-        "filter:database"(queryPayload) {
-          return queryDatabase(queryPayload, (data, attrs) => _.filter(data.results, attrs));
-        },
-        "find:database"(queryPayload) {
-          return queryDatabase(queryPayload, (data, attrs) => _.find(data.results, attrs));
-        },
+        // `filter:database` et `find:database` de l'amont sont RETIRÉES.
+        //
+        // Elles n'étaient appelées par aucune spec — la suite qui les utilisait
+        // a été supprimée en semaine 0 — et elles portaient les huit `any`
+        // implicites que l'IDE signalait. Les typer aurait été typer du code
+        // mort ; deux dépendances les accompagnaient (`lodash`, `bluebird`),
+        // dont c'était le seul usage dans ce fichier.
+        //
+        // Elles doublonnaient de toute façon `enregistrerTachesDb` : même
+        // endpoint `/testData`, mais sans contrat `TaskMap`. C'est le défaut
+        // déjà corrigé pour `db:seed` en semaine 4 — deux contrats de seeding
+        // qui coexistent, et le prochain contributeur qui en choisit un au
+        // hasard.
         /**
          * Identifiants SECRETS du login programmatique Auth0 (ADR-009).
          *

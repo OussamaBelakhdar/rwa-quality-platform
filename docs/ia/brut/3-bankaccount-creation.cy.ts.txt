@@ -1,0 +1,37 @@
+// Généré par un LLM externe. Prompt : « Test Cypress pour la création d'un
+// compte bancaire, avec un mock de la réponse API. »
+
+describe('Bank Accounts', () => {
+  beforeEach(() => {
+    cy.intercept('POST', '/graphql', {
+      statusCode: 200,
+      body: {
+        data: {
+          createBankAccount: {
+            id: 'abc-123',
+            uuid: 'xyz-789',
+            userId: 'user-1',
+            bankName: 'Test Bank',
+            accountNumber: '123456789',
+            routingNumber: '987654321',
+            isDeleted: false,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            modifiedAt: '2026-01-01T00:00:00.000Z',
+          },
+        },
+      },
+    }).as('createBankAccount');
+    cy.login('Heath93', 's3cret');
+    cy.visit('/bankaccounts');
+  });
+
+  it('creates a new bank account', () => {
+    cy.get('[data-test=bankaccount-new]').click();
+    cy.get('#bankaccount-bankName-input').type('Test Bank');
+    cy.get('#bankaccount-routingNumber-input').type('987654321');
+    cy.get('#bankaccount-accountNumber-input').type('123456789');
+    cy.get('[data-test=bankaccount-submit]').click();
+    cy.wait('@createBankAccount');
+    cy.get('[data-test=bankaccount-list]').should('contain', 'Test Bank');
+  });
+});

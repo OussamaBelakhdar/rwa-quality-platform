@@ -755,3 +755,108 @@ plus `grepFilterSpecs` activé pour le pré-filtrage des fichiers.
 | `/testData` injoignable en `NODE_ENV=production` | ✔ (4 routes en 404) | backend en `NODE_ENV=development` → **4 routes détectées** (200, 400, 400, 200) |
 
 Un `grep` du bundle aurait produit un faux positif permanent : `__services__` **est** présent dans le bundle par défaut, seule la garde est fausse à l'exécution. Le gate vérifie le comportement, pas le texte.
+
+---
+
+## Semaine 10 — Playwright, IA, gouvernance des gates
+
+### État de la suite, mesuré le 2026-09-05
+
+| Mesure                          | Valeur                                   | Comment                                                 |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------------- |
+| Specs E2E                       | **26** (+1 API, +10 composant)           | `cypress/e2e`, `cypress/api`, `src/**/*.cy.tsx`         |
+| Tests                           | **71 E2E** · 27 composant · 47 unitaires | `yarn cy:run`, `yarn cy:component`, `yarn test:unit:ci` |
+| Durée suite E2E, séquentielle   | **76 s**                                 | mesure locale, Electron, non shardée                    |
+| Durée tests de composant        | **20 s**                                 | idem                                                    |
+| Durée Playwright WebKit         | **9 s**                                  | 8 tests, `--project=webkit`                             |
+| Taux de flake E2E               | **0,00 %**                               | `cy:burn`, 10 exécutions, retries forcés à zéro         |
+| Taux de flake Playwright        | **0,00 %**                               | `--repeat-each=3`, 22/22                                |
+| Gates chaînées dans `yarn lint` | **12**                                   | dont `check-gates`, qui prouve les autres               |
+| Règles de gate prouvées         | **38**, 50 cas rejoués                   | `node scripts/check-gates.js`                           |
+| ADR acceptés ou proposés        | **12**                                   | `docs/adr/`                                             |
+
+### Coût d'une migration Cypress → Playwright, mesuré et non estimé
+
+| Couche canonique | Lignes | Survit ?                                             |
+| ---------------- | -----: | ---------------------------------------------------- |
+| L1 données & env |    752 | **211** (builders, TS pur) — `cypress.config.ts` non |
+| L2 capacités     |    895 | non                                                  |
+| L3 specs         |  2 006 | non                                                  |
+| L5 gouvernance   |      — | oui, intégral                                        |
+
+**3 442 lignes sur 3 653, soit 94 %.** `ARCHITECTURE.md` §10 annonçait « L1 intégral » : la ligne est corrigée avec ces chiffres (ADR-005).
+
+Et le module livré démontre un point que le chiffre seul manque : `playwright/support/socle.ts` **ne réutilise aucune de ces 211 lignes**. Il réimplémente contre les mêmes endpoints HTTP. Ce qui traverse un changement d'outil n'est pas du code, c'est un **contrat** — celui d'ADR-007, décidé six semaines plus tôt.
+
+### Ce que l'IA a produit, et ce qu'il a fallu en retirer
+
+| Mesure                                           | Valeur                                                                            |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Specs générées par un LLM sans contexte du dépôt | 6                                                                                 |
+| Bloquées par `check-spec.sh`                     | **6 sur 6**, 34 violations                                                        |
+| Défauts visibles seulement en revue humaine      | **11**                                                                            |
+| Specs retenues après correction                  | **4**                                                                             |
+| Specs écartées                                   | **2** — une pour niveau (ADR-004), une parce que **le comportement n'existe pas** |
+
+Un défaut sur quatre échappe à l'outillage, et ce sont les coûteux : une violation de règle se corrige en dix secondes, un test qui passe sans rien prouver survit des mois. Détail complet : `docs/ia-revue.md`.
+
+### Sept garde-fous qui ne gardaient rien
+
+Six trouvés cette semaine ou avant, un dans le code écrit pour les empêcher.
+
+| Garde-fou                   | Défaut                                               | Sens de l'échec |
+| --------------------------- | ---------------------------------------------------- | --------------- |
+| `check-spec.sh` (semaine 6) | `jq` absent de l'image CI → sortie 0                 | ouvert          |
+| serveur OIDC (semaine 9)    | `kill` visait le wrapper `npx` → 3 mutations vertes  | ouvert          |
+| `check-spec.sh`, 2 règles   | `$code` lu avant affectation sous `set -u`           | ouvert          |
+| `check-hook.js`             | couvrait 6 des 14 règles du hook                     | ouvert          |
+| `check-selectors.js`        | aveugle à `data-test={"clé"}` — 5 clés hors union    | ouvert          |
+| `auth0_configured`          | répondait à une autre question que celle posée       | **fermé**       |
+| `check-gates.js`            | détection de plantage aveuglée par les couleurs ANSI | ouvert          |
+
+Aucun n'a été trouvé par la CI : elle était verte à chaque fois, par construction. Ce que ces sept ont en commun est écrit dans ADR-012, et la réponse — `check-gates.js` — est la seule chose qui empêche le huitième.
+
+### Deux tests à moi qui ne testaient pas ce qu'ils annonçaient
+
+- **`playwright/tests/05-onboarding.spec.ts`** : héritait de la session de Heath93 et croyait connecter un utilisateur neuf. Sondé : `ATTENDU=probe_…`, `AFFICHÉ=@Heath93`. Il passait par une fenêtre de course du rendu de la modale. Corrigé, avec un contrôle négatif — sans lui, une modale affichée à tout le monde ferait passer le test principal.
+- **`cypress/e2e/bank-accounts/suppression.cy.ts`** : j'avais lu le backend (soft delete) et **supposé** le rendu. `BankAccountItem.tsx` garde la ligne et lui ajoute « (Deleted) ». Le test a échoué, et c'est le test qui avait tort.
+
+Le même défaut que celui reproché aux specs générées, commis deux fois par moi. La différence n'est pas la vigilance : c'est que ces deux-là ont été **exécutés**.
+
+### Module Playwright — 10/10, et un défaut applicatif isolé
+
+| Mesure                                       | Valeur                       |
+| -------------------------------------------- | ---------------------------- |
+| Tests                                        | 7 exécutés, 1 en quarantaine |
+| Durée                                        | 8 s                          |
+| **Stabilité sur 10 exécutions consécutives** | **10 / 10**                  |
+
+Le job CI reste non bloquant : ADR-005 fixe la bascule à 20 exécutions consécutives, et 10 sont mesurées.
+
+#### Le défaut trouvé, et ce qu'il a fallu pour l'établir
+
+Après `PATCH /users/:id` (204), un rechargement perd la session **6 fois sur 10 sur WebKit** — la spec lancée seule, donc sans interaction avec les autres. `GET /checkAuth` n'est ni refusé ni en erreur : il est **annulé**. L'application avorte sa propre vérification et se croit déconnectée. Le même parcours dans la suite Cypress passe.
+
+Le symptôme ne ressemblait pas à sa cause, et sept hypothèses ont été écartées **par la mesure** avant d'arriver là :
+
+| Hypothèse                                             | Verdict                                                            |
+| ----------------------------------------------------- | ------------------------------------------------------------------ |
+| La session ne survivrait pas au reseed                | **faux** — `/checkAuth` rend 200 après un reseed                   |
+| Le serveur de développement se dégraderait            | **faux** — le redémarrer donne deux runs verts, puis la dérive     |
+| Retirer le reseed préserverait la session             | **pire** — les données s'accumulent d'un test à l'autre            |
+| Le cookie `SameSite=None` sans `Secure` serait rejeté | **faux** — c'est la représentation Playwright d'un attribut absent |
+| Naviguer au lieu de recharger éviterait la course     | **faux** — la session est déjà perdue avant le rechargement        |
+| Attendre la relecture de l'écriture suffirait         | **partiel** — de 2/10 à 5/10. Gardé : corrige une vraie course     |
+| Attendre que l'application soit prête suffirait       | **faux** — 4/10, la session est perdue et non lente                |
+
+Une huitième tentative mérite d'être citée parce qu'elle était **contre-productive** : enchaîner cinq rechargements « pour rendre le défaut déterministe » le **fabriquait**. Des rechargements rapides annulent les requêtes en vol, et la session tombait au cinquième — mesuré : un rechargement, 3/3 verts ; cinq enchaînés, perte 2 fois sur 3.
+
+> Un test qui provoque le défaut qu'il prétend observer est pire qu'un test absent : il accuse l'application à tort.
+
+`test.fail()` a aussi été essayé puis retiré — le test réussissant 4 fois sur 10, le marqueur basculait au hasard. Un marqueur instable ne vaut rien.
+
+#### Ce qui a été retenu
+
+Le test est mis en **quarantaine avec ticket et date** (`// QUARANTINE: #webkit-session-apres-patch 2026-09-05`), pas réécrit pour plaire. Retirer le rechargement le rendrait vert et sans valeur : c'est lui qui prouve la persistance. La semaine 7 avait tranché ce dilemme — la quarantaine isole un test instable, elle ne fait pas taire une application cassée. **Ici le test a raison.**
+
+Et parce qu'une convention non outillée ne tient pas une semaine, `check-playwright.js` gagne une 7ᵉ règle : `test.fixme()` ou `test.skip()` sans ticket ni date fait échouer `yarn lint`. C'est la même exigence que `check-quarantine.js` côté Cypress.

@@ -15,7 +15,14 @@ const ts = require("typescript");
 const fs = require("fs");
 const path = require("path");
 
-const RACINE = path.join(__dirname, "..");
+// Racine SURCHARGEABLE. `check-gates.js` fait tourner cette gate contre un
+// arbre de test pour prouver que chacune de ses règles rejette encore ce
+// qu'elle existe pour rejeter. Sans ce point d'entrée, prouver une gate
+// obligerait à muter le vrai dépôt — ce que j'ai fait à la main, dans le
+// terminal, et dont il ne restait rien le lendemain.
+const RACINE = process.env.GATE_ROOT
+  ? path.resolve(process.env.GATE_ROOT)
+  : path.join(__dirname, "..");
 const TSCONFIG = path.join(RACINE, "cypress", "tsconfig.json");
 const VIRTUEL = path.join(RACINE, "cypress", "support", "__autocompletion__.ts");
 
@@ -61,10 +68,12 @@ const attendues = [...union.matchAll(/^\s+"([^"]+)",$/gm)].map((m) => m[1]);
 const manquantes = attendues.filter((k) => !proposees.includes(k));
 
 if (proposees.length === 0) {
+  // RÈGLE: aucune-completion
   console.error("Aucune complétion proposée — le service de langage n'a rien rendu.");
   process.exit(1);
 }
 if (manquantes.length) {
+  // RÈGLE: cle-non-proposee
   console.error(`\n${manquantes.length} clé(s) attendues mais non proposées :`);
   manquantes.slice(0, 10).forEach((k) => console.error(`  - ${k}`));
   console.error("\nLe typage de cy.getBySel s'est relâché (DataTestKey élargi ?).");

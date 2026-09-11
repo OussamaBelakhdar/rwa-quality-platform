@@ -23,26 +23,39 @@ case "$file" in
 esac
 [[ $is_spec -eq 0 && $is_layer -eq 0 ]] && exit 0
 
-# Périmètre : les règles L3 ne s'appliquent qu'aux specs de la SUITE.
-# cypress/manual/ (démonstrations) et cypress/build-gate/ (gate de production)
-# sont hors specPattern par conception.
+# `est_suite` distingue e2e/api du reste (composants inclus) pour les trois
+# règles qui parlent de STRUCTURE de suite : tags, seed dans beforeEach,
+# accès window. Les tests de composant restent couverts par tout le reste —
+# ce n'est PAS l'axe qui exempte cypress/manual/.
 case "$file" in
   cypress/e2e/*|cypress/api/*|*/cypress/e2e/*|*/cypress/api/*) est_suite=1 ;;
   *) est_suite=0 ;;
 esac
 
+# Périmètre RÉEL des règles L3 (ci-dessous) : « cypress/manual/ (…) est hors
+# specPattern par conception » l'affirmait déjà pour les tags (rules/testing.md
+# #6) — mais `est_suite`, computé ci-dessus, vaut aussi 0 pour un test de
+# COMPOSANT (`src/**/*.cy.tsx`), que ces règles doivent au contraire continuer
+# de garder. Gater tout le bloc L3 sur `est_suite` aurait donc silencieusement
+# désarmé selecteur-fragile/data-test-en-dur/etc. sur chaque test de composant
+# du dépôt. `est_exempte` cible exactement les deux dossiers nommés par ce
+# commentaire, jamais `src/`.
+#
+# Trouvé le 2026-09-11 par `test-reviewer` sur `cypress/manual/prompt-demo.cy.ts` :
+# vérifié à la main que le hook bloquait bien en exit 2 sur ce fichier
+# (sélecteur `#id` et `data-test` écrit en dur, tous deux issus de `cy.prompt`,
+# conservés tels quels pour la revue d'ADR-011) alors que ce même fichier est
+# censé être hors de portée. Deux règles sur neuf portaient déjà `est_suite`
+# (window-inline, seed-dans-before-each) ; les sept autres n'avaient AUCUN
+# filtre de périmètre, malgré ce commentaire.
+case "$file" in
+  cypress/manual/*|*/cypress/manual/*|cypress/build-gate/*|*/cypress/build-gate/*)
+    est_exempte=1 ;;
+  *) est_exempte=0 ;;
+esac
+
 fail=0
 
-# ---- Règles communes specs + couches (L1/L2) ----
-if grep -nE "require\(.*lowdb|from ['\"]lowdb|data/database\.json" <<< "$code"; then
-  echo "P1/L1 violé : aucune écriture ni lecture directe de lowdb depuis cypress/ — passer par les endpoints /testData (cy.seed / cy.task)." >&2; fail=1
-fi
-if grep -nE "['\"]s3cret['\"]" <<< "$code"; then
-  echo "Mot de passe en dur — utiliser cy.env(['defaultPassword']) (rules/testing.md #3, ADR-001)." >&2; fail=1
-fi
-if grep -nE '@ts-ignore' "$file"; then
-  echo "@ts-ignore interdit — utiliser @ts-expect-error commenté, ou corriger le type (rules/typescript.md)." >&2; fail=1
-fi
 # ── Vue CODE SEUL, calculée une fois ────────────────────────────────────────
 # Les lignes de commentaire sont BLANCHIES (pas supprimées) : `grep -n` garde
 # ainsi les vrais numéros de ligne.
@@ -59,42 +72,69 @@ fi
 #
 # Un commentaire de FIN de ligne reste couvert : `const x: any = 1; // note`
 # ne commence pas par un marqueur de commentaire.
+#
+# CETTE AFFECTATION VIT ICI, ET C'EST UN POINT DE CORRECTION, PAS DE STYLE.
+# Elle était placée APRÈS les deux premières règles, qui l'utilisaient déjà.
+# Avec `set -u`, `<<< "$code"` sur une variable non affectée fait échouer la
+# substitution : le `grep` d'une condition `if` rendait faux, et les règles
+# « pas d'accès lowdb » et « pas de mot de passe en dur » — les deux
+# interdits les plus durs du projet — ne se déclenchaient JAMAIS. Le hook
+# écrivait deux lignes `unbound variable` sur stderr et sortait 0.
+# Découvert en semaine 10 : une spec générée par un LLM contenait `s3cret` en
+# clair, le hook l'a laissée passer, et c'est le message d'erreur du shell qui
+# a trahi la panne. Une garde qui échoue OUVERT, la troisième de ce projet.
 code=$(awk '{ if ($0 ~ /^[[:space:]]*(\/\/|\*|\/\*)/) print ""; else print }' "$file")
 
+# ---- Règles communes specs + couches (L1/L2) ----
+if grep -nE "require\(.*lowdb|from ['\"]lowdb|data/database\.json" <<< "$code"; then
+  echo "P1/L1 violé : aucune écriture ni lecture directe de lowdb depuis cypress/ — passer par les endpoints /testData (cy.seed / cy.task)." >&2; fail=1 # RÈGLE: acces-lowdb
+fi
+if grep -nE "['\"]s3cret['\"]" <<< "$code"; then
+  echo "Mot de passe en dur — utiliser cy.env(['defaultPassword']) (rules/testing.md #3, ADR-001)." >&2; fail=1 # RÈGLE: mot-de-passe-en-dur
+fi
+if grep -nE '@ts-ignore' "$file"; then
+  echo "@ts-ignore interdit — utiliser @ts-expect-error commenté, ou corriger le type (rules/typescript.md)." >&2; fail=1 # RÈGLE: ts-ignore
+fi
+
 if grep -nE '(:|as|<)[[:space:]]*any\b' <<< "$code"; then
-  echo "'any' interdit — utiliser unknown + narrowing (rules/typescript.md)." >&2; fail=1
+  echo "'any' interdit — utiliser unknown + narrowing (rules/typescript.md)." >&2; fail=1 # RÈGLE: type-any
 fi
 
 # ---- Règles propres aux specs (L3) ----
-if [[ $is_spec -eq 1 ]]; then
+if [[ $is_spec -eq 1 && $est_exempte -eq 0 ]]; then
   if grep -nE 'cy\.wait\(\s*[0-9]+' <<< "$code"; then
-    echo "P4 violé : cy.wait(ms) interdit — utiliser cy.wait('@alias') ou une assertion avec retry." >&2; fail=1
+    echo "P4 violé : cy.wait(ms) interdit — utiliser cy.wait('@alias') ou une assertion avec retry." >&2; fail=1 # RÈGLE: attente-fixe
   fi
   if grep -nE "cy\.get\(['\"](#|\.)" <<< "$code"; then
-    echo "Sélecteur fragile (#id / .class) — utiliser cy.getBySel ou cy.findByRole." >&2; fail=1
+    echo "Sélecteur fragile (#id / .class) — utiliser cy.getBySel ou cy.findByRole." >&2; fail=1 # RÈGLE: selecteur-fragile
   fi
   # data-test écrit en dur : cy.getBySel existe et sa clé est typée. Sans cette
   # règle, `cy.get('[data-test="transacton-list"]')` compile, passe le lint, et
   # échoue au bout de 4 s de retry — exactement ce que le typage devait éviter.
   # cy.get('@alias') reste autorisé : c'est la lecture d'un alias, pas un sélecteur.
-  if grep -nE "cy\.get\([^)]*data-test" <<< "$code"; then
-    echo "data-test écrit en dur — utiliser cy.getBySel(key) : la clé est typée, la faute de frappe devient une erreur de compilation (rules/testing.md #9)." >&2; fail=1
+  # Le motif couvre `cy.get(` MAIS AUSSI `.find(`, `.filter(`, `.closest(`…
+  # La version précédente ne voyait que `cy.get(`, et un `data-test` écrit en
+  # dur dans un `.find()` est passé au vert en semaine 10 — relevé par
+  # `test-reviewer`, pas par cette garde. Une règle qui ne couvre qu'UNE des
+  # écritures d'un même geste ne garde pas ce geste : elle garde une syntaxe.
+  if grep -nE "(cy\.get|\.(find|filter|closest|siblings|parents|children|not))\([^)]*data-test" <<< "$code"; then
+    echo "data-test écrit en dur — utiliser cy.getBySel(key) : la clé est typée, la faute de frappe devient une erreur de compilation (rules/testing.md #9)." >&2; fail=1 # RÈGLE: data-test-en-dur
   fi
   if grep -nE 'it\.skip|describe\.skip|it\.only|describe\.only' <<< "$code"; then
-    echo "skip/only interdits — utiliser le tag @quarantine avec ticket (voir rules/testing.md)." >&2; fail=1
+    echo "skip/only interdits — utiliser le tag @quarantine avec ticket (voir rules/testing.md)." >&2; fail=1 # RÈGLE: skip-ou-only
   fi
   if [[ $est_suite -eq 1 ]] && grep -nE "cy\.window\(" <<< "$code"; then
-    echo "Accès window inline — passer par une app action de support/app-actions/ (rules/testing.md #12)." >&2; fail=1
+    echo "Accès window inline — passer par une app action de support/app-actions/ (rules/testing.md #12)." >&2; fail=1 # RÈGLE: window-inline
   fi
   if grep -nE "cy\.visit\(['\"]/signin" <<< "$code" && [[ "$file" != *auth/* ]]; then
-    echo "P2 violé : login UI hors du domaine auth/ — utiliser cy.login()." >&2; fail=1
+    echo "P2 violé : login UI hors du domaine auth/ — utiliser cy.login()." >&2; fail=1 # RÈGLE: login-ui-hors-auth
   fi
 
   # cy.task brut : les surcharges natives de Cypress sont permissives, donc le
   # nom de tâche et l'entrée ne sont vérifiés par personne. Les commandes typées
   # (cy.seed, cy.createUser, cy.createTransaction) le sont, elles.
   if grep -nE "cy\.task\(" <<< "$code"; then
-    echo "cy.task brut dans une spec — utiliser cy.seed / cy.createUser / cy.createTransaction, qui sont typées (cy.task ne l'est pas, voir support/typage.contract.ts)." >&2; fail=1
+    echo "cy.task brut dans une spec — utiliser cy.seed / cy.createUser / cy.createTransaction, qui sont typées (cy.task ne l'est pas, voir support/typage.contract.ts)." >&2; fail=1 # RÈGLE: cy-task-brut
   fi
 
   # Règle #1 : la base est remise dans un état connu AVANT CHAQUE TEST.
@@ -107,7 +147,7 @@ if [[ $is_spec -eq 1 ]]; then
   # bien pire qu'un faux positif : la règle laisserait passer ce qu'elle existe
   # pour bloquer.
   if [[ $est_suite -eq 1 ]] && ! awk '/beforeEach\(/,/^\s*\}\);/' <<< "$code" | grep -qE 'cy\.seed\('; then
-    echo "Règle #1 : aucun cy.seed dans le beforeEach — un test qui hérite de l'état laissé par le précédent n'est pas isolé (P1)." >&2; fail=1
+    echo "Règle #1 : aucun cy.seed dans le beforeEach — un test qui hérite de l'état laissé par le précédent n'est pas isolé (P1)." >&2; fail=1 # RÈGLE: seed-dans-before-each
   fi
 
   # Règle #6 : un tag de domaine ET un tag de niveau sur chaque describe.
@@ -118,9 +158,9 @@ if [[ $is_spec -eq 1 ]]; then
       # Même raison : un `tags:` en commentaire ne doit pas satisfaire la règle.
       if grep -qE '^describe\(' <<< "$code" || grep -qE '^\s*describe\(' <<< "$code"; then
         if ! grep -qE 'tags:\s*\[' <<< "$code"; then
-          echo "Règle #6 : aucun tag sur le describe — un domaine (@auth, @transactions, @foundations…) ET un niveau (@smoke ou @regression)." >&2; fail=1
+          echo "Règle #6 : aucun tag sur le describe — un domaine (@auth, @transactions, @foundations…) ET un niveau (@smoke ou @regression)." >&2; fail=1 # RÈGLE: tags-absents
         elif ! grep -qE '@(smoke|regression|quarantine)' <<< "$code"; then
-          echo "Règle #6 : tag de niveau manquant — @smoke, @regression ou @quarantine." >&2; fail=1
+          echo "Règle #6 : tag de niveau manquant — @smoke, @regression ou @quarantine." >&2; fail=1 # RÈGLE: niveau-absent
         fi
       fi
       ;;

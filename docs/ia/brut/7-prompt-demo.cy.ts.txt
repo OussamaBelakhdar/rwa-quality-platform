@@ -1,0 +1,30 @@
+// Généré par cy.prompt (Cypress Cloud), depuis cypress/manual/prompt-demo.cy.ts
+// (ADR-011). CYPRESS_PROJECT_ID fourni par l'environnement. Contexte donné au
+// modèle : le DOM réel de la page à chaque étape, fourni par Cypress Cloud —
+// aucun prompt système ajouté par nous au-delà du tableau ci-dessous.
+//
+// Les 5 étapes en langage naturel (options: { placeholders: { montant: "25" } }) :
+//   1. "ouvre le formulaire de nouvelle transaction"
+//   2. "choisis le premier contact proposé"
+//   3. "saisis le montant {{montant}} et la description « déjeuner »"
+//   4. "envoie une demande de paiement"
+//   5. "vérifie que la transaction apparaît ensuite dans l'historique personnel"
+//
+// Capturé via « Open in IDE » après un premier run PASSED. Un second run,
+// données reseedées, a ensuite ÉCHOUÉ à l'étape 2 — voir docs/ia-revue.md §7.
+
+// Prompt step 1: ouvre le formulaire de nouvelle transaction
+cy.get("[data-test=\"nav-top-new-transaction\"]").click();
+
+// Prompt step 2: choisis le premier contact proposé
+cy.get("[data-test=\"user-list-item-GjWovtg2hr\"]").click()
+
+// Prompt step 3: saisis le montant {{montant}} et la description « déjeuner »
+cy.get("[name=\"amount\"]").type("25")
+cy.get("#transaction-create-description-input").type("déjeuner")
+
+// Prompt step 4: envoie une demande de paiement
+cy.get("[data-test=\"transaction-create-submit-request\"]").click()
+
+// Prompt step 5: vérifie que la transaction apparaît ensuite dans l'historique personnel
+cy.get("#root div.css-1yjlacw").find("div:nth-child(2) > div:nth-child(1) > div > h2").should("be.visible")

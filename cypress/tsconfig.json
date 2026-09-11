@@ -2,7 +2,26 @@
   // Étend la config racine (convention de l'amont). N'ajoute ici que ce qui
   // durcit le contrat du code de test — voir .claude/rules/typescript.md.
   "extends": "../tsconfig.json",
-  "include": ["./**/*.ts", "../cypress.d.ts"],
+  // `../cypress.config.ts` N'ÉTAIT TYPÉ PAR PERSONNE. Il n'est ni dans
+  // l'`include` de la racine, ni dans celui-ci : il tombait exactement entre
+  // les deux. `yarn types` passait au vert sur 369 lignes qu'il ne lisait pas —
+  // et huit `any` implicites y dormaient, visibles dans l'IDE, invisibles en CI.
+  //
+  // C'est CE tsconfig qui l'accueille et non la racine : lui seul porte
+  // `moduleResolution: "bundler"`, requis pour résoudre les paquets qui
+  // n'exposent que le champ `exports` — `@cypress/grep`, `vite`,
+  // `@cypress/code-coverage`. La racine échoue sur les trois.
+  //
+  // Le fichier porte la frontière `expose` / `env` d'ADR-001, les variables
+  // Auth0 et l'enregistrement des tâches L1. Il devait être le PREMIER couvert.
+  "include": ["./**/*.ts", "../cypress.d.ts", "../cypress.config.ts",
+    // La configuration de la gate de surface (check-test-surface) et les deux
+    // configurations Vite : elles étaient atteintes par IMPORT depuis
+    // cypress.config.ts, donc typées sans être déclarées. Les nommer rend la
+    // couverture vérifiable au lieu d'accidentelle.
+    "../cypress.gate.config.ts",
+    "../vite.config.ts",
+    "../vite.cypress.config.ts", "../types/**/*.d.ts"],
   "exclude": [],
   "compilerOptions": {
     // @percy/cypress retiré avec la suite héritée (ARCHITECTURE §11).
@@ -19,6 +38,12 @@
     "moduleResolution": "bundler",
     "allowJs": false,
     "noEmit": true,
+    // `cypress.config.ts` importe `./vite.cypress.config.ts` AVEC son
+    // extension — c'est la forme que Vite attend. TypeScript ne l'accepte que
+    // sous ce drapeau, et seulement si rien n'est émis, ce qui est le cas
+    // juste au-dessus. Le drapeau suit donc la réalité du code : retirer
+    // l'extension casserait la résolution à l'exécution.
+    "allowImportingTsExtensions": true,
 
     // Contrat strict du dossier cypress/
     "strict": true,

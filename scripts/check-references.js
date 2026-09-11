@@ -18,7 +18,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const RACINE = path.join(__dirname, "..");
+// Racine SURCHARGEABLE. `check-gates.js` fait tourner cette gate contre un
+// arbre de test pour prouver que chacune de ses règles rejette encore ce
+// qu'elle existe pour rejeter. Sans ce point d'entrée, prouver une gate
+// obligerait à muter le vrai dépôt — ce que j'ai fait à la main, dans le
+// terminal, et dont il ne restait rien le lendemain.
+const RACINE = process.env.GATE_ROOT
+  ? path.resolve(process.env.GATE_ROOT)
+  : path.join(__dirname, "..");
 const SOURCES = ["docs", "cypress", "README.md"];
 const CITATION = /`((?:[\w./-]+\/)?[\w.-]+\.(?:ts|tsx|js|json))(?::(\d+)(?:-(\d+))?)`/g;
 
@@ -60,6 +67,7 @@ for (const source of SOURCES) {
         );
         const ou = `${path.relative(RACINE, fichier)}:${i + 1}`;
         if (!candidats.length) {
+          // RÈGLE: fichier-introuvable
           problemes.push(`${ou} → \`${cite}\` : fichier introuvable`);
           continue;
         }
@@ -67,10 +75,12 @@ for (const source of SOURCES) {
         const contenu = fs.readFileSync(candidats[0], "utf8").split("\n");
         const derniere = Number(fin || debut);
         if (derniere > contenu.length) {
+          // RÈGLE: ligne-hors-fichier
           problemes.push(
             `${ou} → \`${cite}:${debut}${fin ? `-${fin}` : ""}\` : le fichier n'a que ${contenu.length} lignes`
           );
         } else if (!contenu[Number(debut) - 1].trim()) {
+          // RÈGLE: ligne-vide
           problemes.push(`${ou} → \`${cite}:${debut}\` : la ligne citée est vide`);
         }
       }

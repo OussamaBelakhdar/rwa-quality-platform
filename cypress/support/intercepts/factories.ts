@@ -40,7 +40,7 @@ const alias = (nom: string): InterceptAlias => `@${nom}`;
 export const api = (chemin: string): string => `${Cypress.expose("apiUrl")}${chemin}`;
 
 /** Méthode HTTP du matcher. `POST` sert au moins à `/graphql`, par où passent les comptes bancaires. */
-export type Methode = "GET" | "POST";
+export type Methode = "GET" | "POST" | "PATCH";
 
 /** Observe sans modifier : le backend répond, la réponse passe intacte. */
 export const espionner = (url: string, nom: string, methode: Methode = "GET"): InterceptAlias => {

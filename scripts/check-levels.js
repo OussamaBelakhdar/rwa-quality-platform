@@ -22,7 +22,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const RACINE = path.join(__dirname, "..");
+// Racine SURCHARGEABLE. `check-gates.js` fait tourner cette gate contre un
+// arbre de test pour prouver que chacune de ses règles rejette encore ce
+// qu'elle existe pour rejeter. Sans ce point d'entrée, prouver une gate
+// obligerait à muter le vrai dépôt — ce que j'ai fait à la main, dans le
+// terminal, et dont il ne restait rien le lendemain.
+const RACINE = process.env.GATE_ROOT
+  ? path.resolve(process.env.GATE_ROOT)
+  : path.join(__dirname, "..");
 const NIVEAU = /^\/\/\s*Niveau\s+(COMPOSANT|API|E2E)\b/im;
 const EN_TETE = 25;
 
@@ -53,6 +60,7 @@ for (const { racine, attendu } of ZONES) {
     const enTete = fs.readFileSync(fichier, "utf8").split("\n").slice(0, EN_TETE).join("\n");
     const trouve = NIVEAU.exec(enTete);
     if (!trouve) {
+      // RÈGLE: niveau-non-declare
       problemes.push(
         `${relatif} — aucune ligne « // Niveau <COMPOSANT|API|E2E> : … » dans les ${EN_TETE} premières lignes`
       );
@@ -60,6 +68,7 @@ for (const { racine, attendu } of ZONES) {
     }
     const declare = trouve[1].toUpperCase();
     if (declare !== attendu) {
+      // RÈGLE: niveau-incoherent
       problemes.push(
         `${relatif} — déclare « ${declare} » mais vit sous ${racine}/, donc ${attendu}`
       );
@@ -87,6 +96,7 @@ if (fs.existsSync(WORKFLOW)) {
       if (!/@sso/.test(fs.readFileSync(fichier, "utf8"))) continue;
       const relatif = path.relative(RACINE, fichier);
       if (!ci.includes(relatif)) {
+        // RÈGLE: spec-sso-orpheline
         problemes.push(
           `${relatif} est taguée @sso — donc exclue des shards — mais aucun job de ` +
             `.github/workflows/e2e.yml ne la nomme. Elle ne s'exécuterait nulle part.`
