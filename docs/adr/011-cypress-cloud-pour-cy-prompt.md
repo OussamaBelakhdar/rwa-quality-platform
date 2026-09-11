@@ -1,11 +1,11 @@
 # ADR-011 — Cypress Cloud pour `cy.prompt` : une démonstration manuelle, jamais une dépendance
 
-**Statut** : proposé — la décision est **vérifiée**, sa mise en œuvre ne l'est pas encore
+**Statut** : accepté — décision vérifiée, démonstration exécutée, sortie relue et versée
 
 > La vérification empirique qui bloquait l'acceptation A ÉTÉ FAITE : la connexion à Cypress Cloud écrit bien un `projectId`, la borne 2 a tenu, `check-cloud.js` l'a refusé. Voir « Vérification empirique ».
 >
-> Ce qui reste est l'**exécution** de la démonstration : tant que `cy.prompt` n'a pas produit une sortie relue et versée à `docs/ia-revue.md`, cet ADR décrit une décision fondée mais non consommée.
-> **Date** : 2026-09-05
+> La démonstration ELLE-MÊME A ÉTÉ EXÉCUTÉE le 2026-09-11 : sortie capturée dans `docs/ia/brut/7-prompt-demo.cy.ts.txt`, relue dans `docs/ia-revue.md` §7. Un second run a échoué sur un identifiant de seed codé en dur par le modèle — la première preuve empirique, pas seulement théorique, du non-déterminisme que cet ADR invoquait pour interdire `cy.prompt` en gate. Voir « Ce qui reste ouvert ».
+> **Date** : 2026-09-05, démonstration close le 2026-09-11
 > **Semaine du plan** : 10
 
 ## Contexte
@@ -124,15 +124,21 @@ Le conflit était donc frontal : l'outil réclame dans le dépôt exactement ce 
 
 > Ce que cet épisode confirme dépasse `cy.prompt` : une borne formulée sur **ce que l'outil exige** aurait cédé. Formulée sur **ce qui entre dans un commit**, elle a tenu deux fois — d'abord contre l'assistant qui écrivait le `projectId`, ensuite contre la tentation de l'y laisser pour faire marcher la démonstration.
 
-### Ce qui reste ouvert
+### Ce qui reste ouvert — clos le 2026-09-11
+
+Ce que « Vérification empirique » laissait ouvert n'était pas la connexion Cloud (réglée le 2026-09-05) mais l'exécution de la démonstration elle-même et sa revue. C'est fait :
+
+- [x] **Le code généré a-t-il été capturé ?** — **OUI.** `docs/ia/brut/7-prompt-demo.cy.ts.txt`, via « Open in IDE » après un premier run passé. Le fichier source (`cypress/manual/prompt-demo.cy.ts`) garde l'appel `cy.prompt(...)` d'origine en commentaire au-dessus du code appliqué, pour la provenance.
+- [x] **A-t-il été relu comme les six specs LLM externe ?** — **OUI**, `docs/ia-revue.md` §7 : sur 5 étapes générées, 2 sélecteurs conformes à la règle #9, 2 qui violeraient la règle #3 (`[name=...]`, `#id`) si ce fichier entrait dans la suite, et une assertion sur une classe MUI générée au build (`css-1yjlacw`) — le même défaut que la spec 6 du volet LLM externe.
+- [x] **Le non-déterminisme que cet ADR invoque était-il vérifiable, pas seulement plausible ?** — **OUI, et plus fort que prévu.** Un second run, données reseedées entre les deux (principe P1), a échoué à l'étape 2 : le modèle avait codé en dur l'identifiant d'un contact tiré aléatoirement par le seed (`user-list-item-GjWovtg2hr`), stable nulle part ailleurs que sur l'écran qu'il avait sous les yeux au moment de générer. Deux runs, même prompt, aucune régression de l'application entre les deux, un vert et un rouge. L'argument théorique de la Décision (« un gate régénéré à chaque run détecte les changements de modèle, pas les régressions ») est donc confirmé sur pièce, pas seulement affirmé.
 
 ## Conséquences
 
-- **Positives** : le livrable de la semaine 10 est tenu sans entamer P6 ; un invariant qui n'était qu'une phrase dans un ADR devient exécutable ; l'interdiction faite à `cy.prompt` s'appuie sur une exécution.
+- **Positives** : le livrable de la semaine 10 est tenu sans entamer P6 ; un invariant qui n'était qu'une phrase dans un ADR devient exécutable ; l'interdiction faite à `cy.prompt` s'appuie désormais sur une exécution **et** sur un échec observé, pas seulement sur un principe.
 - **Négatives assumées** :
   - La démonstration n'est **pas reproductible par un inconnu** — il lui faut son propre compte gratuit. C'est une exception explicite à P6, bornée à un fichier hors `specPattern`.
   - Le DOM de l'application de démonstration transite par un tiers. Ce sont des données de seed, aucune donnée réelle.
-  - **La vidéo étant dans `artefacts/`, un lecteur du dépôt ne la verra jamais.** La trace durable n'est donc pas le film mais l'écrit : le code brut généré, conservé sous `docs/ia/brut/`, et sa revue dans `docs/ia-revue.md`. Si ces deux-là manquaient, la démonstration ne prouverait rien à personne d'autre qu'à moi — et l'option A redeviendrait la bonne.
+  - **La vidéo n'a pas été conservée** (pas d'enregistrement lancé pendant le run manuel) ; ce n'est pas la perte que la première rédaction redoutait, puisque la trace durable était déjà annoncée comme l'écrit, pas le film. `docs/ia/brut/7-prompt-demo.cy.ts.txt` et `docs/ia-revue.md` §7 existent tous les deux : la condition posée par la première rédaction (« si ces deux-là manquaient, l'option A redeviendrait la bonne ») est remplie, donc l'option B tient.
 - **Surveillé via** : `node scripts/check-cloud.js`, chaîné dans `yarn lint`.
 
 ## Réversibilité

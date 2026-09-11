@@ -296,9 +296,9 @@ Le coût d'une migration Cypress → Playwright a été MESURÉ en semaine 10 (A
   La démonstration Test Replay prévue en semaine 7 a été **annulée**, pas réalisée — cette
   ligne affirmait le contraire jusqu'en semaine 10. Sa valeur (post-mortem d'un échec CI)
   était remplaçable sans compte, et elle l'a été : artefacts sur échec, rapport HTML agrégé,
-  annotations `::error::`, `cy:burn` (`docs/metrics.md`). Seule exception ouverte, et bornée
-  à un fichier hors `specPattern` : la démonstration `cy.prompt` d'ADR-011, tenue par la gate
-  `check-cloud.js`.
+  annotations `::error::`, `cy:burn` (`docs/metrics.md`). Seule exception, bornée à un fichier
+  hors `specPattern` : la démonstration `cy.prompt` d'ADR-011 (accepté), exécutée et relue en
+  `docs/ia-revue.md` §7, tenue par la gate `check-cloud.js`.
 - Pas de visual regression : `@percy/cypress` et `cy.visualSnapshot` sont **présents dans l'upstream et retirés ici** — le calcul coût/valeur est écrit, ce n'est pas un oubli.
 - Pas d'installation avec `--ignore-scripts` : `patch-package` s'exécute en postinstall (patches MUI v5). Le durcissement passe par le SHA-pin des actions et des `permissions:` minimales.
 - Pas de framework maison au-dessus de Cypress : les abstractions s'arrêtent à L2.

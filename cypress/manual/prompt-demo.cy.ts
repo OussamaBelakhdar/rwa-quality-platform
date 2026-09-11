@@ -56,16 +56,33 @@ describe("Démonstration — cy.prompt", { tags: ["@manual", "@ai-generated"] },
     // le montant n'a rien de secret — c'est la mécanique qui est montrée, et
     // c'est par elle qu'un mot de passe passerait si le parcours en demandait
     // un.
-    cy.prompt(
-      [
-        "ouvre le formulaire de nouvelle transaction",
-        "choisis le premier contact proposé",
-        "saisis le montant {{montant}} et la description « déjeuner »",
-        "envoie une demande de paiement",
-        "vérifie que la transaction apparaît ensuite dans l'historique personnel",
-      ],
-      { placeholders: { montant: "25" } }
-    );
+    // cy.prompt(
+    //   [
+    //     "ouvre le formulaire de nouvelle transaction",
+    //     "choisis le premier contact proposé",
+    //     "saisis le montant {{montant}} et la description « déjeuner »",
+    //     "envoie une demande de paiement",
+    //     "vérifie que la transaction apparaît ensuite dans l'historique personnel",
+    //   ],
+    //   { placeholders: { montant: "25" } }
+    // )
+    // Prompt step 1: ouvre le formulaire de nouvelle transaction
+    cy.get('[data-test="nav-top-new-transaction"]').click();
+
+    // Prompt step 2: choisis le premier contact proposé
+    cy.get('[data-test="user-list-item-GjWovtg2hr"]').click();
+
+    // Prompt step 3: saisis le montant {{montant}} et la description « déjeuner »
+    cy.get('[name="amount"]').type("25");
+    cy.get("#transaction-create-description-input").type("déjeuner");
+
+    // Prompt step 4: envoie une demande de paiement
+    cy.get('[data-test="transaction-create-submit-request"]').click();
+
+    // Prompt step 5: vérifie que la transaction apparaît ensuite dans l'historique personnel
+    cy.get("#root div.css-1yjlacw")
+      .find("div:nth-child(2) > div:nth-child(1) > div > h2")
+      .should("be.visible");
 
     // ── Ce que la démonstration doit produire ──
     // Le Command Log affiche les commandes GÉNÉRÉES, et Cypress propose de les

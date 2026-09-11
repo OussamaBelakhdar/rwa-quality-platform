@@ -219,8 +219,10 @@ personne a relu ce que la machine a proposé, et signé.
 figure littéralement ci-dessous. Un tag sans ligne ici fait échouer `yarn lint`.
 
 - `cypress/manual/prompt-demo.cy.ts` — démonstration `cy.prompt` (ADR-011).
-  Hors `specPattern` : elle n'entre pas dans la suite, et ce qu'elle produit
-  passe par cette même revue avant tout usage.
+  Hors `specPattern` : elle n'entre pas dans la suite. Revue faite en §7 —
+  code **non fusionné** dans la suite automatisée ; il reste ce qu'il est,
+  une démonstration, avec le prompt d'origine conservé en commentaire pour
+  la provenance.
 
 ### Retenues et corrigées — 4 sur 6
 
@@ -275,27 +277,101 @@ défaut de `check-spec.sh` en §1.
   s'exécutaient contre le vrai backend. « no alias » ne signale pas un
   intercept mal écrit ; il signale qu'il n'y en a pas.
 
-### Ce qui manque encore à cette revue
+### Capture — faite le 2026-09-11
 
-`git status` est resté vide et l'horodatage de `prompt-demo.cy.ts` précède
-l'exécution : le fichier sur disque n'a pas changé. Cypress affiche les
-commandes générées dans le Command Log et propose de les recopier (« Open in
-IDE »), mais tant que personne ne clique, elles restent éphémères. Il n'existe
-donc **encore aucun code généré à relire** au sens où ce document l'exige pour
-les six specs de §2 : pas de sélecteur à juger, pas d'assertion à mettre à
-l'épreuve. La revue de fond ne peut commencer qu'après capture de ces
-commandes.
+`CYPRESS_PROJECT_ID=<id> yarn cy:demo:prompt`, 5 `Prompt Step` déroulés, code
+récupéré via « Open in IDE » et conservé dans
+`docs/ia/brut/7-prompt-demo.cy.ts.txt`. Le fichier source garde le prompt
+original en commentaire au-dessus du code généré — c'est la même discipline de
+provenance que les six specs LLM externe.
 
-Cette capture est un geste manuel, pas un script : personne d'autre que
-l'opérateur devant le Test Runner ne peut cliquer « Open in IDE ». Pour la
-reproduire :
+### La revue, même traitement que les specs 1 à 6
 
-```
-CYPRESS_PROJECT_ID=<id> yarn cy:demo:prompt
+```js
+// Prompt step 1
+cy.get("[data-test=\"nav-top-new-transaction\"]").click();
+// Prompt step 4
+cy.get("[data-test=\"transaction-create-submit-request\"]").click()
 ```
 
-puis, une fois les 5 `Prompt Step` déroulés dans le Command Log, cliquer
-« Open in IDE » (ou copier le panneau de commandes généré) et coller le
-résultat dans un nouveau fichier `docs/ia/brut/7-prompt-demo.cy.ts.txt`, au
-même format que les six specs LLM externe. Cette revue restera incomplète tant
-que ce fichier n'existe pas, et ADR-011 tant que cette section l'affirme.
+**Correctes, et ça mérite d'être dit avant la suite** : convention `data-test`
+respectée, deux étapes sur cinq. Rien à corriger ici.
+
+```js
+// Prompt step 3
+cy.get("[name=\"amount\"]").type("25")
+cy.get("#transaction-create-description-input").type("déjeuner")
+```
+
+Deux sélecteurs qui **violeraient la règle #3 si ce fichier était dans la
+suite** : `[name="amount"]` ignore la convention `data-test`, et
+`#transaction-create-description-input` est un sélecteur `#id` — explicitement
+interdit. `cypress/manual/` n'est pas soumis à `check-spec.sh` (ADR-011,
+borne 1), donc rien ne l'a bloqué ; ça n'en fait pas un bon sélecteur, ça
+signifie seulement que ce fichier précis n'a pas de gate pour le dire.
+
+```js
+// Prompt step 5
+cy.get("#root div.css-1yjlacw").find("div:nth-child(2) > div:nth-child(1) > div > h2").should("be.visible")
+```
+
+**Le pire sélecteur des sept fichiers relus cette semaine.** `css-1yjlacw` est
+une classe générée par le moteur de style de MUI (hash de build) : elle change
+à la prochaine recompilation sans qu'aucun comportement n'ait bougé — la
+semaine 7 a déjà payé cette leçon sur une régression Dependabot (spec 6, §2).
+`div:nth-child(2) > div:nth-child(1) > div > h2` est un chemin positionnel :
+un `<div>` de plus dans le rendu et l'assertion cible autre chose sans
+erreur. Et l'assertion elle-même, `should('be.visible')`, ne vérifie ni le
+montant ni le destinataire — seulement qu'**un** `h2` est visible quelque
+part. Face à l'écran affiché (« Requested $25.00 for déjeuner »), c'est
+l'assertion la plus faible qu'on pouvait écrire pour ce qu'on voit à l'écran.
+Même défaut que la spec 1 : une assertion qui passerait aussi si la mauvaise
+transaction s'affichait.
+
+### Ce que le seed a démontré, sans qu'on ait eu besoin de le provoquer
+
+Un second run, après reseed, a **échoué à l'étape 2** :
+
+```
+AssertionError: Timed out retrying after 4000ms: Expected to find element:
+[data-test="user-list-item-GjWovtg2hr"], but never found it.
+```
+
+`GjWovtg2hr` est l'identifiant du contact affiché **au moment précis de la
+génération** — un artefact des données aléatoires du seed (`cy.seed`
+régénère l'application avec de nouveaux comptes à chaque run, c'est le
+principe P1 d'isolation qui l'exige). Le modèle a lu le DOM sous ses yeux et y
+a trouvé un identifiant stable en apparence ; il n'avait aucun moyen de savoir
+que cet identifiant ne survivrait pas au run suivant. « choisis le premier
+contact proposé » demandait une commande positionnelle ou relative
+(`.first()`, ou un `data-test` non paramétré sur l'ID) ; il a produit une
+commande qui code en dur la sortie d'un tirage aléatoire.
+
+**C'est la preuve empirique, pas seulement l'argument théorique, derrière
+ADR-011.** L'ADR affirmait qu'un gate régénéré à chaque run « détecte les
+changements de modèle, pas les régressions » — l'hypothèse non testée alors
+était que le code produit serait au moins stable *à modèle et prompt
+identiques*. Il ne l'est même pas : deux runs consécutifs, prompt identique,
+aucune régression de l'application entre les deux, un run vert et un run rouge.
+Un test dont le statut change sans qu'un seul octet de l'application ait
+changé n'est pas un test flaky au sens de `flake-diagnosis` (qui suppose une
+race condition ou une dépendance réseau) — c'est un test dont l'**identité
+même** (quel contact cliquer) n'était jamais fixée. C'est une classe d'échec
+qu'aucun `cy:burn` n'attraperait de la même façon : `cy:burn` rejoue le même
+fichier dix fois contre le même run ; ici c'est le **seed d'un run à
+l'autre** qui invalide la commande.
+
+### Conclusion propre à `cy.prompt`
+
+Sur cinq étapes : deux sélecteurs conformes, deux qui violeraient la règle #3
+en suite automatisée, une assertion décorative, et un identifiant codé en dur
+qui a fait échouer le test au run suivant sans aucune régression réelle. Le
+taux de défaut n'est pas meilleur que celui des six specs LLM externe (§3) —
+il est aggravé par un défaut qu'aucune des six n'avait : une dépendance
+littérale à une valeur aléatoire du seed, invisible tant qu'on ne rejoue pas.
+
+Ce dernier point tranche la question que la section « L'argument que je
+n'utilise pas comme argument technique » d'ADR-011 laissait ouverte : la
+démonstration n'a pas seulement rendu l'interdiction fondée sur le principe
+(non-déterminisme théorique), elle l'a rendue fondée sur un fait observé
+(non-déterminisme réel, en une tentative).
