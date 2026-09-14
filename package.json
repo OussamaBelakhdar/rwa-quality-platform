@@ -140,10 +140,10 @@
     "ts-node": "10.9.2",
     "typescript": "5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^8.2.2",
+    "vite": "^8.3.0",
     "vite-plugin-eslint": "^1.8.1",
     "vite-plugin-istanbul": "^4.1.0",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.0",
     "wait-on": "^8.0.3"
   },
   "resolutions": {
