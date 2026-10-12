@@ -159,7 +159,7 @@ jobs:
       # shard échoue — surtout quand il échoue.
       - name: Résultats du shard
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: resultats-shard-${{ matrix.shard }}
           path: results
@@ -169,7 +169,7 @@ jobs:
       # Uniquement sur échec : une vidéo verte ne sert à personne et pèse.
       - name: Artefacts de diagnostic
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: diagnostic-shard-${{ matrix.shard }}
           path: |
@@ -224,7 +224,7 @@ jobs:
       # Le XML JUnit est publié comme artefact et non sur Pages : il est fait
       # pour être lu par un outil, pas par un humain.
       - name: JUnit agrégé
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: junit
           path: results/junit
@@ -232,7 +232,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Rapport HTML
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rapport-html
           path: results/rapport
@@ -357,7 +357,7 @@ jobs:
 
       - name: Artefacts de diagnostic
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: diagnostic-component
           path: |
