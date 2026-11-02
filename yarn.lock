@@ -1769,10 +1769,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@cypress/code-coverage@^4.0.3":
-  version "4.0.3"
-  resolved "https://registry.yarnpkg.com/@cypress/code-coverage/-/code-coverage-4.0.3.tgz#0dc543537b77ed6bed4765abd9bfa69412a65f8a"
-  integrity sha512-Dsx95C6rPJrN7ruRyyh3xOy39iAmrLBclHdF+yiC7f8O1SIAOojplveBdFGj0EHf2I2ieNw7ZZpT3Qy1Fju0aA==
+"@cypress/code-coverage@^4.1.2":
+  version "4.1.2"
+  resolved "https://registry.yarnpkg.com/@cypress/code-coverage/-/code-coverage-4.1.2.tgz#41086fa1c7a40cb436b10fcea09e8610fac841c6"
+  integrity sha512-jx9ttv1DZ5L5lDaGNWdAgu1eCrQ68BKa6JzVm7oAemqsGUZXAtmV+D+CuHtYcng8San4UUXfdps+Ozhd9HAqag==
   dependencies:
     "@cypress/webpack-preprocessor" "^6.0.0"
     chalk "4.1.2"
@@ -5762,10 +5762,10 @@ cypress-split@^1.25.0:
     globby "^11.1.0"
     humanize-duration "^3.28.0"
 
-cypress@15.21.1:
-  version "15.21.1"
-  resolved "https://registry.yarnpkg.com/cypress/-/cypress-15.21.1.tgz#51653d58fa0e9994a11406aa3df2bee716264f9a"
-  integrity sha512-ogHpHMj0XNlZA5MGzjg8SWHf0eMw9lTwVQRKjpcT1GzNTxNUjwnHA8YCG6nOJ8ThU+XZaUxJgpMYZnJ//8aDaw==
+cypress@16.2.1:
+  version "16.2.1"
+  resolved "https://registry.yarnpkg.com/cypress/-/cypress-16.2.1.tgz#98993dd2e6669e303f4ec3391c380b2c59e3b005"
+  integrity sha512-3Vqf1Krr92hKww/Owob9JrDO7TgBCR2ct+OQrvBOFGSnoGsikL4YF5arqDrJb+SM8Fzi7xXIeVmCeaOqJKPhRA==
   dependencies:
     "@cypress/request" "^4.0.0"
     "@cypress/xvfb" "^1.2.4"
@@ -5783,7 +5783,7 @@ cypress@15.21.1:
     cli-table3 "0.6.1"
     commander "^6.2.1"
     common-tags "^1.8.0"
-    dayjs "^1.10.4"
+    dayjs "^1.11.23"
     debug "^4.3.4"
     eventemitter2 "6.4.7"
     execa "4.1.0"
@@ -5838,10 +5838,15 @@ dateformat@^4.5.1:
   resolved "https://registry.yarnpkg.com/dateformat/-/dateformat-4.6.3.tgz#556fa6497e5217fedb78821424f8a1c22fa3f4b5"
   integrity sha512-2P0p0pFGzHS5EMnhdxQi7aJN+iMheud0UhG4dlE1DLAlvL8JHjJJTX/CSm4JXwV0Ka5nGk3zC5mcb5bUQUxxMA==
 
-dayjs@1.11.20, dayjs@^1.10.4:
+dayjs@1.11.20:
   version "1.11.20"
   resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.11.20.tgz#88d919fd639dc991415da5f4cb6f1b6650811938"
   integrity sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ==
+
+dayjs@^1.11.23:
+  version "1.11.23"
+  resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.11.23.tgz#b0a363506dde5f36cf5075e42ebe8115165a8c79"
+  integrity sha512-QDTCU0M0MxR3hQfnlDJfwekQiaanm1ubOD231u73WBckQ/fsamwRLiE2GBz6D3a/xF1NgfiDLJjXBa1hYOYTtQ==
 
 debug@2.6.9, debug@^2.2.0, debug@^2.3.3:
   version "2.6.9"
